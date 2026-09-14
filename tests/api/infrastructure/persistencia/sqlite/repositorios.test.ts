@@ -90,13 +90,15 @@ describe("evento", () => {
   });
 
   it("persiste a transição para falhou com o erro", () => {
-    const repo = criarEventoRepositorio(abrirBanco(":memory:"));
+    const db = abrirBanco(":memory:");
+    const repo = criarEventoRepositorio(db);
     const e = repo.registrar("/x", {});
     e.marcarFalha("MedX fora do ar");
     repo.salvar(e);
 
-    const outro = criarEventoRepositorio(abrirBanco(":memory:"));
-    void outro; // o estado é verificado na mesma conexão abaixo
+    const linha: any = db.prepare("SELECT status, erro FROM eventos_recebidos WHERE id = ?").get(e.id);
+    expect(linha.status).toBe("falhou");
+    expect(linha.erro).toBe("MedX fora do ar");
   });
 
   it("expurga eventos mais antigos que a retenção", () => {
