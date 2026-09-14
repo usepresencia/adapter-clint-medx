@@ -43,6 +43,14 @@ describe("índice de status", () => {
     expect(c.indiceStatusConfirmado()).toBe(1);
   });
 
+  it("não confunde 'Confirmação Pendente' com 'Confirmado'", async () => {
+    const c = criarCatalogoMedx(
+      clientFalso(["Agendado", "Confirmação Pendente", "Confirmado", "Cancelado"]).client
+    );
+    await c.carregar();
+    expect(c.indiceStatusConfirmado()).toBe(2);
+  });
+
   it("falha no carregamento quando não existe rótulo de confirmação", async () => {
     const c = criarCatalogoMedx(clientFalso(["Agendado", "Chegou", "Cancelado"]).client);
     await expect(c.carregar()).rejects.toThrow(/Confirmado/);

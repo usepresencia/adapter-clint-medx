@@ -36,7 +36,7 @@ export function criarCatalogoMedx(
 
     profissionais = p;
     tipos = t;
-    indiceConfirmado = s.findIndex((rotulo) => chave(rotulo).startsWith("confirm"));
+    indiceConfirmado = s.findIndex((rotulo) => chave(rotulo) === "confirmado");
 
     if (indiceConfirmado < 0) {
       throw new Error(
