@@ -6,4 +6,6 @@ export interface EventoRepositorio {
   salvar(evento: EventoRecebido): void;
   /** Remove eventos mais antigos que a retenção; devolve quantos saíram. */
   expurgar(dias: number): number;
+  /** Reconstrói a entidade de um evento já gravado, para o worker atualizar seu estado. */
+  registrarExistente(id: number): EventoRecebido;
 }

@@ -35,5 +35,19 @@ export function criarEventoRepositorio(db: Database.Database): EventoRepositorio
         )
         .run(dias).changes;
     },
+
+    registrarExistente(id: number): EventoRecebido {
+      const l: any = db.prepare("SELECT * FROM eventos_recebidos WHERE id = ?").get(id);
+      if (!l) {
+        throw new Error(`Evento ${id} não encontrado`);
+      }
+      return EventoRecebido.restaurar({
+        id: l.id,
+        endpoint: l.endpoint,
+        status: l.status as StatusEvento,
+        erro: l.erro,
+        jobId: l.job_id,
+      });
+    },
   };
 }
