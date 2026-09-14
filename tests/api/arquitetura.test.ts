@@ -24,8 +24,9 @@ function violacoes(camada: string, proibidas: string[]): string[] {
   const encontradas: string[] = [];
   for (const arquivo of arquivosDe(camada)) {
     for (const importado of importesDe(arquivo)) {
+      const segmentos = importado.split("/");
       for (const proibida of proibidas) {
-        if (importado.includes(`/${proibida}/`) || importado.includes(`${proibida}/`)) {
+        if (segmentos.includes(proibida)) {
           encontradas.push(`${arquivo} importa de ${proibida}: ${importado}`);
         }
       }
@@ -43,11 +44,11 @@ describe("regras de dependência entre camadas", () => {
     expect(violacoes("application", ["infrastructure", "presentation", "composition"])).toEqual([]);
   });
 
-  it("presentation não importa de infrastructure", () => {
-    expect(violacoes("presentation", ["infrastructure"])).toEqual([]);
+  it("presentation não importa de infrastructure nem de composition", () => {
+    expect(violacoes("presentation", ["infrastructure", "composition"])).toEqual([]);
   });
 
-  it("infrastructure não importa de presentation", () => {
-    expect(violacoes("infrastructure", ["presentation"])).toEqual([]);
+  it("infrastructure não importa de presentation nem de composition", () => {
+    expect(violacoes("infrastructure", ["presentation", "composition"])).toEqual([]);
   });
 });
