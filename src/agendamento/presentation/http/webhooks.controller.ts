@@ -44,7 +44,7 @@ export class WebhooksController {
                         nome: p.nome,
                         telefone: p.telefone,
                         dataNascimento: p.data_nascimento,
-                        dataHora: p.data_hora,
+                        dataHora: `${p.dia_da_consulta}T${p.hora_da_consulta}`,
                         profissional: p.profissional,
                         tipoConsulta: p.tipo_consulta,
                         cpf: p.cpf,
