@@ -16,7 +16,8 @@
         "lint": "eslint src/",
         "format": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",
         "format:check": "prettier --check \"src/**/*.{ts,js,json,md}\"",
-        "prepare": "husky"
+        "prepare": "husky",
+        "release": "standard-version"
     },
     "keywords": [],
     "author": "",
@@ -67,6 +68,7 @@
         "lint-staged": "^16.4.0",
         "prettier": "^3.9.6",
         "prisma": "^7.10.0",
+        "standard-version": "^9.5.0",
         "supertest": "^7.2.2",
         "tsx": "^4.23.13",
         "typescript": "^5.9.3",

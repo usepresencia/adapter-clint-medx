@@ -1,0 +1,40 @@
+name: Auto-label PR
+
+on:
+    pull_request:
+        types: [opened, edited]
+
+permissions:
+    pull-requests: write
+
+jobs:
+    label:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Aplicar label de tipo baseado no título
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  PR_TITLE: ${{ github.event.pull_request.title }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  REPO: ${{ github.repository }}
+              run: |
+                  PREFIX=$(echo "$PR_TITLE" | grep -oE '^[a-z]+' || echo "")
+
+                  case "$PREFIX" in
+                    feat)     LABEL="type: feat" ;;
+                    fix)      LABEL="type: fix" ;;
+                    chore)    LABEL="type: chore" ;;
+                    refactor) LABEL="type: refactor" ;;
+                    docs)     LABEL="type: docs" ;;
+                    test)     LABEL="type: test" ;;
+                    ci)       LABEL="type: ci" ;;
+                    perf)     LABEL="type: perf" ;;
+                    *)        LABEL="" ;;
+                  esac
+
+                  if [ -n "$LABEL" ]; then
+                    gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "$LABEL"
+                    echo "✅ Label aplicado: $LABEL"
+                  else
+                    echo "::warning::Título do PR não segue conventional commits. Formato esperado: feat|fix|chore|refactor|docs|test|ci|perf[(...)]:"
+                  fi
