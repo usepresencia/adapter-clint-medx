@@ -133,20 +133,29 @@ export class AgendarConsultaUseCase {
         await this.agendamentos.salvar(agendamento);
 
         const cpf = Cpf.tentarCriar(comando.cpf);
-        if (cpf) {
-            try {
-                await this.cadastro.registrarCpf(idPaciente, cpf);
-            } catch (erro) {
-                this.logger.warn(
-                    { deal_id: comando.dealId, erro: (erro as Error).message },
-                    'não foi possível gravar o CPF na ficha do MedX',
-                );
-            }
-        } else if (comando.cpf) {
+        if (!cpf && comando.cpf) {
             this.logger.warn(
                 { deal_id: comando.dealId },
                 'CPF recebido do CRM é inválido — ignorado',
             );
+        }
+
+        const enriquecimento = {
+            ...(cpf ? { cpf } : {}),
+            ...(comando.cidade ? { cidade: comando.cidade } : {}),
+            ...(comando.endereco ? { endereco: comando.endereco } : {}),
+            ...(comando.cep ? { cep: comando.cep } : {}),
+        };
+
+        if (Object.keys(enriquecimento).length > 0) {
+            try {
+                await this.cadastro.enriquecerFicha(idPaciente, enriquecimento);
+            } catch (erro) {
+                this.logger.warn(
+                    { deal_id: comando.dealId, erro: (erro as Error).message },
+                    'não foi possível enriquecer a ficha do paciente no MedX',
+                );
+            }
         }
 
         await this.crm.gravarIdAgendamento(comando.dealId, agendamento.idMedx!);

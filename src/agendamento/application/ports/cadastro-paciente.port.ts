@@ -11,7 +11,14 @@ export interface DadosVinculo {
     sexo?: 'M' | 'F';
 }
 
+export interface DadosEnriquecimento {
+    cpf?: Cpf;
+    cidade?: string;
+    endereco?: string;
+    cep?: string;
+}
+
 export interface CadastroPacientePort {
     vincular(dados: DadosVinculo): Promise<{ idPaciente: number; matchConfiavel: boolean }>;
-    registrarCpf(idPaciente: number, cpf: Cpf): Promise<void>;
+    enriquecerFicha(idPaciente: number, dados: DadosEnriquecimento): Promise<void>;
 }

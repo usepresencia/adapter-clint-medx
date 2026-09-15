@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import type {
     CadastroPacientePort,
+    DadosEnriquecimento,
     DadosVinculo,
 } from '../../application/ports/cadastro-paciente.port';
-import type { Cpf } from '../../domain/paciente/cpf';
 import { MedxHttpClient } from './medx-http.client';
 import type { MedxVinculoResposta } from './medx.tipos';
 
@@ -35,10 +35,13 @@ export class MedxCadastroPacienteAdapter implements CadastroPacientePort {
         return { idPaciente, matchConfiavel: Boolean(resposta.Match) };
     }
 
-    async registrarCpf(idPaciente: number, cpf: Cpf): Promise<void> {
-        await this.client.put('/api/integration/contatos', {
-            Id_do_Cliente: idPaciente,
-            CPF_CGC: cpf.digitos,
-        });
+    async enriquecerFicha(idPaciente: number, dados: DadosEnriquecimento): Promise<void> {
+        const corpo: Record<string, string | number> = { Id_do_Cliente: idPaciente };
+        if (dados.cpf) corpo.CPF_CGC = dados.cpf.digitos;
+        if (dados.cidade) corpo.Cidade_Residencial = dados.cidade;
+        if (dados.endereco) corpo.Endereco_Residencial = dados.endereco;
+        if (dados.cep) corpo.Cep_Residencial = dados.cep;
+
+        await this.client.put('/api/integration/contatos', corpo);
     }
 }

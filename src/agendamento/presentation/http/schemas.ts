@@ -16,6 +16,9 @@ export const schemaAgendamento = z.object({
     cpf: z.string().optional(),
     email: z.string().optional(),
     sexo: z.enum(['M', 'F']).optional(),
+    cidade: z.string().optional(),
+    endereco: z.string().optional(),
+    cep: z.string().optional(),
 });
 
 export const schemaResposta = z.object({

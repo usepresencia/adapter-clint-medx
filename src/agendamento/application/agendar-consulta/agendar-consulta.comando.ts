@@ -9,4 +9,7 @@ export interface ComandoAgendamento {
     cpf?: string;
     email?: string;
     sexo?: 'M' | 'F';
+    cidade?: string;
+    endereco?: string;
+    cep?: string;
 }

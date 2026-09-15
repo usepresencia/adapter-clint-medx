@@ -50,6 +50,9 @@ export class WebhooksController {
                         cpf: p.cpf,
                         email: p.email,
                         sexo: p.sexo,
+                        cidade: p.cidade,
+                        endereco: p.endereco,
+                        cep: p.cep,
                     },
                 },
             };

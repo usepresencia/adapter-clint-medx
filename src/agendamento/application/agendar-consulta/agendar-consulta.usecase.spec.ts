@@ -63,7 +63,7 @@ function montar() {
     const correlacoes = correlacoesFalso();
     const cadastro = {
         vincular: vi.fn(async () => ({ idPaciente: 67890, matchConfiavel: true })),
-        registrarCpf: vi.fn(async () => {}),
+        enriquecerFicha: vi.fn(async () => {}),
     };
     const agenda = {
         criar: vi.fn(async () => 1275002478),
@@ -249,29 +249,75 @@ describe('CPF', () => {
     it('enriquece a ficha quando o CPF é válido', async () => {
         const { cadastro, usecase } = montar();
         await usecase.executar(COMANDO);
-        expect(cadastro.registrarCpf).toHaveBeenCalledWith(67890, expect.anything());
+        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
+            67890,
+            expect.objectContaining({ cpf: expect.anything() }),
+        );
     });
 
     it('ignora CPF inválido sem quebrar o agendamento', async () => {
         const { cadastro, crm, usecase } = montar();
         await usecase.executar({ ...COMANDO, cpf: '11111111111' });
-        expect(cadastro.registrarCpf).not.toHaveBeenCalled();
+        expect(cadastro.enriquecerFicha).not.toHaveBeenCalled();
         expect(crm.gravarIdAgendamento).toHaveBeenCalled();
     });
 
-    it('não chama registrarCpf quando o CPF não veio', async () => {
+    it('não chama enriquecerFicha quando não há nada para enriquecer', async () => {
         const { cadastro, usecase } = montar();
         const { cpf, ...semCpf } = COMANDO;
         await usecase.executar(semCpf);
-        expect(cadastro.registrarCpf).not.toHaveBeenCalled();
+        expect(cadastro.enriquecerFicha).not.toHaveBeenCalled();
     });
 
     it('falha ao gravar o CPF não derruba o agendamento', async () => {
         const { cadastro, crm, usecase } = montar();
-        cadastro.registrarCpf = vi.fn(async () => {
+        cadastro.enriquecerFicha = vi.fn(async () => {
             throw new Error('MedX recusou o CPF');
         });
         await expect(usecase.executar(COMANDO)).resolves.toBeUndefined();
+        expect(crm.gravarIdAgendamento).toHaveBeenCalled();
+    });
+});
+
+describe('endereço', () => {
+    it('enriquece a ficha com cidade, endereço e cep quando vierem', async () => {
+        const { cadastro, usecase } = montar();
+        await usecase.executar({
+            ...COMANDO,
+            cidade: 'São Paulo',
+            endereco: 'Rua Teste, 450',
+            cep: '01310100',
+        });
+
+        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
+            67890,
+            expect.objectContaining({
+                cidade: 'São Paulo',
+                endereco: 'Rua Teste, 450',
+                cep: '01310100',
+            }),
+        );
+    });
+
+    it('combina cpf e endereço numa única chamada de enriquecimento', async () => {
+        const { cadastro, usecase } = montar();
+        await usecase.executar({ ...COMANDO, cidade: 'São Paulo' });
+
+        expect(cadastro.enriquecerFicha).toHaveBeenCalledTimes(1);
+        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
+            67890,
+            expect.objectContaining({ cpf: expect.anything(), cidade: 'São Paulo' }),
+        );
+    });
+
+    it('falha ao enriquecer endereço não derruba o agendamento', async () => {
+        const { cadastro, crm, usecase } = montar();
+        cadastro.enriquecerFicha = vi.fn(async () => {
+            throw new Error('MedX recusou o endereço');
+        });
+        await expect(
+            usecase.executar({ ...COMANDO, cidade: 'São Paulo' }),
+        ).resolves.toBeUndefined();
         expect(crm.gravarIdAgendamento).toHaveBeenCalled();
     });
 });
