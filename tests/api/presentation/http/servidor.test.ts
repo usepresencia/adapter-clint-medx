@@ -103,6 +103,29 @@ describe("POST /webhooks/clint/agendamento", () => {
     expect(statusUnico()).toBe("invalido");
   });
 
+  it("responde 200 e marca inválido quando deal_id não é um UUID", async () => {
+    const { app, deps, statusUnico } = montar();
+    const r = await postar(app, "/webhooks/clint/agendamento", { ...AGENDAMENTO, deal_id: "nao-e-uuid" }, SEGREDO);
+
+    expect(r.statusCode).toBe(200);
+    expect(deps.fila.add).not.toHaveBeenCalled();
+    expect(statusUnico()).toBe("invalido");
+  });
+
+  it("responde 200 e marca inválido quando data_nascimento não está em YYYY-MM-DD", async () => {
+    const { app, deps, statusUnico } = montar();
+    const r = await postar(
+      app,
+      "/webhooks/clint/agendamento",
+      { ...AGENDAMENTO, data_nascimento: "10/07/2026" },
+      SEGREDO
+    );
+
+    expect(r.statusCode).toBe(200);
+    expect(deps.fila.add).not.toHaveBeenCalled();
+    expect(statusUnico()).toBe("invalido");
+  });
+
   it("responde 200 mesmo quando a fila está fora do ar", async () => {
     const { app } = montar({
       fila: {
@@ -156,6 +179,26 @@ describe("POST /webhooks/clint/resposta-lembrete", () => {
 
     const job = (deps.fila.add as any).mock.calls[0][1];
     expect(job.comando.idAgendamentoMedx).toBe(1275002478);
+  });
+});
+
+describe("rotas desconhecidas — garantia de sempre 200", () => {
+  it("responde 200 para uma rota inexistente", async () => {
+    const { app, deps } = montar();
+    const r = await app.inject({ method: "POST", url: "/webhooks/clint/nao-existe", payload: {} });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toEqual({ ok: true });
+    expect(deps.logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ alerta: true }),
+      expect.any(String)
+    );
+  });
+
+  it("responde 200 para método errado numa rota existente", async () => {
+    const { app } = montar();
+    const r = await app.inject({ method: "GET", url: "/webhooks/clint/agendamento" });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toEqual({ ok: true });
   });
 });
 

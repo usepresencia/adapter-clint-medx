@@ -45,7 +45,7 @@ writeFileSync("docs/descoberta-medx.json", JSON.stringify(resultado, null, 2));
 
 const rotulos = Array.isArray(resultado.status) ? resultado.status : [];
 const indice = rotulos.findIndex(
-  (r) => typeof r === "string" && r.trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").startsWith("confirm")
+  (r) => typeof r === "string" && r.trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "") === "confirmado"
 );
 
 console.log("\n\n=== CHECKLIST ===");

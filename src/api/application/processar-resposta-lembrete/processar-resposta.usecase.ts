@@ -53,6 +53,10 @@ export function criarProcessarResposta(deps: DepsProcessarResposta) {
       return;
     }
 
+    if (agendamento.idMedx !== comando.idAgendamentoMedx) {
+      return recusar("id de agendamento informado pelo CRM não confere com o registro local");
+    }
+
     const externo = await deps.agenda.obter(comando.idAgendamentoMedx);
 
     const avaliacao = agendamento.avaliarConfirmacao(

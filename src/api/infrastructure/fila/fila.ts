@@ -1,6 +1,5 @@
 import { Queue, Worker, type ConnectionOptions, type JobsOptions } from "bullmq";
 import type { JobAdapter } from "../../application/ports/fila.port.js";
-import { ErroRateLimit } from "../medx/medx.erros.js";
 import { processarJob, type DepsProcessador } from "./processador.js";
 
 export type { DepsProcessador };
@@ -25,17 +24,11 @@ export function criarFila(conexao: ConnectionOptions): Queue<JobAdapter> {
 }
 
 export function criarWorker(deps: DepsProcessador, conexao: ConnectionOptions): Worker<JobAdapter> {
-  const worker = new Worker<JobAdapter>(
+  const worker: Worker<JobAdapter> = new Worker<JobAdapter>(
     NOME_FILA,
-    async (job) => processarJob(deps, job.data),
+    async (job) => processarJob(deps, job.data, worker),
     { connection: conexao, concurrency: 1, limiter: { ...LIMITER } }
   );
-
-  worker.on("failed", (_job, erro) => {
-    if (erro instanceof ErroRateLimit) {
-      void worker.rateLimit(erro.esperarSegundos * 1000);
-    }
-  });
 
   return worker;
 }

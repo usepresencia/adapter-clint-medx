@@ -38,6 +38,14 @@ describe("ciclo de vida", () => {
     expect(a.tentativaInterrompida).toBe(false);
   });
 
+  it("reconhece uma tentativa interrompida também após marcarFalha sem idMedx", () => {
+    const a = novo();
+    a.marcarFalha();
+    expect(a.status).toBe("falhou");
+    expect(a.idMedx).toBeNull();
+    expect(a.tentativaInterrompida).toBe(true);
+  });
+
   it("adota um agendamento que já existia no MedX", () => {
     const a = novo();
     a.adotarExistente(999);

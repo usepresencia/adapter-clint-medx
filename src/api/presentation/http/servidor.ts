@@ -133,5 +133,13 @@ export function criarServidor(deps: DepsServidor): FastifyInstance {
     return resposta.status(tudoOk ? 200 : 503).send(saude);
   });
 
+  app.setNotFoundHandler((requisicao, resposta) => {
+    deps.logger.warn(
+      { alerta: true, metodo: requisicao.method, url: requisicao.url },
+      "webhook chegou em rota inexistente — conferir a configuração no Clint"
+    );
+    return resposta.status(200).send(OK);
+  });
+
   return app;
 }

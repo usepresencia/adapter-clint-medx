@@ -149,6 +149,22 @@ describe("idempotência", () => {
     expect(deps.crm.gravarIdAgendamento).toHaveBeenCalledWith("deal-1", 555);
   });
 
+  it("após falha em agenda.criar, retry adota órfão gêmeo em vez de criar de novo", async () => {
+    const { deps, executar } = montar();
+    deps.agenda.criar = vi.fn(async () => {
+      throw new Error("timeout na chamada ao MedX");
+    });
+
+    await expect(executar(COMANDO)).rejects.toThrow(/timeout/);
+
+    deps.agenda.listarPorPaciente = vi.fn(async () => [externo({ id: 777 })]);
+
+    await executar(COMANDO);
+
+    expect(deps.agenda.criar).toHaveBeenCalledTimes(1);
+    expect(deps.crm.gravarIdAgendamento).toHaveBeenCalledWith("deal-1", 777);
+  });
+
   it("cria normalmente quando não há órfão correspondente", async () => {
     const { deps, agendamentos } = montar();
     agendamentos.salvar(

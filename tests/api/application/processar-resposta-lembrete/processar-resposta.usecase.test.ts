@@ -143,6 +143,20 @@ describe("recusas", () => {
     expect(deps.crm.notificarConflito).toHaveBeenCalled();
   });
 
+  it("recusa quando o id do agendamento do CRM não bate com o registro local", async () => {
+    const { deps, executar, agendamentos } = montar();
+    // O registro local foi criado com idMedx 1275002478 (ver `montar`), mas o
+    // payload do Clint chega com um id diferente (campo customizado desatualizado).
+    await executar({ ...CONFIRMAR, idAgendamentoMedx: 999999999 });
+
+    expect(deps.agenda.obter).not.toHaveBeenCalled();
+    expect(deps.crm.notificarConflito).toHaveBeenCalledWith(
+      "deal-1",
+      expect.stringMatching(/não confere|diverg/i)
+    );
+    expect(agendamentos.buscarPorDeal("deal-1")!.status).toBe("conflito");
+  });
+
   it("rejeita resposta fora das três opções", async () => {
     const { executar } = montar();
     await expect(executar({ ...CONFIRMAR, resposta: "talvez" })).rejects.toThrow(/talvez/);

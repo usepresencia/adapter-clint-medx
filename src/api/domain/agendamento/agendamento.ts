@@ -85,7 +85,10 @@ export class Agendamento {
 
   /** Houve uma tentativa de criação que não chegou a registrar o id — pode haver órfão no MedX. */
   get tentativaInterrompida(): boolean {
-    return this.statusInterno === "enviando" && this.idMedxInterno === null;
+    return (
+      this.idMedxInterno === null &&
+      (this.statusInterno === "enviando" || this.statusInterno === "falhou")
+    );
   }
 
   registrarCriacao(idMedx: number): void {

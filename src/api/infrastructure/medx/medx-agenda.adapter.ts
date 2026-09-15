@@ -45,8 +45,11 @@ export function criarAgendaMedx(client: MedxClient): AgendaMedicaPort {
 
       const id = Number(resposta);
       if (!Number.isInteger(id) || id <= 0) {
+        // Não serializar o corpo da resposta aqui: se o MedX ecoar a
+        // Descricao enviada (que contém o nome da paciente), o conteúdo vaza
+        // em log/e-mail de alerta sem passar pela redação de PII do pino.
         throw new Error(
-          `MedX não devolveu um id de agendamento válido: ${JSON.stringify(resposta)}`
+          `MedX não devolveu um id de agendamento válido (tipo recebido: ${typeof resposta})`
         );
       }
       return id;
