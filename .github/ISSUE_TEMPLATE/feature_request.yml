@@ -1,0 +1,58 @@
+name: ✨ Feature Request
+description: Sugerir uma nova funcionalidade ou melhoria
+labels: ['type: feat', 'status: needs-info']
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Descreva a funcionalidade que gostaria de ver implementada.
+
+    - type: textarea
+      id: problem
+      attributes:
+          label: Problema ou necessidade
+          description: Qual problema esta funcionalidade resolve?
+      validations:
+          required: true
+
+    - type: textarea
+      id: solution
+      attributes:
+          label: Solução proposta
+      validations:
+          required: true
+
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Alternativas consideradas
+
+    - type: textarea
+      id: context
+      attributes:
+          label: Contexto adicional
+
+    - type: dropdown
+      id: priority
+      attributes:
+          label: Prioridade sugerida
+          options:
+              - 'priority: high'
+              - 'priority: medium'
+              - 'priority: low'
+      validations:
+          required: true
+
+    - type: dropdown
+      id: area
+      attributes:
+          label: Área relacionada
+          options:
+              - 'area: medx'
+              - 'area: clint'
+              - 'area: fila'
+              - 'area: agendamento'
+              - 'area: infra'
+              - 'area: security'
+      validations:
+          required: true

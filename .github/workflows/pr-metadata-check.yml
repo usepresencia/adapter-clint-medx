@@ -1,0 +1,58 @@
+name: PR Metadata Check
+
+on:
+    pull_request:
+        types:
+            [
+                opened,
+                edited,
+                synchronize,
+                ready_for_review,
+                labeled,
+                unlabeled,
+                assigned,
+                unassigned,
+                milestoned,
+                demilestoned,
+            ]
+
+permissions:
+    pull-requests: read
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Verificar metadados obrigatórios
+              env:
+                  ASSIGNEES: ${{ toJson(github.event.pull_request.assignees) }}
+                  MILESTONE: ${{ toJson(github.event.pull_request.milestone) }}
+                  LABELS: ${{ toJson(github.event.pull_request.labels) }}
+              run: |
+                  ERRORS=0
+
+                  ASSIGNEE_COUNT=$(echo "$ASSIGNEES" | jq 'length')
+                  if [ "$ASSIGNEE_COUNT" -eq 0 ]; then
+                    echo "::error::PR deve ter pelo menos um responsável (assignee)"
+                    ERRORS=$((ERRORS+1))
+                  fi
+
+                  IS_NULL=$(echo "$MILESTONE" | jq '. == null')
+                  if [ "$IS_NULL" = "true" ]; then
+                    echo "::error::PR deve ter uma milestone definida"
+                    ERRORS=$((ERRORS+1))
+                  fi
+
+                  LABEL_COUNT=$(echo "$LABELS" | jq 'length')
+                  if [ "$LABEL_COUNT" -eq 0 ]; then
+                    echo "::error::PR deve ter pelo menos um label (type:, priority: ou area:)"
+                    ERRORS=$((ERRORS+1))
+                  fi
+
+                  if [ "$ERRORS" -gt 0 ]; then
+                    echo ""
+                    echo "❌ $ERRORS metadado(s) obrigatório(s) faltando. Corrija antes de fazer merge."
+                    exit 1
+                  fi
+
+                  echo "✅ Todos os metadados obrigatórios presentes."

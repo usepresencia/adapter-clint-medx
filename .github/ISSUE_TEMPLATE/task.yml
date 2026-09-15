@@ -1,0 +1,56 @@
+name: 📦 Task / Chore
+description: Tarefa técnica, refatoração, manutenção ou melhoria de CI/CD
+labels: ['type: chore', 'status: ready']
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Use este template para tarefas técnicas que não são bugs nem features.
+
+    - type: textarea
+      id: description
+      attributes:
+          label: Descrição da tarefa
+      validations:
+          required: true
+
+    - type: textarea
+      id: acceptance
+      attributes:
+          label: Critérios de aceitação
+          placeholder: |
+              - [ ] O build passa sem warnings
+              - [ ] Testes cobrem os casos X e Y
+              - [ ] Documentação atualizada
+      validations:
+          required: true
+
+    - type: textarea
+      id: context
+      attributes:
+          label: Contexto técnico
+
+    - type: dropdown
+      id: type
+      attributes:
+          label: Tipo
+          options:
+              - 'type: chore'
+              - 'type: refactor'
+              - 'type: docs'
+              - 'type: test'
+              - 'type: ci'
+              - 'type: perf'
+      validations:
+          required: true
+
+    - type: dropdown
+      id: priority
+      attributes:
+          label: Prioridade
+          options:
+              - 'priority: high'
+              - 'priority: medium'
+              - 'priority: low'
+      validations:
+          required: true
