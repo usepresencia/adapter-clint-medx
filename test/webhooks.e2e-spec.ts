@@ -19,6 +19,7 @@ import { CRM_PORT } from '../src/agendamento/application/ports/crm.port';
 import { FILA_PORT } from '../src/agendamento/application/ports/fila.port';
 import { LOGGER_PORT } from '../src/agendamento/application/ports/logger.port';
 import { NotFoundFilter } from '../src/shared/presentation/not-found.filter';
+import { PrismaService } from '../src/shared/persistence/prisma.service';
 
 const SEGREDO = 'segredo-de-teste';
 
@@ -48,7 +49,7 @@ const agendaFalsa = {
 };
 const cadastroFalso = {
     vincular: vi.fn(async () => ({ idPaciente: 67890, matchConfiavel: true })),
-    registrarCpf: vi.fn(async () => {}),
+    enriquecerFicha: vi.fn(async () => {}),
 };
 const crmFalso = {
     gravarIdAgendamento: vi.fn(async () => {}),
@@ -63,7 +64,8 @@ const AGENDAMENTO = {
     nome: 'Maria Silva',
     telefone: '+5511999998888',
     data_nascimento: '1990-05-20',
-    data_hora: '2026-07-10T14:00:00-03:00',
+    dia_da_consulta: '2026-07-10',
+    hora_da_consulta: '14:00',
     profissional: 'Leize Ferreira',
     tipo_consulta: 'Consulta de Rotina',
 };
@@ -73,6 +75,25 @@ const RESPOSTA = {
     id_agendamento_medx: 1275002478,
     resposta: 'confirmar',
 };
+
+/**
+ * O evento é gravado e atualizado (status/erro/jobId) de forma síncrona dentro
+ * do próprio handler HTTP, antes da resposta — mesmo o processamento real do
+ * usecase sendo assíncrono (fila). Por isso dá pra checar aqui, sem esperar o
+ * worker: é a única forma confiável de distinguir "aceito" de "inválido",
+ * já que os dois casos respondem 200 (garantia sempre-200).
+ *
+ * Filtra pelo deal_id dentro do payload bruto (não por "o mais recente da
+ * tabela"): jobs de execuções anteriores da suíte podem ainda estar na fila
+ * do Redis e serem processados fora de ordem, contaminando um simples
+ * `ORDER BY id DESC LIMIT 1`.
+ */
+async function eventoDoDeal(prisma: PrismaService, dealId: string) {
+    return prisma.eventoRecebido.findFirst({
+        where: { payloadBruto: { path: ['deal_id'], equals: dealId } },
+        orderBy: { id: 'desc' },
+    });
+}
 
 async function construirApp(overrideFila = false): Promise<INestApplication> {
     const builder = Test.createTestingModule({ imports: [AppModule] })
@@ -102,9 +123,11 @@ async function construirApp(overrideFila = false): Promise<INestApplication> {
 
 describe('webhooks (e2e)', () => {
     let app: INestApplication;
+    let prisma: PrismaService;
 
     beforeAll(async () => {
         app = await construirApp();
+        prisma = app.get(PrismaService);
     });
 
     afterAll(async () => {
@@ -130,29 +153,48 @@ describe('webhooks (e2e)', () => {
 
     describe('POST /webhooks/clint/agendamento', () => {
         it('aceita o payload válido e responde 200', async () => {
+            const dealId = '11111111-1111-4111-8111-111111111111';
             const r = await request(app.getHttpServer())
                 .post('/webhooks/clint/agendamento')
                 .set('x-adapter-secret', SEGREDO)
-                .send({ ...AGENDAMENTO, deal_id: '11111111-1111-1111-1111-111111111111' });
+                .send({ ...AGENDAMENTO, deal_id: dealId });
             expect(r.status).toBe(200);
             expect(r.body).toEqual({ ok: true });
+
+            const evento = await eventoDoDeal(prisma, dealId);
+            // 'recebido' (enfileirado) ou já 'processado' pelo worker — é uma
+            // corrida legítima com o processamento assíncrono; o que importa
+            // aqui é que NÃO foi marcado como inválido.
+            expect(['recebido', 'processado']).toContain(evento?.status);
+            expect(evento?.erro).toBeNull();
+            expect(evento?.jobId).not.toBeNull();
         });
 
         it('responde 200 e não enfileira quando falta campo obrigatório', async () => {
+            const dealId = '22222222-2222-4222-8222-222222222222';
             const { telefone, ...semTelefone } = AGENDAMENTO;
             const r = await request(app.getHttpServer())
                 .post('/webhooks/clint/agendamento')
                 .set('x-adapter-secret', SEGREDO)
-                .send({ ...semTelefone, deal_id: '22222222-2222-2222-2222-222222222222' });
+                .send({ ...semTelefone, deal_id: dealId });
             expect(r.status).toBe(200);
+
+            const evento = await eventoDoDeal(prisma, dealId);
+            expect(evento?.status).toBe('invalido');
+            expect(evento?.erro).toContain('telefone');
         });
 
         it('responde 200 e não enfileira quando deal_id não é uuid', async () => {
+            const dealId = 'nao-e-um-uuid';
             const r = await request(app.getHttpServer())
                 .post('/webhooks/clint/agendamento')
                 .set('x-adapter-secret', SEGREDO)
-                .send({ ...AGENDAMENTO, deal_id: 'nao-e-um-uuid' });
+                .send({ ...AGENDAMENTO, deal_id: dealId });
             expect(r.status).toBe(200);
+
+            const evento = await eventoDoDeal(prisma, dealId);
+            expect(evento?.status).toBe('invalido');
+            expect(evento?.erro).toContain('deal_id');
         });
 
         it('responde 200 para JSON malformado', async () => {
@@ -166,28 +208,37 @@ describe('webhooks (e2e)', () => {
     });
 
     describe('POST /webhooks/clint/resposta-lembrete', () => {
-        it.each(['confirmar', 'reagendar', 'cancelar'])('aceita a resposta %s', async resposta => {
+        it.each([
+            ['confirmar', '33333333-3333-4333-8333-333333333330'],
+            ['reagendar', '33333333-3333-4333-8333-333333333331'],
+            ['cancelar', '33333333-3333-4333-8333-333333333332'],
+        ])('aceita a resposta %s', async (resposta, dealId) => {
             const r = await request(app.getHttpServer())
                 .post('/webhooks/clint/resposta-lembrete')
                 .set('x-adapter-secret', SEGREDO)
-                .send({
-                    ...RESPOSTA,
-                    deal_id: `33333333-3333-3333-3333-33333333333${resposta.length}`,
-                    resposta,
-                });
+                .send({ ...RESPOSTA, deal_id: dealId, resposta });
             expect(r.status).toBe(200);
+
+            const evento = await eventoDoDeal(prisma, dealId);
+            // Mesma corrida legítima com o worker assíncrono do caso de
+            // agendamento — aqui o usecase nem chega a lançar erro quando
+            // não encontra o agendamento local (recusa é fluxo normal),
+            // então o evento sempre acaba 'processado', não 'falhou'.
+            expect(['recebido', 'processado']).toContain(evento?.status);
+            expect(evento?.erro).toBeNull();
         });
 
-        it('responde 200 para resposta fora do enum', async () => {
+        it('responde 200 e não enfileira quando a resposta está fora do enum', async () => {
+            const dealId = '44444444-4444-4444-8444-444444444444';
             const r = await request(app.getHttpServer())
                 .post('/webhooks/clint/resposta-lembrete')
                 .set('x-adapter-secret', SEGREDO)
-                .send({
-                    ...RESPOSTA,
-                    deal_id: '44444444-4444-4444-4444-444444444444',
-                    resposta: 'talvez',
-                });
+                .send({ ...RESPOSTA, deal_id: dealId, resposta: 'talvez' });
             expect(r.status).toBe(200);
+
+            const evento = await eventoDoDeal(prisma, dealId);
+            expect(evento?.status).toBe('invalido');
+            expect(evento?.erro).toContain('resposta');
         });
     });
 
@@ -213,20 +264,27 @@ describe('webhooks (e2e)', () => {
 
 describe('webhooks (e2e) — fila indisponível', () => {
     let app: INestApplication;
+    let prisma: PrismaService;
 
     beforeAll(async () => {
         app = await construirApp(true);
+        prisma = app.get(PrismaService);
     });
 
     afterAll(async () => {
         await app.close();
     });
 
-    it('responde 200 mesmo quando a fila está fora do ar', async () => {
+    it('responde 200 mesmo quando a fila está fora do ar, e grava o evento como falhou', async () => {
+        const dealId = '55555555-5555-4555-8555-555555555555';
         const r = await request(app.getHttpServer())
             .post('/webhooks/clint/agendamento')
             .set('x-adapter-secret', SEGREDO)
-            .send({ ...AGENDAMENTO, deal_id: '55555555-5555-5555-5555-555555555555' });
+            .send({ ...AGENDAMENTO, deal_id: dealId });
         expect(r.status).toBe(200);
+
+        const evento = await eventoDoDeal(prisma, dealId);
+        expect(evento?.status).toBe('falhou');
+        expect(evento?.erro).toContain('Redis indisponível');
     });
 });
