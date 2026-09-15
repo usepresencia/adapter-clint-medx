@@ -6406,6 +6406,14 @@ dist
 
 - [ ] **Step 2: `Dockerfile`**
 
+**Nota de execução (descoberta ao rodar `docker build` de verdade):** o Prisma 7 exige
+`DATABASE_URL` resolvível por `prisma.config.ts` mesmo para `prisma generate` (que não
+conecta de fato ao banco) — sem isso o build quebra com `PrismaConfigEnvError`. A correção,
+confirmada como o padrão do `api-agendaflow`, é passar um `DATABASE_URL` fictício como
+build arg só para o estágio de build, e copiar `prisma.config.ts` também para o estágio
+`runner` (o `entrypoint.sh` chama `prisma migrate deploy` em runtime, que também carrega
+esse arquivo).
+
 ```dockerfile
 FROM node:22-slim AS deps
 WORKDIR /app
@@ -6415,6 +6423,10 @@ RUN npm ci
 FROM deps AS builder
 WORKDIR /app
 COPY . .
+# prisma.config.ts exige DATABASE_URL resolvível para o CLI (mesmo que "generate"
+# não conecte de fato) — usa um valor fictício só para o build.
+ARG DATABASE_URL="postgresql://user:password@localhost:5432/adapter"
+ENV DATABASE_URL=$DATABASE_URL
 RUN npx prisma generate
 RUN npm run build
 RUN npm prune --omit=dev
@@ -6426,6 +6438,7 @@ COPY package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh && chown -R node:node /app
 USER node
