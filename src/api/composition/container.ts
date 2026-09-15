@@ -26,6 +26,7 @@ import { envolverComAlertas, NOTIFICADOR_SILENCIOSO } from "../infrastructure/ob
 import { criarNotificadorEmail } from "../infrastructure/observabilidade/notificador-email.js";
 
 import { criarServidor } from "../presentation/http/servidor.js";
+import { registrarPainelFila } from "../presentation/http/painel-fila.js";
 
 export interface Aplicacao {
   app: FastifyInstance;
@@ -137,6 +138,18 @@ export async function montarAplicacao(env: Env): Promise<Aplicacao> {
       medx: await tokens.obterToken().then(() => true).catch(() => false),
     }),
   });
+
+  const painelAtivo = await registrarPainelFila(app, fila, {
+    usuario: env.BULLBOARD_USUARIO,
+    senha: env.BULLBOARD_SENHA,
+  });
+
+  loggerBase.info(
+    { painel: painelAtivo },
+    painelAtivo
+      ? "Bull Board disponível em /admin/filas"
+      : "Bull Board desativado — defina BULLBOARD_USUARIO e BULLBOARD_SENHA para habilitar"
+  );
 
   return {
     app,
