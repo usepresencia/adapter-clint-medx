@@ -50,13 +50,22 @@ profissionais, tipos de consulta e o índice real de status da conta. O adapter 
 se não encontrar um rótulo de status correspondente a "Confirmado" (falha explícita no
 `onModuleInit` do `AgendamentoModule`).
 
+## Produção
+
+Domínio: `api.draleize.com.br` (secret `API_DOMAIN` no GitHub, usado pelo healthcheck do
+CD em `.github/workflows/cd.yaml`). O reverse proxy/TLS até o container roda fora deste
+repositório, direto na VPS.
+
 ## Configuração no Clint
 
 - Campo customizado `id_agendamento_medx` no negócio.
-- Webhook de saída com gatilho "mudar de etapa" → `POST /webhooks/clint/agendamento`, com
-  o header `X-Adapter-Secret`.
-- Webhook de saída da resposta do lembrete → `POST /webhooks/clint/resposta-lembrete`.
-- Integrações de entrada recebendo o retorno do adapter.
+- Webhook de saída com gatilho "mudar de etapa" →
+  `POST https://api.draleize.com.br/webhooks/clint/agendamento`, com o header
+  `X-Adapter-Secret`.
+- Webhook de saída da resposta do lembrete →
+  `POST https://api.draleize.com.br/webhooks/clint/resposta-lembrete`, com o mesmo header.
+- Integrações de entrada recebendo o retorno do adapter (`CLINT_WEBHOOK_AGENDAMENTO_URL`
+  e `CLINT_WEBHOOK_NOTIFICACAO_URL` no `.env`).
 
 ## Regra inegociável
 
