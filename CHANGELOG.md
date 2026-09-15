@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.1.1](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.1.0...v1.1.1) (2026-09-15)
+
+### Bug Fixes
+
+- usa GITHUB_TOKEN automático para login no GHCR na VPS ([e4d6973](https://github.com/useagendaflow/adapter-clint-medx/commit/e4d6973ee5bd8b67c6b8c9cedd5f5e3f012b9a5a))
+
 ## 1.1.0 (2026-09-15)
 
 ### Features
