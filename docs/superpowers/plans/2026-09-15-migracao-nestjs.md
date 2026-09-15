@@ -4960,9 +4960,10 @@ function montar() {
     processarResposta as any,
     logger as any,
   );
-  // WorkerHost.worker normalmente é atribuído pelo runtime do Nest; em teste
-  // direto, atribuímos um dublê mínimo.
-  processor.worker = { rateLimit: vi.fn() } as any;
+  // Em @nestjs/bullmq 11.x, WorkerHost.worker é um getter só-leitura apoiado
+  // no campo privado `_worker` (atribuído pelo runtime do Nest); em teste
+  // direto, atribuímos o dublê diretamente no backing field.
+  (processor as any)._worker = { rateLimit: vi.fn() };
 
   return { eventos, agendarConsulta, processarResposta, logger, processor };
 }
