@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model EventoRecebido {
+  id           Int      @id @default(autoincrement())
+  endpoint     String
+  payloadBruto Json     @map("payload_bruto")
+  recebidoEm   DateTime @default(now()) @map("recebido_em")
+  status       String
+  jobId        String?  @map("job_id")
+  erro         String?
+
+  @@index([recebidoEm])
+  @@map("eventos_recebidos")
+}
+
+model PacienteCorrelacao {
+  telefoneE164   String   @id @map("telefone_e164")
+  medxIdCliente  Int      @map("medx_id_cliente")
+  clintContactId String?  @map("clint_contact_id")
+  matchConfiavel Boolean  @map("match_confiavel")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  @@map("pacientes_correlacao")
+}
+
+// inicio/ultimaEdicao são String, NÃO DateTime — ver Global Constraints e spec Seção 5:
+// PeriodoConsulta produz uma string sem timezone representando horário local da clínica;
+// DateTime->Date do JS reintroduziria dependência do timezone do container.
+model Agendamento {
+  dealId            String   @id @map("deal_id")
+  medxIdAgendamento Int?     @map("medx_id_agendamento")
+  medxIdCliente     Int      @map("medx_id_cliente")
+  medxIdUsuario     Int      @map("medx_id_usuario")
+  inicio            String
+  duracaoMinutos    Int      @map("duracao_minutos")
+  ultimaEdicao      String?  @map("ultima_edicao")
+  status            String
+  criadoEm          DateTime @default(now()) @map("criado_em")
+  atualizadoEm      DateTime @updatedAt @map("atualizado_em")
+
+  @@index([medxIdAgendamento])
+  @@map("agendamentos")
+}

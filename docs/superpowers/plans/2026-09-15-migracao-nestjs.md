@@ -1904,6 +1904,7 @@ git commit -m "feat: ports da camada de aplicação com Symbol tokens de DI"
 
 **Files:**
 - Create: `prisma/schema.prisma`
+- Create: `prisma.config.ts`
 - Create: `src/shared/persistence/prisma.service.ts`
 - Create: `.env` (local, não versionado) e `.env.example` com `DATABASE_URL` de exemplo
 - Test: `src/shared/persistence/prisma.service.spec.ts`
@@ -1918,6 +1919,14 @@ Um Postgres local (ou em container) é necessário a partir desta task para
 `DATABASE_URL` (subir com `docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres
 -e POSTGRES_DB=adapter postgres:16-alpine` se não houver um já rodando localmente).
 
+**Nota de execução (descoberta ao rodar `prisma generate` com Prisma 7.10, confirmada
+como o padrão real do api-agendaflow):** o Prisma 7 não aceita mais `url = env(...)`
+dentro de `datasource` no `schema.prisma`, e o `PrismaClient` não conecta mais sozinho a
+partir de `DATABASE_URL` — exige um driver adapter explícito (`@prisma/adapter-pg` sobre
+um `pg.Pool`), configurado tanto para a CLI (`prisma.config.ts`) quanto para o client em
+runtime (dentro de `PrismaService`). Instale `@prisma/adapter-pg`, `pg` e, como
+devDependency, `@types/pg` e `dotenv` antes do Step 1.
+
 - [ ] **Step 1: `prisma/schema.prisma`**
 
 ```prisma
@@ -1927,7 +1936,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model EventoRecebido {
@@ -1973,7 +1981,7 @@ model Agendamento {
 }
 ```
 
-- [ ] **Step 2: `.env` local e `.env.example` mínimo (expandido na Task 26)**
+- [ ] **Step 2: `.env` local, `.env.example` mínimo (expandido na Task 26) e `prisma.config.ts`**
 
 `.env` (não commitar — confirme que `.gitignore` já ignora `.env`):
 ```
@@ -1983,6 +1991,21 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/adapter"
 `.env.example` (versionado, criado agora com só esta variável — as demais entram na Task 26):
 ```
 DATABASE_URL="postgresql://user:password@localhost:5432/adapter"
+```
+
+`prisma.config.ts` (a CLI do Prisma 7 não lê mais `url` do `schema.prisma` — a conexão
+para `migrate`/`generate` vem daqui; `dotenv/config` carrega o `.env` antes de `env()`
+resolver a variável):
+```ts
+import 'dotenv/config';
+import { defineConfig, env } from 'prisma/config';
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  datasource: {
+    url: env('DATABASE_URL'),
+  },
+});
 ```
 
 - [ ] **Step 3: Gerar o client e rodar a primeira migration**
@@ -2032,12 +2055,27 @@ Expected: FAIL — módulo inexistente.
 
 - [ ] **Step 6: Implementar `src/shared/persistence/prisma.service.ts`**
 
+O Prisma 7 exige um driver adapter explícito — `PrismaClient` sozinho não conecta mais a
+partir de `DATABASE_URL`. `vitest.config.ts` também precisa de `import 'dotenv/config'`
+no topo para que `process.env.DATABASE_URL` exista quando os testes instanciam
+`PrismaService()` diretamente (sem passar pelo `ConfigModule` do Nest).
+
 ```ts
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  constructor() {
+    const url = process.env.DATABASE_URL;
+    if (!url) {
+      throw new Error('DATABASE_URL é obrigatório para conectar ao Postgres');
+    }
+    super({ adapter: new PrismaPg(new Pool({ connectionString: url })) });
+  }
+
   async onModuleInit(): Promise<void> {
     await this.$connect();
   }
@@ -2051,7 +2089,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 - [ ] **Step 7: Rodar o teste e confirmar que passa**
 
 Run: `npx vitest run src/shared/persistence/prisma.service.spec.ts`
-Expected: PASS — 2 testes (exige o Postgres local acessível via `DATABASE_URL`).
+Expected: PASS — 2 testes (exige o Postgres local acessível via `DATABASE_URL`, e
+`vitest.config.ts` com `import 'dotenv/config'` no topo).
 
 - [ ] **Step 8: Commit**
 
