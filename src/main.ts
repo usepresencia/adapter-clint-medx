@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
     app.useLogger(app.get(Logger));
 
     const logger = app.get<LoggerMinimo>(LOGGER_PORT);
-    app.useGlobalFilters(new NotFoundFilter(logger));
+    app.useGlobalFilters(new NotFoundFilter(app.get(HttpAdapterHost), logger));
 
     const fila = app.get<Queue>(getQueueToken(NOME_FILA));
     const painelAtivo = registrarPainelFila(app, fila, {

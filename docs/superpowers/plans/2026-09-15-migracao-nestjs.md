@@ -5627,6 +5627,12 @@ export class WebhookAlwaysOkFilter implements ExceptionFilter {
 
 - [ ] **Step 3: Implementar `src/shared/presentation/not-found.filter.ts`**
 
+**Atualizado na Task 28** (empiricamente: corpo JSON malformado escapa desta versão
+`@Catch(NotFoundException)` porque o `SyntaxError` do body-parser do Express não é uma
+`NotFoundException` nem chega a esta "zona de exceção") **para um `@Catch()` global que
+estende `BaseExceptionFilter`** — ver o conteúdo final na Task 28. A versão abaixo é a
+inicial desta task; não a implemente se for pular direto para a versão final da Task 28.
+
 ```ts
 import { ArgumentsHost, Catch, ExceptionFilter, Inject, NotFoundException } from '@nestjs/common';
 import type { Request, Response } from 'express';
@@ -6359,6 +6365,16 @@ async function bootstrap(): Promise<void> {
 
 void bootstrap();
 ```
+
+**Duas correções aplicadas em relação a este snippet, descobertas ao rodar de verdade
+(ver Task 26 e Task 28 para os detalhes):**
+1. `registrarPainelFila` é síncrona (devolve `boolean`, não `Promise<boolean>`) —
+   `const painelAtivo = registrarPainelFila(...)`, sem `await`.
+2. `NotFoundFilter` foi generalizado na Task 28 para um `@Catch()` global que estende
+   `BaseExceptionFilter` (cobre também erros de parsing do body em `/webhooks/*`, que
+   acontecem antes da rota corresponder) — seu construtor agora recebe `HttpAdapterHost`
+   também: `new NotFoundFilter(app.get(HttpAdapterHost), logger)`, com o import
+   correspondente `import { NestFactory, HttpAdapterHost } from '@nestjs/core';`.
 
 - [ ] **Step 8: Confirmar que o projeto inteiro compila**
 
@@ -7378,12 +7394,65 @@ Expected: PASS — 14 testes (exige Postgres e Redis acessíveis via `DATABASE_U
 `REDIS_URL`; se não estiverem, o teste falha na conexão do Prisma/BullMQ, não na lógica —
 suba `docker compose up -d postgres redis` antes de rodar, se necessário).
 
-Se o teste "responde 200 para JSON malformado" falhar com um status diferente de 200:
-investigue se o `WebhookAlwaysOkFilter` está realmente capturando a exceção de parsing do
-Express antes dela vazar como 400 — pode ser necessário registrar um parser JSON
-customizado com tratamento de erro em `main.ts` (`app.use(express.json({ ... }))` com um
-`try/catch` no `verify`, ou um middleware de erro dedicado antes do roteamento). Documente
-a solução encontrada no relatório desta task.
+**Gap confirmado empiricamente (rodando a suíte de verdade):** o teste "responde 200 para
+JSON malformado" falhou com 400 na primeira execução. O `WebhookAlwaysOkFilter`
+(`@UseFilters()`, escopado ao controller) realmente **não** captura o `SyntaxError` do
+body-parser do Express: esse erro acontece antes do Nest decidir qual rota corresponde,
+fora da "zona de exceção" de qualquer handler específico.
+
+**Solução aplicada:** em vez de um parser JSON customizado em `main.ts`, o `NotFoundFilter`
+(Task 22) foi generalizado para um filtro global `@Catch()` (não mais `@Catch(NotFoundException)`)
+que **estende `BaseExceptionFilter`** (`@nestjs/core`):
+- Para qualquer erro em `/webhooks/*` (incluindo `SyntaxError` de parsing, 404 de rota
+  inexistente, ou qualquer outra exceção que escape do controller), responde 200 —
+  cobrindo exatamente a mesma garantia que o filtro escopado ao controller cobre para
+  exceções lançadas durante a execução do handler.
+- Para qualquer erro fora de `/webhooks/*`, delega para `super.catch(excecao, host)` —
+  o comportamento padrão do Nest (404 de verdade, 500 de verdade, etc.), preservando o
+  Global Constraint de nunca mascarar erros legítimos fora dos webhooks.
+
+O construtor de `NotFoundFilter` passa a receber `HttpAdapterHost` (exigido por
+`BaseExceptionFilter`) além do logger: `new NotFoundFilter(app.get(HttpAdapterHost), logger)`
+em vez de `new NotFoundFilter(logger)`. Atualize essa chamada tanto em `main.ts` (Task 25)
+quanto na suíte e2e.
+
+Conteúdo final de `src/shared/presentation/not-found.filter.ts`:
+```ts
+import { ArgumentsHost, Catch, Inject } from '@nestjs/common';
+import { BaseExceptionFilter, HttpAdapterHost } from '@nestjs/core';
+import type { Request, Response } from 'express';
+import { LOGGER_PORT, type LoggerMinimo } from '../../agendamento/application/ports/logger.port';
+
+const OK = { ok: true } as const;
+
+@Catch()
+export class NotFoundFilter extends BaseExceptionFilter {
+  constructor(
+    httpAdapterHost: HttpAdapterHost,
+    @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
+  ) {
+    super(httpAdapterHost.httpAdapter);
+  }
+
+  catch(excecao: unknown, host: ArgumentsHost): void {
+    const ctx = host.switchToHttp();
+    const requisicao = ctx.getRequest<Request>();
+
+    if (requisicao.originalUrl?.startsWith('/webhooks/')) {
+      const resposta = ctx.getResponse<Response>();
+      const mensagem = excecao instanceof Error ? excecao.message : String(excecao);
+      this.logger.warn(
+        { alerta: true, metodo: requisicao.method, url: requisicao.originalUrl, erro: mensagem },
+        'erro não tratado antes da rota corresponder — webhook mascarado como 200',
+      );
+      resposta.status(200).json(OK);
+      return;
+    }
+
+    super.catch(excecao, host);
+  }
+}
+```
 
 - [ ] **Step 5: Commit**
 
