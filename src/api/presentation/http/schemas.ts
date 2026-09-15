@@ -15,7 +15,7 @@ export const schemaAgendamento = z.object({
   profissional: z.union([z.string().min(1), z.number()]),
   tipo_consulta: z.union([z.string().min(1), z.number()]),
   cpf: z.string().optional(),
-  email: z.string().email().optional(),
+  email: z.string().optional(),
   sexo: z.enum(["M", "F"]).optional(),
 });
 
