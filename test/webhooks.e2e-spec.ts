@@ -75,6 +75,7 @@ const RESPOSTA = {
     deal_id: AGENDAMENTO.deal_id,
     id_agendamento_medx: 1275002478,
     resposta: 'confirmar',
+    telefone: AGENDAMENTO.telefone,
 };
 
 /**

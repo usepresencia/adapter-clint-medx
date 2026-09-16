@@ -125,7 +125,11 @@ describe('caminho feliz', () => {
     it('devolve o id ao CRM', async () => {
         const { crm, usecase } = montar();
         await usecase.executar(COMANDO);
-        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith('deal-1', 1275002478);
+        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith(
+            'deal-1',
+            1275002478,
+            expect.any(Telefone),
+        );
     });
 
     it('persiste o agendamento como criado', async () => {
@@ -220,7 +224,7 @@ describe('idempotência', () => {
         await usecase.executar(COMANDO);
 
         expect(agenda.criar).not.toHaveBeenCalled();
-        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith('deal-1', 555);
+        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith('deal-1', 555, expect.any(Telefone));
     });
 
     it('após falha em agenda.criar, retry adota órfão gêmeo em vez de criar de novo', async () => {
@@ -236,7 +240,7 @@ describe('idempotência', () => {
         await usecase.executar(COMANDO);
 
         expect(agenda.criar).toHaveBeenCalledTimes(1);
-        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith('deal-1', 777);
+        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith('deal-1', 777, expect.any(Telefone));
     });
 
     it('cria normalmente quando não há órfão correspondente', async () => {

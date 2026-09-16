@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { ProcessarRespostaUseCase } from './processar-resposta.usecase';
 import { Agendamento } from '../../domain/agendamento/agendamento';
 import { PeriodoConsulta } from '../../domain/agendamento/periodo-consulta';
+import { Telefone } from '../../domain/paciente/telefone';
 import type { AgendamentoExterno } from '../ports/agenda-medica.port';
 
 function externo(parcial: Partial<AgendamentoExterno> = {}): AgendamentoExterno {
@@ -80,7 +81,12 @@ async function montar(noMedx: AgendamentoExterno = externo(), comRegistro = true
     return { agendamentos, agenda, catalogo, crm, logger, usecase };
 }
 
-const CONFIRMAR = { dealId: 'deal-1', idAgendamentoMedx: 1275002478, resposta: 'confirmar' };
+const CONFIRMAR = {
+    dealId: 'deal-1',
+    idAgendamentoMedx: 1275002478,
+    resposta: 'confirmar',
+    telefone: '+55 45 98838-3189',
+};
 
 describe('confirmar', () => {
     it('chama o port com o índice descoberto', async () => {
@@ -95,7 +101,7 @@ describe('confirmar', () => {
     it('avisa o CRM da confirmação', async () => {
         const { crm, usecase } = await montar();
         await usecase.executar(CONFIRMAR);
-        expect(crm.notificarConfirmacao).toHaveBeenCalledWith('deal-1');
+        expect(crm.notificarConfirmacao).toHaveBeenCalledWith('deal-1', expect.any(Telefone));
     });
 
     it('persiste como confirmado com a última edição', async () => {
@@ -139,6 +145,7 @@ describe('recusas', () => {
         expect(crm.notificarConflito).toHaveBeenCalledWith(
             'deal-1',
             expect.stringMatching(/horário/i),
+            expect.any(Telefone),
         );
         expect((await agendamentos.buscarPorDeal('deal-1'))!.status).toBe('conflito');
     });
@@ -176,6 +183,7 @@ describe('recusas', () => {
         expect(crm.notificarConflito).toHaveBeenCalledWith(
             'deal-1',
             expect.stringMatching(/não confere|diverg/i),
+            expect.any(Telefone),
         );
         expect((await agendamentos.buscarPorDeal('deal-1'))!.status).toBe('conflito');
     });
@@ -198,6 +206,6 @@ describe('reagendar e cancelar', () => {
 
         expect(agenda.obter).not.toHaveBeenCalled();
         expect(agenda.confirmar).not.toHaveBeenCalled();
-        expect((crm as any)[metodo]).toHaveBeenCalledWith('deal-1');
+        expect((crm as any)[metodo]).toHaveBeenCalledWith('deal-1', expect.any(Telefone));
     });
 });

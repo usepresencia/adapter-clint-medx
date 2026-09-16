@@ -140,7 +140,7 @@ export class AgendarConsultaUseCase {
         // vivo, contradiz a própria doc) — toda chamada falhava com HTTP 400.
         // Religar quando o MedX corrigir a API.
 
-        await this.crm.gravarIdAgendamento(comando.dealId, agendamento.idMedx!);
+        await this.crm.gravarIdAgendamento(comando.dealId, agendamento.idMedx!, telefone);
 
         this.logger.info(
             { deal_id: comando.dealId, id_agendamento: agendamento.idMedx },

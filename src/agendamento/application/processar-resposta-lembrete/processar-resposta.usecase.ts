@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { AgendamentoRepositorio } from '../../domain/agendamento/agendamento.repositorio';
 import { RespostaLembrete } from '../../domain/agendamento/resposta-lembrete';
+import { Telefone } from '../../domain/paciente/telefone';
 import { AGENDA_MEDICA_PORT, type AgendaMedicaPort } from '../ports/agenda-medica.port';
 import { CATALOGO_CLINICO_PORT, type CatalogoClinicoPort } from '../ports/catalogo-clinico.port';
 import { CRM_PORT, type CrmPort } from '../ports/crm.port';
@@ -20,12 +21,13 @@ export class ProcessarRespostaUseCase {
 
     async executar(comando: ComandoResposta): Promise<void> {
         const resposta = RespostaLembrete.criar(comando.resposta);
+        const telefone = Telefone.criar(comando.telefone);
 
         if (resposta.exigeAtendimentoHumano) {
             if (resposta.valor === 'reagendar') {
-                await this.crm.notificarReagendamento(comando.dealId);
+                await this.crm.notificarReagendamento(comando.dealId, telefone);
             } else {
-                await this.crm.notificarCancelamento(comando.dealId);
+                await this.crm.notificarCancelamento(comando.dealId, telefone);
             }
             this.logger.info(
                 { deal_id: comando.dealId, resposta: resposta.valor },
@@ -49,7 +51,7 @@ export class ProcessarRespostaUseCase {
                 },
                 'confirmação recusada',
             );
-            await this.crm.notificarConflito(comando.dealId, motivo);
+            await this.crm.notificarConflito(comando.dealId, motivo, telefone);
         };
 
         if (!agendamento) {
@@ -82,7 +84,7 @@ export class ProcessarRespostaUseCase {
         agendamento.confirmar(externo.ultimaEdicao);
         await this.agendamentos.salvar(agendamento);
 
-        await this.crm.notificarConfirmacao(comando.dealId);
+        await this.crm.notificarConfirmacao(comando.dealId, telefone);
 
         this.logger.info(
             { deal_id: comando.dealId, id_agendamento: comando.idAgendamentoMedx },
