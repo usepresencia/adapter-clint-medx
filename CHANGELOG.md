@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.4](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.3...v1.3.4) (2026-09-16)
+
+### Bug Fixes
+
+- corrige capitalizacao de cidade_Residencial/endereco_Residencial/cep_Residencial ([128a9c5](https://github.com/useagendaflow/adapter-clint-medx/commit/128a9c5fd29dc499c7e96d517fcbcc8d5dfffc31))
+
 ### [1.3.3](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.2...v1.3.3) (2026-09-16)
 
 ### Bug Fixes
