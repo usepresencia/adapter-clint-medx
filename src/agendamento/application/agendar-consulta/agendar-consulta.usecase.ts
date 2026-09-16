@@ -64,18 +64,21 @@ export class AgendarConsultaUseCase {
 
     async executar(comando: ComandoAgendamento): Promise<void> {
         const registrado = await this.agendamentos.buscarPorDeal(comando.dealId);
+        const telefone = Telefone.criar(comando.telefone);
 
         if (registrado?.jaFoiCriado) {
+            // Reenvia o id ao CRM mesmo já tendo sido criado: um reprocessamento
+            // (retry do Clint, fila reentregando o job) não pode deixar o CRM sem
+            // o id só porque nós já sabíamos dele.
+            await this.crm.gravarIdAgendamento(comando.dealId, registrado.idMedx!, telefone);
             this.logger.info(
                 { deal_id: comando.dealId, id_agendamento: registrado.idMedx },
-                'agendamento já existia, nada a fazer',
+                'agendamento já existia, id reenviado ao CRM',
             );
             return;
         }
 
         const houveTentativaAnterior = registrado?.tentativaInterrompida ?? false;
-
-        const telefone = Telefone.criar(comando.telefone);
         const idPaciente = await this.resolverPaciente(comando, telefone);
 
         const idProfissional = await this.catalogo.resolverProfissional(comando.profissional);

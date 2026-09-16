@@ -197,6 +197,20 @@ describe('idempotência', () => {
         expect(agenda.criar).toHaveBeenCalledTimes(1);
     });
 
+    it('reenvia o id ao CRM mesmo quando o agendamento já existia (reprocessamento)', async () => {
+        const { crm, usecase } = montar();
+        await usecase.executar(COMANDO);
+        (crm.gravarIdAgendamento as any).mockClear();
+
+        await usecase.executar(COMANDO);
+
+        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith(
+            'deal-1',
+            1275002478,
+            expect.any(Telefone),
+        );
+    });
+
     it('grava a intenção antes de chamar o MedX', async () => {
         const { agenda, agendamentos, usecase } = montar();
         const observado: string[] = [];
