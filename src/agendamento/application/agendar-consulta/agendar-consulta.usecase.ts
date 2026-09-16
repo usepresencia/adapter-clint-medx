@@ -4,7 +4,6 @@ import { PeriodoConsulta } from '../../domain/agendamento/periodo-consulta';
 import type { AgendamentoRepositorio } from '../../domain/agendamento/agendamento.repositorio';
 import { CorrelacaoPaciente } from '../../domain/paciente/correlacao-paciente';
 import type { CorrelacaoPacienteRepositorio } from '../../domain/paciente/correlacao-paciente.repositorio';
-import { Cpf } from '../../domain/paciente/cpf';
 import { Telefone } from '../../domain/paciente/telefone';
 import { AGENDA_MEDICA_PORT, type AgendaMedicaPort } from '../ports/agenda-medica.port';
 import { CADASTRO_PACIENTE_PORT, type CadastroPacientePort } from '../ports/cadastro-paciente.port';
@@ -136,30 +135,10 @@ export class AgendarConsultaUseCase {
 
         await this.agendamentos.salvar(agendamento);
 
-        const cpf = Cpf.tentarCriar(comando.cpf);
-        if (!cpf && comando.cpf) {
-            this.logger.warn(
-                { deal_id: comando.dealId },
-                'CPF recebido do CRM é inválido — ignorado',
-            );
-        }
-
-        const enriquecimento = {
-            telefone,
-            ...(cpf ? { cpf } : {}),
-            ...(comando.cidade ? { cidade: comando.cidade } : {}),
-            ...(comando.endereco ? { endereco: comando.endereco } : {}),
-            ...(comando.cep ? { cep: comando.cep } : {}),
-        };
-
-        try {
-            await this.cadastro.enriquecerFicha(idPaciente, enriquecimento);
-        } catch (erro) {
-            this.logger.warn(
-                { deal_id: comando.dealId, erro: (erro as Error).message },
-                'não foi possível enriquecer a ficha do paciente no MedX',
-            );
-        }
+        // enriquecerFicha() está desligado: o PUT /contatos do MedX exige ~44
+        // campos obrigatórios pra qualquer atualização parcial (confirmado ao
+        // vivo, contradiz a própria doc) — toda chamada falhava com HTTP 400.
+        // Religar quando o MedX corrigir a API.
 
         await this.crm.gravarIdAgendamento(comando.dealId, agendamento.idMedx!);
 

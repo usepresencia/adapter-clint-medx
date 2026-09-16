@@ -289,48 +289,13 @@ describe('identidade do paciente', () => {
     });
 });
 
-describe('CPF', () => {
-    it('enriquece a ficha quando o CPF é válido', async () => {
-        const { cadastro, usecase } = montar();
-        await usecase.executar(COMANDO);
-        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
-            67890,
-            expect.objectContaining({ cpf: expect.anything() }),
-        );
-    });
-
-    it('ignora CPF inválido sem quebrar o agendamento', async () => {
-        const { cadastro, crm, usecase } = montar();
-        await usecase.executar({ ...COMANDO, cpf: '11111111111' });
-        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
-            67890,
-            expect.not.objectContaining({ cpf: expect.anything() }),
-        );
-        expect(crm.gravarIdAgendamento).toHaveBeenCalled();
-    });
-
-    it('sempre enriquece a ficha com o telefone, mesmo sem CPF/endereço', async () => {
-        const { cadastro, usecase } = montar();
-        const { cpf, ...semCpf } = COMANDO;
-        await usecase.executar(semCpf);
-        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
-            67890,
-            expect.objectContaining({ telefone: expect.anything() }),
-        );
-    });
-
-    it('falha ao gravar o CPF não derruba o agendamento', async () => {
-        const { cadastro, crm, usecase } = montar();
-        cadastro.enriquecerFicha = vi.fn(async () => {
-            throw new Error('MedX recusou o CPF');
-        });
-        await expect(usecase.executar(COMANDO)).resolves.toBeUndefined();
-        expect(crm.gravarIdAgendamento).toHaveBeenCalled();
-    });
-});
-
-describe('endereço', () => {
-    it('enriquece a ficha com cidade, endereço e cep quando vierem', async () => {
+describe('enriquecimento de ficha (desativado)', () => {
+    // O PUT /contatos do MedX está exigindo ~44 campos obrigatórios pra
+    // qualquer atualização parcial (confirmado ao vivo, contradiz a própria
+    // doc) — enriquecerFicha() sempre falhava, então a chamada foi desligada
+    // até o MedX corrigir a API. O port/adapter continuam existindo pra
+    // religar rápido quando isso acontecer.
+    it('nunca chama enriquecerFicha, mesmo com cpf/cidade/endereco/cep no comando', async () => {
         const { cadastro, usecase } = montar();
         await usecase.executar({
             ...COMANDO,
@@ -338,36 +303,12 @@ describe('endereço', () => {
             endereco: 'Rua Teste, 450',
             cep: '01310100',
         });
-
-        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
-            67890,
-            expect.objectContaining({
-                cidade: 'São Paulo',
-                endereco: 'Rua Teste, 450',
-                cep: '01310100',
-            }),
-        );
+        expect(cadastro.enriquecerFicha).not.toHaveBeenCalled();
     });
 
-    it('combina cpf e endereço numa única chamada de enriquecimento', async () => {
-        const { cadastro, usecase } = montar();
-        await usecase.executar({ ...COMANDO, cidade: 'São Paulo' });
-
-        expect(cadastro.enriquecerFicha).toHaveBeenCalledTimes(1);
-        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
-            67890,
-            expect.objectContaining({ cpf: expect.anything(), cidade: 'São Paulo' }),
-        );
-    });
-
-    it('falha ao enriquecer endereço não derruba o agendamento', async () => {
-        const { cadastro, crm, usecase } = montar();
-        cadastro.enriquecerFicha = vi.fn(async () => {
-            throw new Error('MedX recusou o endereço');
-        });
-        await expect(
-            usecase.executar({ ...COMANDO, cidade: 'São Paulo' }),
-        ).resolves.toBeUndefined();
+    it('grava o agendamento no CRM normalmente, sem depender do enriquecimento', async () => {
+        const { crm, usecase } = montar();
+        await usecase.executar(COMANDO);
         expect(crm.gravarIdAgendamento).toHaveBeenCalled();
     });
 });
