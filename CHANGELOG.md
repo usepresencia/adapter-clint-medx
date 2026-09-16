@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.0](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.8...v1.4.0) (2026-09-16)
+
+### Features
+
+- envia data_agendamento e hora_agendamento separados no webhook do Clint ([3a90ac6](https://github.com/useagendaflow/adapter-clint-medx/commit/3a90ac6a0b8efd1e0e716d733e6cbdce8e403a2d))
+
 ### [1.3.8](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.7...v1.3.8) (2026-09-16)
 
 ### Bug Fixes
