@@ -39,18 +39,19 @@ export class MedxCadastroPacienteAdapter implements CadastroPacientePort {
 
     async enriquecerFicha(idPaciente: number, dados: DadosEnriquecimento): Promise<void> {
         // `vincular()` manda o telefone em `Phone`, mas esse campo não é persistido
-        // no cadastro do paciente (confirmado no painel do MedX). `id_do_Cliente`,
-        // `celular` e `cpF_CGC` são os nomes reais confirmados ao vivo via
-        // GET /contatos/grid — a doc documenta `Id_do_Cliente`/`CPF_CGC`
-        // (capitalização diferente), mas a API real usa a grafia abaixo.
-        // Cidade/Endereço/Cep continuam sem confirmação ao vivo (o grid não expõe
-        // essas colunas) — mantidos como a doc documenta até termos evidência real.
+        // no cadastro do paciente (confirmado no painel do MedX). A API é
+        // case-sensitive pro binding do PUT: confirmado ao vivo via
+        // GET /contatos/{id} que a grafia real é com a primeira letra minúscula
+        // (id_do_Cliente, celular, cpF_CGC, cidade_Residencial,
+        // endereco_Residencial, cep_Residencial) — a doc documenta tudo com a
+        // primeira letra maiúscula, o que faz esses campos serem ignorados
+        // silenciosamente (foi assim que cidade/endereço/cep nunca salvavam).
         const corpo: Record<string, string | number> = { id_do_Cliente: idPaciente };
         if (dados.cpf) corpo.cpF_CGC = dados.cpf.digitos;
         if (dados.telefone) corpo.celular = dados.telefone.nacional;
-        if (dados.cidade) corpo.Cidade_Residencial = dados.cidade;
-        if (dados.endereco) corpo.Endereco_Residencial = dados.endereco;
-        if (dados.cep) corpo.Cep_Residencial = dados.cep;
+        if (dados.cidade) corpo.cidade_Residencial = dados.cidade;
+        if (dados.endereco) corpo.endereco_Residencial = dados.endereco;
+        if (dados.cep) corpo.cep_Residencial = dados.cep;
 
         await this.client.put('/api/integration/contatos', corpo);
     }
