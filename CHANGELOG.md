@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.7](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.6...v1.3.7) (2026-09-16)
+
+### Bug Fixes
+
+- inclui telefone nos webhooks de saida para o Clint identificar o negocio ([d2f9a6c](https://github.com/useagendaflow/adapter-clint-medx/commit/d2f9a6ca6b05d5b6f520ce4912ab70ef328a48c0))
+
 ### [1.3.6](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.5...v1.3.6) (2026-09-16)
 
 ### Bug Fixes
