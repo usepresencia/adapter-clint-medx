@@ -32,12 +32,20 @@ export class ClintWebhookAdapter implements CrmPort {
         return postar(url!, { deal_id: dealId, evento, telefone: telefone.e164, ...extra });
     }
 
-    gravarIdAgendamento(dealId: string, idAgendamento: number, telefone: Telefone): Promise<void> {
+    gravarIdAgendamento(
+        dealId: string,
+        idAgendamento: number,
+        telefone: Telefone,
+        inicio: string,
+    ): Promise<void> {
         const url = this.config.get<string>('CLINT_WEBHOOK_AGENDAMENTO_URL');
+        const [dataAgendamento, horaAgendamento] = inicio.split('T');
         return postar(url!, {
             deal_id: dealId,
             id_agendamento_medx: idAgendamento,
             telefone: telefone.e164,
+            data_agendamento: dataAgendamento,
+            hora_agendamento: horaAgendamento,
         });
     }
 

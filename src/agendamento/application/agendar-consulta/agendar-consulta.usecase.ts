@@ -70,7 +70,12 @@ export class AgendarConsultaUseCase {
             // Reenvia o id ao CRM mesmo já tendo sido criado: um reprocessamento
             // (retry do Clint, fila reentregando o job) não pode deixar o CRM sem
             // o id só porque nós já sabíamos dele.
-            await this.crm.gravarIdAgendamento(comando.dealId, registrado.idMedx!, telefone);
+            await this.crm.gravarIdAgendamento(
+                comando.dealId,
+                registrado.idMedx!,
+                telefone,
+                registrado.periodo.inicio,
+            );
             this.logger.info(
                 { deal_id: comando.dealId, id_agendamento: registrado.idMedx },
                 'agendamento já existia, id reenviado ao CRM',
@@ -143,7 +148,12 @@ export class AgendarConsultaUseCase {
         // vivo, contradiz a própria doc) — toda chamada falhava com HTTP 400.
         // Religar quando o MedX corrigir a API.
 
-        await this.crm.gravarIdAgendamento(comando.dealId, agendamento.idMedx!, telefone);
+        await this.crm.gravarIdAgendamento(
+            comando.dealId,
+            agendamento.idMedx!,
+            telefone,
+            agendamento.periodo.inicio,
+        );
 
         this.logger.info(
             { deal_id: comando.dealId, id_agendamento: agendamento.idMedx },

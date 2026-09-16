@@ -25,12 +25,13 @@ function espiar() {
 }
 
 describe('gravarIdAgendamento', () => {
-    it('posta o id e o telefone na url de agendamento', async () => {
+    it('posta o id, o telefone e a data/hora separadas na url de agendamento', async () => {
         const spy = espiar();
         await new ClintWebhookAdapter(configFalso()).gravarIdAgendamento(
             'deal-1',
             1275002478,
             TELEFONE,
+            '2026-07-10T14:00:00',
         );
 
         expect(String(spy.mock.calls[0]![0])).toBe(URLS.CLINT_WEBHOOK_AGENDAMENTO_URL);
@@ -38,12 +39,19 @@ describe('gravarIdAgendamento', () => {
             deal_id: 'deal-1',
             id_agendamento_medx: 1275002478,
             telefone: '+5545988383189',
+            data_agendamento: '2026-07-10',
+            hora_agendamento: '14:00:00',
         });
     });
 
     it('envia content-type json', async () => {
         const spy = espiar();
-        await new ClintWebhookAdapter(configFalso()).gravarIdAgendamento('deal-1', 1, TELEFONE);
+        await new ClintWebhookAdapter(configFalso()).gravarIdAgendamento(
+            'deal-1',
+            1,
+            TELEFONE,
+            '2026-07-10T14:00:00',
+        );
         const headers = spy.mock.calls[0]![1]!.headers as Record<string, string>;
         expect(headers['content-type']).toBe('application/json');
     });
@@ -89,7 +97,12 @@ describe('falhas', () => {
     it('lança quando o Clint responde erro, para o job tentar de novo', async () => {
         vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 500 }));
         await expect(
-            new ClintWebhookAdapter(configFalso()).gravarIdAgendamento('deal-1', 1, TELEFONE),
+            new ClintWebhookAdapter(configFalso()).gravarIdAgendamento(
+                'deal-1',
+                1,
+                TELEFONE,
+                '2026-07-10T14:00:00',
+            ),
         ).rejects.toThrow(/500/);
     });
 
