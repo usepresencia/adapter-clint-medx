@@ -161,7 +161,7 @@ export class AgendarConsultaUseCase {
             );
         }
 
-        await this.crm.gravarIdAgendamento(comando.dealId, agendamento.idMedx!);
+        await this.crm.gravarIdAgendamento(comando.dealId, agendamento.idMedx!, telefone);
 
         this.logger.info(
             { deal_id: comando.dealId, id_agendamento: agendamento.idMedx },

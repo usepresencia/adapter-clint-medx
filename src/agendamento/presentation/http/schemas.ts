@@ -36,4 +36,5 @@ export const schemaResposta = z.object({
     deal_id: z.string().uuid(),
     id_agendamento_medx: z.coerce.number().int().positive(),
     resposta: z.enum(VALORES_RESPOSTA as unknown as [string, ...string[]]),
+    telefone: z.string().min(1),
 });

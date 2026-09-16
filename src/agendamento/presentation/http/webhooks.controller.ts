@@ -96,6 +96,7 @@ export class WebhooksController {
                         dealId: p.deal_id,
                         idAgendamentoMedx: p.id_agendamento_medx,
                         resposta: p.resposta,
+                        telefone: p.telefone,
                     },
                 },
             };
