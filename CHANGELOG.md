@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.1](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.0...v1.3.1) (2026-09-16)
+
+### Bug Fixes
+
+- **medx:** usa campos reais na leitura de agendamentos e aceita id negativo ([5e59849](https://github.com/useagendaflow/adapter-clint-medx/commit/5e5984943938a34d7e28a4403a0a3463c133e0a1))
+
 ## [1.3.0](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.2.2...v1.3.0) (2026-09-16)
 
 ### Features
