@@ -2,17 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { MedxCatalogoAdapter } from './medx-catalogo.adapter';
 import type { MedxHttpClient } from './medx-http.client';
 
+// A doc do MedX documenta PascalCase (IdDoUsuario, NomeCompleto...), mas a API
+// real observada em produção devolve camelCase — tratamos a doc como
+// desatualizada e seguimos o comportamento real.
 const PROFISSIONAIS = [
     {
-        IdDoUsuario: 43013640,
-        NomeCompleto: 'Leize Ferreira',
-        UsuarioNome: 'leize',
-        Ativo: true,
-        Agenda: true,
-        LinkAgendamentoOnline: '',
+        idDoUsuario: 43013640,
+        nomeCompleto: 'Leize Ferreira',
+        usuarioNome: 'leize',
+        ativo: true,
+        agenda: true,
+        linkAgendamentoOnline: '',
     },
 ];
-const TIPOS = [{ IddoDiagnosticoQP: 111, DiagnosticoQP: 'Consulta de Rotina', Tempo: 30 }];
+const TIPOS = [{ iddoDiagnosticoQP: 111, diagnosticoQP: 'Consulta de Rotina', tempo: 30 }];
 const STATUS = ['Agendado', 'Confirmado', 'Chegou', 'Cancelado'];
 
 function clientFalso(status: string[] = STATUS) {
@@ -32,23 +35,31 @@ function clientFalso(status: string[] = STATUS) {
 }
 
 describe('índice de status', () => {
-    it('é descoberto, não codificado', async () => {
+    it('confirmado é descoberto, não codificado', async () => {
         const c = new MedxCatalogoAdapter(clientFalso().client);
         await c.carregar();
         expect(c.indiceStatusConfirmado()).toBe(1);
     });
 
-    it('acompanha a reordenação dos rótulos da conta', async () => {
+    it('agendado também é descoberto, não codificado', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso().client);
+        await c.carregar();
+        expect(c.indiceStatusAgendado()).toBe(0);
+    });
+
+    it('acompanha a reordenação dos rótulos da conta (agendado e confirmado)', async () => {
         const c = new MedxCatalogoAdapter(
-            clientFalso(['Agendado', 'Chegou', 'Cancelado', 'Confirmado']).client,
+            clientFalso(['Chegou', 'Cancelado', 'Confirmado', 'Agendado']).client,
         );
         await c.carregar();
-        expect(c.indiceStatusConfirmado()).toBe(3);
+        expect(c.indiceStatusAgendado()).toBe(3);
+        expect(c.indiceStatusConfirmado()).toBe(2);
     });
 
     it('ignora acento e caixa ao procurar o rótulo', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso(['Agendado', 'CONFIRMADO']).client);
+        const c = new MedxCatalogoAdapter(clientFalso(['agendado', 'CONFIRMADO']).client);
         await c.carregar();
+        expect(c.indiceStatusAgendado()).toBe(0);
         expect(c.indiceStatusConfirmado()).toBe(1);
     });
 
@@ -65,10 +76,20 @@ describe('índice de status', () => {
         await expect(c.carregar()).rejects.toThrow(/Confirmado/);
     });
 
+    it('falha no carregamento quando não existe rótulo de agendado', async () => {
+        const c = new MedxCatalogoAdapter(
+            clientFalso(['Desmarcado', 'Confirmado', 'Cancelado']).client,
+        );
+        await expect(c.carregar()).rejects.toThrow(/Agendado/);
+    });
+
     it('erra com mensagem clara se consultado antes de carregar', () => {
         expect(() =>
             new MedxCatalogoAdapter(clientFalso().client).indiceStatusConfirmado(),
         ).toThrow(/carregar/);
+        expect(() => new MedxCatalogoAdapter(clientFalso().client).indiceStatusAgendado()).toThrow(
+            /carregar/,
+        );
     });
 });
 

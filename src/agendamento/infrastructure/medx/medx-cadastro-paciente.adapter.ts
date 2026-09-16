@@ -25,14 +25,14 @@ export class MedxCadastroPacienteAdapter implements CadastroPacientePort {
             corpo,
         );
 
-        const idPaciente = Number(resposta?.Id);
+        const idPaciente = Number(resposta?.id);
         if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
             throw new Error(
-                `Vínculo devolveu Id inesperado do MedX: ${JSON.stringify(resposta?.Id)}`,
+                `Vínculo devolveu Id inesperado do MedX: ${JSON.stringify(resposta?.id)}`,
             );
         }
 
-        return { idPaciente, matchConfiavel: Boolean(resposta.Match) };
+        return { idPaciente, matchConfiavel: Boolean(resposta.match) };
     }
 
     async enriquecerFicha(idPaciente: number, dados: DadosEnriquecimento): Promise<void> {

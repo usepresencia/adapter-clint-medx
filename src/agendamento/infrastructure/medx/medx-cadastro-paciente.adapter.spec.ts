@@ -27,7 +27,7 @@ const DADOS = { nome: 'Maria Silva', telefone: TELEFONE, dataNascimento: '1990-0
 
 describe('vincular', () => {
     it('converte o Id string da resposta em número', async () => {
-        const { client } = clientFalso({ Id: '67890', Match: true });
+        const { client } = clientFalso({ id: '67890', match: true });
         expect(await new MedxCadastroPacienteAdapter(client).vincular(DADOS)).toEqual({
             idPaciente: 67890,
             matchConfiavel: true,
@@ -35,13 +35,13 @@ describe('vincular', () => {
     });
 
     it('propaga match não confiável', async () => {
-        const { client } = clientFalso({ Id: '1', Match: false });
+        const { client } = clientFalso({ id: '1', match: false });
         const r = await new MedxCadastroPacienteAdapter(client).vincular(DADOS);
         expect(r.matchConfiavel).toBe(false);
     });
 
     it('envia o telefone no formato nacional que a API espera', async () => {
-        const { client, enviados } = clientFalso({ Id: '1', Match: true });
+        const { client, enviados } = clientFalso({ id: '1', match: true });
         await new MedxCadastroPacienteAdapter(client).vincular({
             ...DADOS,
             email: 'maria@email.com',
@@ -61,19 +61,19 @@ describe('vincular', () => {
     });
 
     it('omite email e sexo quando não informados', async () => {
-        const { client, enviados } = clientFalso({ Id: '1', Match: true });
+        const { client, enviados } = clientFalso({ id: '1', match: true });
         await new MedxCadastroPacienteAdapter(client).vincular(DADOS);
         expect(enviados[0]!.corpo).not.toHaveProperty('Email');
         expect(enviados[0]!.corpo).not.toHaveProperty('Gender');
     });
 
     it('rejeita Id não numérico em vez de gerar NaN silencioso', async () => {
-        const { client } = clientFalso({ Id: 'abc', Match: true });
+        const { client } = clientFalso({ id: 'abc', match: true });
         await expect(new MedxCadastroPacienteAdapter(client).vincular(DADOS)).rejects.toThrow(/Id/);
     });
 
     it('rejeita Id zero ou negativo', async () => {
-        const { client } = clientFalso({ Id: '0', Match: true });
+        const { client } = clientFalso({ id: '0', match: true });
         await expect(new MedxCadastroPacienteAdapter(client).vincular(DADOS)).rejects.toThrow(/Id/);
     });
 });
