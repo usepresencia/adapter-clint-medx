@@ -302,15 +302,21 @@ describe('CPF', () => {
     it('ignora CPF inválido sem quebrar o agendamento', async () => {
         const { cadastro, crm, usecase } = montar();
         await usecase.executar({ ...COMANDO, cpf: '11111111111' });
-        expect(cadastro.enriquecerFicha).not.toHaveBeenCalled();
+        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
+            67890,
+            expect.not.objectContaining({ cpf: expect.anything() }),
+        );
         expect(crm.gravarIdAgendamento).toHaveBeenCalled();
     });
 
-    it('não chama enriquecerFicha quando não há nada para enriquecer', async () => {
+    it('sempre enriquece a ficha com o telefone, mesmo sem CPF/endereço', async () => {
         const { cadastro, usecase } = montar();
         const { cpf, ...semCpf } = COMANDO;
         await usecase.executar(semCpf);
-        expect(cadastro.enriquecerFicha).not.toHaveBeenCalled();
+        expect(cadastro.enriquecerFicha).toHaveBeenCalledWith(
+            67890,
+            expect.objectContaining({ telefone: expect.anything() }),
+        );
     });
 
     it('falha ao gravar o CPF não derruba o agendamento', async () => {

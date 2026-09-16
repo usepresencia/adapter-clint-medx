@@ -38,8 +38,16 @@ export class MedxCadastroPacienteAdapter implements CadastroPacientePort {
     }
 
     async enriquecerFicha(idPaciente: number, dados: DadosEnriquecimento): Promise<void> {
-        const corpo: Record<string, string | number> = { Id_do_Cliente: idPaciente };
-        if (dados.cpf) corpo.CPF_CGC = dados.cpf.digitos;
+        // `vincular()` manda o telefone em `Phone`, mas esse campo não é persistido
+        // no cadastro do paciente (confirmado no painel do MedX). `id_do_Cliente`,
+        // `celular` e `cpF_CGC` são os nomes reais confirmados ao vivo via
+        // GET /contatos/grid — a doc documenta `Id_do_Cliente`/`CPF_CGC`
+        // (capitalização diferente), mas a API real usa a grafia abaixo.
+        // Cidade/Endereço/Cep continuam sem confirmação ao vivo (o grid não expõe
+        // essas colunas) — mantidos como a doc documenta até termos evidência real.
+        const corpo: Record<string, string | number> = { id_do_Cliente: idPaciente };
+        if (dados.cpf) corpo.cpF_CGC = dados.cpf.digitos;
+        if (dados.telefone) corpo.celular = dados.telefone.nacional;
         if (dados.cidade) corpo.Cidade_Residencial = dados.cidade;
         if (dados.endereco) corpo.Endereco_Residencial = dados.endereco;
         if (dados.cep) corpo.Cep_Residencial = dados.cep;
