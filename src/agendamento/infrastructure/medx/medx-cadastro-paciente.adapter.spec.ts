@@ -109,9 +109,9 @@ describe('enriquecerFicha', () => {
             caminho: '/api/integration/contatos',
             corpo: {
                 id_do_Cliente: 67890,
-                Cidade_Residencial: 'São Paulo',
-                Endereco_Residencial: 'Rua Teste, 450',
-                Cep_Residencial: '01310100',
+                cidade_Residencial: 'São Paulo',
+                endereco_Residencial: 'Rua Teste, 450',
+                cep_Residencial: '01310100',
             },
         });
     });
@@ -126,7 +126,7 @@ describe('enriquecerFicha', () => {
         expect(enviados[0]!.corpo).toEqual({
             id_do_Cliente: 67890,
             cpF_CGC: '52998224725',
-            Cidade_Residencial: 'São Paulo',
+            cidade_Residencial: 'São Paulo',
         });
     });
 
@@ -136,8 +136,8 @@ describe('enriquecerFicha', () => {
 
         const corpo = enviados[0]!.corpo as Record<string, unknown>;
         expect(corpo).not.toHaveProperty('cpF_CGC');
-        expect(corpo).not.toHaveProperty('Endereco_Residencial');
-        expect(corpo).not.toHaveProperty('Cep_Residencial');
+        expect(corpo).not.toHaveProperty('endereco_Residencial');
+        expect(corpo).not.toHaveProperty('cep_Residencial');
         expect(corpo).not.toHaveProperty('celular');
     });
 
