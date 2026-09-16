@@ -60,4 +60,23 @@ describe('WebhooksController.agendamento', () => {
         expect(r).toEqual({ ok: true });
         expect(fila.add).not.toHaveBeenCalled();
     });
+
+    it('combina dia_da_consulta com hora_da_consulta no formato HH:mm', async () => {
+        const { controller, fila } = montar();
+        await controller.agendamento('segredo-certo', AGENDAMENTO);
+        const job = fila.add.mock.calls[0]![1] as { comando: { dataHora: string } };
+        expect(job.comando.dataHora).toBe('2026-07-10T14:00');
+    });
+
+    it('usa só a parte da hora quando hora_da_consulta vem como data-hora ISO completa', async () => {
+        // A Clint manda esse campo como um datetime completo (o dia dele é
+        // irrelevante/placeholder) — o dia real vem de dia_da_consulta.
+        const { controller, fila } = montar();
+        await controller.agendamento('segredo-certo', {
+            ...AGENDAMENTO,
+            hora_da_consulta: '2026-09-16T10:00:00',
+        });
+        const job = fila.add.mock.calls[0]![1] as { comando: { dataHora: string } };
+        expect(job.comando.dataHora).toBe('2026-07-10T10:00:00');
+    });
 });

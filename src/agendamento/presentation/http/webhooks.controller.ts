@@ -9,6 +9,18 @@ import { WebhookAlwaysOkFilter } from './webhook-always-ok.filter';
 
 type ResultadoValidacao = { ok: true; job: JobAdapter } | { ok: false; motivo: string };
 
+/**
+ * A Clint manda dia e hora da consulta em campos separados. `hora_da_consulta`
+ * às vezes vem só como "HH:mm"/"HH:mm:ss", às vezes como uma data-hora ISO
+ * completa (o dia embutido nela é irrelevante/placeholder — o dia real é
+ * sempre `dia_da_consulta`). Se tiver "T", usamos só a parte depois dele.
+ */
+function combinarDataHora(dia: string, hora: string): string {
+    const partes = hora.split('T');
+    const horaLimpa = partes.length > 1 ? partes[1] : partes[0];
+    return `${dia}T${horaLimpa}`;
+}
+
 @Controller('webhooks/clint')
 @UseFilters(WebhookAlwaysOkFilter)
 export class WebhooksController {
@@ -44,7 +56,7 @@ export class WebhooksController {
                         nome: p.nome,
                         telefone: p.telefone,
                         dataNascimento: p.data_nascimento,
-                        dataHora: `${p.dia_da_consulta}T${p.hora_da_consulta}`,
+                        dataHora: combinarDataHora(p.dia_da_consulta, p.hora_da_consulta),
                         profissional: p.profissional,
                         tipoConsulta: p.tipo_consulta,
                         cpf: p.cpf,
