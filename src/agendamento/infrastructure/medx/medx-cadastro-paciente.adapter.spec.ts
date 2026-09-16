@@ -72,9 +72,17 @@ describe('vincular', () => {
         await expect(new MedxCadastroPacienteAdapter(client).vincular(DADOS)).rejects.toThrow(/Id/);
     });
 
-    it('rejeita Id zero ou negativo', async () => {
+    it('rejeita Id zero', async () => {
         const { client } = clientFalso({ id: '0', match: true });
         await expect(new MedxCadastroPacienteAdapter(client).vincular(DADOS)).rejects.toThrow(/Id/);
+    });
+
+    it('aceita Id negativo — confirmado ao vivo que esta conta usa ids negativos', async () => {
+        const { client } = clientFalso({ id: '-692937676', match: true });
+        expect(await new MedxCadastroPacienteAdapter(client).vincular(DADOS)).toEqual({
+            idPaciente: -692937676,
+            matchConfiavel: true,
+        });
     });
 });
 

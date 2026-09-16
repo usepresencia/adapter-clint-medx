@@ -1,9 +1,10 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import IORedis from 'ioredis';
+import type { VerificadorRedis } from './redis-health.port';
 
 @Injectable()
-export class RedisHealthClient implements OnModuleDestroy {
+export class RedisHealthClient implements VerificadorRedis, OnModuleDestroy {
     private readonly client: IORedis;
 
     constructor(config: ConfigService) {

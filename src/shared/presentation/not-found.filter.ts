@@ -13,8 +13,8 @@ const OK = { ok: true } as const;
  * rejeitado pelo body-parser do Express antes da "zona de exceção" da rota).
  *
  * Fora de `/webhooks/*`, delega para o comportamento padrão do Nest via
- * `BaseExceptionFilter` (inclusive o formato usual de 404), preservando o
- * Global Constraint: nunca mascarar 404s legítimos em outras rotas.
+ * `BaseExceptionFilter` (inclusive o formato usual de 404) — nunca mascarar
+ * 404s legítimos em outras rotas.
  */
 @Catch()
 export class NotFoundFilter extends BaseExceptionFilter {

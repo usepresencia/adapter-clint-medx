@@ -37,6 +37,3 @@ export const schemaResposta = z.object({
     id_agendamento_medx: z.coerce.number().int().positive(),
     resposta: z.enum(VALORES_RESPOSTA as unknown as [string, ...string[]]),
 });
-
-export type PayloadAgendamento = z.infer<typeof schemaAgendamento>;
-export type PayloadResposta = z.infer<typeof schemaResposta>;

@@ -52,12 +52,12 @@ describe('EventoPrismaRepositorio', () => {
 
     it('reconstrói um evento existente por id', async () => {
         const e = await repo.registrar('/x', {});
-        const outro = await repo.registrarExistente(e.id);
+        const outro = await repo.buscarPorId(e.id);
         expect(outro.id).toBe(e.id);
         expect(outro.status).toBe('recebido');
     });
 
     it('lança quando o evento não existe', async () => {
-        await expect(repo.registrarExistente(999999)).rejects.toThrow(/999999/);
+        await expect(repo.buscarPorId(999999)).rejects.toThrow(/999999/);
     });
 });

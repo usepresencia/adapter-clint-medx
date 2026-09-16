@@ -23,7 +23,7 @@ export class AdapterProcessor extends WorkerHost {
 
     async process(job: Job<JobAdapter>): Promise<void> {
         const dados = job.data;
-        const evento = await this.eventos.registrarExistente(dados.eventoId);
+        const evento = await this.eventos.buscarPorId(dados.eventoId);
 
         try {
             if (dados.tipo === 'agendamento') {
