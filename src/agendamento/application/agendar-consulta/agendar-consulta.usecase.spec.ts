@@ -129,6 +129,7 @@ describe('caminho feliz', () => {
             'deal-1',
             1275002478,
             expect.any(Telefone),
+            expect.any(String),
         );
     });
 
@@ -208,6 +209,7 @@ describe('idempotência', () => {
             'deal-1',
             1275002478,
             expect.any(Telefone),
+            expect.any(String),
         );
     });
 
@@ -238,7 +240,12 @@ describe('idempotência', () => {
         await usecase.executar(COMANDO);
 
         expect(agenda.criar).not.toHaveBeenCalled();
-        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith('deal-1', 555, expect.any(Telefone));
+        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith(
+            'deal-1',
+            555,
+            expect.any(Telefone),
+            expect.any(String),
+        );
     });
 
     it('após falha em agenda.criar, retry adota órfão gêmeo em vez de criar de novo', async () => {
@@ -254,7 +261,12 @@ describe('idempotência', () => {
         await usecase.executar(COMANDO);
 
         expect(agenda.criar).toHaveBeenCalledTimes(1);
-        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith('deal-1', 777, expect.any(Telefone));
+        expect(crm.gravarIdAgendamento).toHaveBeenCalledWith(
+            'deal-1',
+            777,
+            expect.any(Telefone),
+            expect.any(String),
+        );
     });
 
     it('cria normalmente quando não há órfão correspondente', async () => {

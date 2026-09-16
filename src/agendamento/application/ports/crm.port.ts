@@ -8,7 +8,13 @@ export interface CrmPort {
      * ou instagram — nunca só pelo deal_id — por isso todo método aqui exige
      * o telefone do paciente (confirmado ao vivo).
      */
-    gravarIdAgendamento(dealId: string, idAgendamento: number, telefone: Telefone): Promise<void>;
+    /** `inicio` no formato `yyyy-LL-ddTHH:mm:ss` (horário local da clínica, sem timezone). */
+    gravarIdAgendamento(
+        dealId: string,
+        idAgendamento: number,
+        telefone: Telefone,
+        inicio: string,
+    ): Promise<void>;
     notificarConfirmacao(dealId: string, telefone: Telefone): Promise<void>;
     notificarReagendamento(dealId: string, telefone: Telefone): Promise<void>;
     notificarCancelamento(dealId: string, telefone: Telefone): Promise<void>;
