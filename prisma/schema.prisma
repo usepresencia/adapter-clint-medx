@@ -29,9 +29,9 @@ model PacienteCorrelacao {
   @@map("pacientes_correlacao")
 }
 
-// inicio/ultimaEdicao são String, NÃO DateTime — ver Global Constraints e spec Seção 5:
-// PeriodoConsulta produz uma string sem timezone representando horário local da clínica;
-// DateTime->Date do JS reintroduziria dependência do timezone do container.
+// inicio/ultimaEdicao são String, NÃO DateTime: PeriodoConsulta produz uma
+// string sem timezone representando horário local da clínica; DateTime->Date
+// do JS reintroduziria dependência do timezone do container.
 model Agendamento {
   dealId            String   @id @map("deal_id")
   medxIdAgendamento Int?     @map("medx_id_agendamento")
