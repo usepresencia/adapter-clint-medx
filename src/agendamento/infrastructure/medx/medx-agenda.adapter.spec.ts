@@ -3,17 +3,21 @@ import { MedxAgendaAdapter, CONFIRMACAO_LITERAL } from './medx-agenda.adapter';
 import type { MedxHttpClient } from './medx-http.client';
 import type { MedxAgendamento } from './medx.tipos';
 
+// A doc do MedX documenta PascalCase (Id_do_Agendamento, Vinculado_a...), mas
+// a API real observada em produção devolve snake_case minúsculo — tratamos a
+// doc como desatualizada e seguimos o comportamento real (confirmado via
+// GET /agenda/agendamentos/paciente/{id} ao vivo).
 const CRU: MedxAgendamento & { CampoQueNaoModelamos: string } = {
-    Id_do_Agendamento: 1275002478,
-    Id_do_Usuario: 43013640,
-    Inicio: '2026-07-10T14:00:00',
-    Final: '2026-07-10T14:30:00',
-    Descricao: 'Consulta de Rotina — Maria Silva',
-    Status: 0,
-    Vinculado_a: 30094605,
-    Id_do_TipoConsulta: 111,
-    Confirmacao: '',
-    LastEditDate: '2026-07-09T10:00:00',
+    id_do_Agendamento: 1275002478,
+    id_do_Usuario: 43013640,
+    inicio: '2026-07-10T14:00:00',
+    final: '2026-07-10T14:30:00',
+    descricao: 'Consulta de Rotina — Maria Silva',
+    status: 0,
+    vinculado_a: 30094605,
+    id_do_Diagnostico_QP: 111,
+    confirmacao: '',
+    lastEditDate: '2026-07-09T10:00:00',
     CampoQueNaoModelamos: 'precisa sobreviver ao PUT',
 };
 
@@ -84,6 +88,16 @@ describe('criar', () => {
             /nome da paciente/,
         );
     });
+
+    it('aceita id negativo — confirmado ao vivo que esta conta usa ids negativos', async () => {
+        const { client } = clientFalso(-1452025979);
+        expect(await new MedxAgendaAdapter(client).criar(CRIACAO, 0)).toBe(-1452025979);
+    });
+
+    it('rejeita zero como id (provável sentinela de falha)', async () => {
+        const { client } = clientFalso(0);
+        await expect(new MedxAgendaAdapter(client).criar(CRIACAO, 0)).rejects.toThrow(/id/i);
+    });
 });
 
 describe('obter', () => {
@@ -121,9 +135,9 @@ describe('confirmar', () => {
 
         const corpo = enviados[0]!.corpo as Record<string, unknown>;
         expect(enviados[0]!.caminho).toBe('/api/integration/agenda/agendamentos');
-        expect(corpo.Status).toBe(1);
-        expect(corpo.Confirmacao).toBe(CONFIRMACAO_LITERAL);
-        expect(corpo.Confirmacao).toBe('Mensagem Salva com Sucesso');
+        expect(corpo.status).toBe(1);
+        expect(corpo.confirmacao).toBe(CONFIRMACAO_LITERAL);
+        expect(corpo.confirmacao).toBe('Mensagem Salva com Sucesso');
     });
 
     it('preserva os campos que o port não modela', async () => {
@@ -147,14 +161,14 @@ describe('confirmar', () => {
 
         const corpo = enviados[0]!.corpo as Record<string, unknown>;
         for (const campo of [
-            'Id_do_Agendamento',
-            'Id_do_Usuario',
-            'Inicio',
-            'Final',
-            'Descricao',
-            'Status',
-            'Vinculado_a',
-            'Id_do_TipoConsulta',
+            'id_do_Agendamento',
+            'id_do_Usuario',
+            'inicio',
+            'final',
+            'descricao',
+            'status',
+            'vinculado_a',
+            'id_do_Diagnostico_QP',
         ]) {
             expect(corpo).toHaveProperty(campo);
         }

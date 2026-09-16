@@ -16,19 +16,27 @@ export interface MedxTipoAgendamento {
     tempo: number;
 }
 
+// A doc do MedX documenta PascalCase (Id_do_Agendamento, Vinculado_a...), mas
+// a API real observada em produção devolve snake_case minúsculo — tratamos a
+// doc como desatualizada e seguimos o comportamento real (confirmado via
+// GET /agenda/agendamentos/{id} e /agenda/agendamentos/paciente/{id} ao vivo).
+// `id_do_TipoConsulta` também existe na resposta real, mas é um campo
+// aparentemente não relacionado ao tipo de consulta escolhido (fica sempre 0
+// nos testes ao vivo) — o valor que reflete o tipo resolvido é
+// `id_do_Diagnostico_QP`.
 export interface MedxAgendamento {
-    Id_do_Agendamento: number;
-    Id_do_Usuario: number;
-    Inicio: string;
-    Final: string;
-    Descricao: string;
-    Status: number;
-    Vinculado_a: number;
-    Id_do_TipoConsulta: number;
-    Confirmacao: string;
-    LastEditDate: string;
-    Nome?: string;
-    SMS?: string;
+    id_do_Agendamento: number;
+    id_do_Usuario: number;
+    inicio: string;
+    final: string;
+    descricao: string;
+    status: number;
+    vinculado_a: number;
+    id_do_Diagnostico_QP: number;
+    confirmacao: string | null;
+    lastEditDate: string | null;
+    nome?: string | null;
+    sms?: string | null;
 }
 
 // A doc do MedX documenta `Id`/`Match` (PascalCase), mas a API real observada
