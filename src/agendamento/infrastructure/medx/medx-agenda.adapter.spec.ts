@@ -48,12 +48,12 @@ const CRIACAO = {
 describe('criar', () => {
     it('devolve o inteiro que o MedX retorna', async () => {
         const { client } = clientFalso(1275002478);
-        expect(await new MedxAgendaAdapter(client).criar(CRIACAO)).toBe(1275002478);
+        expect(await new MedxAgendaAdapter(client).criar(CRIACAO, 0)).toBe(1275002478);
     });
 
-    it('mapeia para os nomes exatos da API e nasce com Status 0', async () => {
+    it('mapeia para os nomes exatos da API e nasce com o índice de "Agendado" recebido', async () => {
         const { client, enviados } = clientFalso(1);
-        await new MedxAgendaAdapter(client).criar(CRIACAO);
+        await new MedxAgendaAdapter(client).criar(CRIACAO, 0);
 
         expect(enviados[0]).toEqual({
             caminho: '/api/integration/agenda/agendamentos',
@@ -69,10 +69,18 @@ describe('criar', () => {
         });
     });
 
+    it('usa o índice de "Agendado" recebido, nunca um valor fixo', async () => {
+        const { client, enviados } = clientFalso(1);
+        await new MedxAgendaAdapter(client).criar(CRIACAO, 3);
+
+        const corpo = enviados[0]!.corpo as Record<string, unknown>;
+        expect(corpo.Status).toBe(3);
+    });
+
     it('rejeita retorno que não é um id válido, sem serializar a resposta na mensagem', async () => {
         const { client } = clientFalso({ Descricao: 'contém nome da paciente' });
-        await expect(new MedxAgendaAdapter(client).criar(CRIACAO)).rejects.toThrow(/id/i);
-        await expect(new MedxAgendaAdapter(client).criar(CRIACAO)).rejects.not.toThrow(
+        await expect(new MedxAgendaAdapter(client).criar(CRIACAO, 0)).rejects.toThrow(/id/i);
+        await expect(new MedxAgendaAdapter(client).criar(CRIACAO, 0)).rejects.not.toThrow(
             /nome da paciente/,
         );
     });

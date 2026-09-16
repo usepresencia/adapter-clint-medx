@@ -3,9 +3,6 @@ import type { PeriodoConsulta } from './periodo-consulta';
 
 export type StatusAgendamento = 'enviando' | 'criado' | 'confirmado' | 'conflito' | 'falhou';
 
-/** Índice do primeiro rótulo do MedX ("Agendado"): um agendamento nasce não confirmado. */
-export const STATUS_MEDX_AGENDADO = 0;
-
 export interface EstadoExterno {
     status: number;
     inicio: string;
@@ -111,12 +108,16 @@ export class Agendamento {
         this.statusInterno = 'conflito';
     }
 
-    avaliarConfirmacao(externo: EstadoExterno, indiceConfirmado: number): AvaliacaoConfirmacao {
+    avaliarConfirmacao(
+        externo: EstadoExterno,
+        indiceAgendado: number,
+        indiceConfirmado: number,
+    ): AvaliacaoConfirmacao {
         if (!this.jaFoiCriado) {
             return { permitido: false, motivo: 'agendamento ainda não foi criado no MedX' };
         }
 
-        if (externo.status !== STATUS_MEDX_AGENDADO && externo.status !== indiceConfirmado) {
+        if (externo.status !== indiceAgendado && externo.status !== indiceConfirmado) {
             return { permitido: false, motivo: 'consulta não está mais agendada no MedX' };
         }
 

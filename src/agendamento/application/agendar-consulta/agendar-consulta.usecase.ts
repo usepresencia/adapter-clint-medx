@@ -114,14 +114,17 @@ export class AgendarConsultaUseCase {
             agendamento.adotarExistente(orfao);
         } else {
             try {
-                const idCriado = await this.agenda.criar({
-                    idProfissional,
-                    idPaciente,
-                    inicio: periodo.inicio,
-                    fim: periodo.fim,
-                    descricao: `${tipo.nome} — ${comando.nome}`,
-                    idTipoConsulta: tipo.id,
-                });
+                const idCriado = await this.agenda.criar(
+                    {
+                        idProfissional,
+                        idPaciente,
+                        inicio: periodo.inicio,
+                        fim: periodo.fim,
+                        descricao: `${tipo.nome} — ${comando.nome}`,
+                        idTipoConsulta: tipo.id,
+                    },
+                    this.catalogo.indiceStatusAgendado(),
+                );
                 agendamento.registrarCriacao(idCriado);
             } catch (erro) {
                 agendamento.marcarFalha();

@@ -79,6 +79,7 @@ function montar() {
             nome: 'Consulta de Rotina',
             duracaoMinutos: 30,
         })),
+        indiceStatusAgendado: () => 0,
         indiceStatusConfirmado: () => 1,
     };
     const crm = {
@@ -108,14 +109,17 @@ describe('caminho feliz', () => {
         const { agenda, usecase } = montar();
         await usecase.executar(COMANDO);
 
-        expect(agenda.criar).toHaveBeenCalledWith({
-            idProfissional: 43013640,
-            idPaciente: 67890,
-            inicio: '2026-07-10T14:00:00',
-            fim: '2026-07-10T14:30:00',
-            descricao: 'Consulta de Rotina — Maria Silva',
-            idTipoConsulta: 111,
-        });
+        expect(agenda.criar).toHaveBeenCalledWith(
+            {
+                idProfissional: 43013640,
+                idPaciente: 67890,
+                inicio: '2026-07-10T14:00:00',
+                fim: '2026-07-10T14:30:00',
+                descricao: 'Consulta de Rotina — Maria Silva',
+                idTipoConsulta: 111,
+            },
+            0,
+        );
     });
 
     it('devolve o id ao CRM', async () => {
@@ -137,6 +141,7 @@ describe('caminho feliz', () => {
         await usecase.executar({ ...COMANDO, dataHora: '2026-07-10T17:00:00Z' });
         expect(agenda.criar).toHaveBeenCalledWith(
             expect.objectContaining({ inicio: '2026-07-10T14:00:00' }),
+            0,
         );
     });
 });

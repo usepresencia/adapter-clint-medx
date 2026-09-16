@@ -12,9 +12,6 @@ const BASE = '/api/integration/agenda/agendamentos';
 /** Valor exigido pela API do MedX para marcar um agendamento como confirmado. */
 export const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
 
-/** Índice do primeiro rótulo: um agendamento nasce como "Agendado". */
-const STATUS_AO_CRIAR = 0;
-
 function traduzir(cru: MedxAgendamento): AgendamentoExterno {
     return {
         id: cru.Id_do_Agendamento,
@@ -35,13 +32,13 @@ function traduzir(cru: MedxAgendamento): AgendamentoExterno {
 export class MedxAgendaAdapter implements AgendaMedicaPort {
     constructor(private readonly client: MedxHttpClient) {}
 
-    async criar(dados: DadosCriacaoAgendamento): Promise<number> {
+    async criar(dados: DadosCriacaoAgendamento, indiceStatusAgendado: number): Promise<number> {
         const resposta = await this.client.post<unknown>(BASE, {
             Id_do_Usuario: dados.idProfissional,
             Inicio: dados.inicio,
             Final: dados.fim,
             Descricao: dados.descricao,
-            Status: STATUS_AO_CRIAR,
+            Status: indiceStatusAgendado,
             Vinculado_a: dados.idPaciente,
             Id_do_TipoConsulta: dados.idTipoConsulta,
         });

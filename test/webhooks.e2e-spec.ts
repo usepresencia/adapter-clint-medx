@@ -27,6 +27,7 @@ const catalogoFalso = {
     carregar: vi.fn(async () => {}),
     resolverProfissional: vi.fn(async () => 43013640),
     resolverTipoConsulta: vi.fn(async () => ({ id: 111, nome: 'Consulta', duracaoMinutos: 30 })),
+    indiceStatusAgendado: () => 0,
     indiceStatusConfirmado: () => 1,
 };
 const agendaFalsa = {

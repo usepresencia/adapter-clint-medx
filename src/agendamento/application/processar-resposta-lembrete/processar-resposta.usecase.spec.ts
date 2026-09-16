@@ -57,6 +57,7 @@ async function montar(noMedx: AgendamentoExterno = externo(), comRegistro = true
         carregar: vi.fn(async () => {}),
         resolverProfissional: vi.fn(async () => 0),
         resolverTipoConsulta: vi.fn(async () => ({ id: 0, nome: '', duracaoMinutos: 30 })),
+        indiceStatusAgendado: () => 0,
         indiceStatusConfirmado: () => 1,
     };
     const crm = {
