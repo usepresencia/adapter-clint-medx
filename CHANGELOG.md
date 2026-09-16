@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.2.2...v1.3.0) (2026-09-16)
+
+### Features
+
+- aceita duracao_consulta como fallback quando o MedX nao tem duracao cadastrada ([fcc33a6](https://github.com/useagendaflow/adapter-clint-medx/commit/fcc33a62a2f057393dd3cc1b979cec88fd842e83))
+
 ### [1.2.2](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.2.1...v1.2.2) (2026-09-16)
 
 ### Bug Fixes
