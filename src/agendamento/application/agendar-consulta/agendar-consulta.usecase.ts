@@ -81,7 +81,8 @@ export class AgendarConsultaUseCase {
 
         const idProfissional = await this.catalogo.resolverProfissional(comando.profissional);
         const tipo = await this.catalogo.resolverTipoConsulta(comando.tipoConsulta);
-        const periodo = PeriodoConsulta.criar(comando.dataHora, tipo.duracaoMinutos);
+        const duracaoMinutos = tipo.duracaoMinutos ?? comando.duracaoConsulta;
+        const periodo = PeriodoConsulta.criar(comando.dataHora, duracaoMinutos as number);
 
         const agendamento = Agendamento.iniciar({
             dealId: comando.dealId,

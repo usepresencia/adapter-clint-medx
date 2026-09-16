@@ -12,4 +12,6 @@ export interface ComandoAgendamento {
     cidade?: string;
     endereco?: string;
     cep?: string;
+    /** Duração em minutos, usada quando o tipo de consulta não tem duração cadastrada no MedX. */
+    duracaoConsulta?: number;
 }

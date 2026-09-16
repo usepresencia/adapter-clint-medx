@@ -65,6 +65,7 @@ export class WebhooksController {
                         cidade: p.cidade,
                         endereco: p.endereco,
                         cep: p.cep,
+                        duracaoConsulta: p.duracao_consulta,
                     },
                 },
             };
