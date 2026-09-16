@@ -146,6 +146,45 @@ describe('caminho feliz', () => {
     });
 });
 
+describe('duração da consulta', () => {
+    it('usa a duração informada pela Clint quando o MedX não tem duração cadastrada para o tipo', async () => {
+        const { agenda, catalogo, usecase } = montar();
+        catalogo.resolverTipoConsulta = vi.fn(async () => ({
+            id: 111,
+            nome: 'Consulta',
+            duracaoMinutos: null as unknown as number,
+        }));
+
+        await usecase.executar({ ...COMANDO, duracaoConsulta: 45 });
+
+        expect(agenda.criar).toHaveBeenCalledWith(
+            expect.objectContaining({ fim: '2026-07-10T14:45:00' }),
+            0,
+        );
+    });
+
+    it('prioriza a duração do MedX quando ela existe, ignorando a da Clint', async () => {
+        const { agenda, usecase } = montar();
+        await usecase.executar({ ...COMANDO, duracaoConsulta: 999 });
+
+        expect(agenda.criar).toHaveBeenCalledWith(
+            expect.objectContaining({ fim: '2026-07-10T14:30:00' }),
+            0,
+        );
+    });
+
+    it('propaga o erro de domínio quando nem o MedX nem a Clint informam duração', async () => {
+        const { catalogo, usecase } = montar();
+        catalogo.resolverTipoConsulta = vi.fn(async () => ({
+            id: 111,
+            nome: 'Consulta',
+            duracaoMinutos: null as unknown as number,
+        }));
+
+        await expect(usecase.executar(COMANDO)).rejects.toThrow(/duração/i);
+    });
+});
+
 describe('idempotência', () => {
     it('não chama o MedX duas vezes para o mesmo deal_id', async () => {
         const { agenda, usecase } = montar();

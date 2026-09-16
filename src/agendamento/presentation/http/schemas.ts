@@ -28,6 +28,8 @@ export const schemaAgendamento = z.object({
         .optional()
         .transform(v => (v ? v.replace(/<[^>]*>/g, '').trim() : v)),
     cep: z.string().optional(),
+    // Fallback usado quando o tipo de consulta não tem duração cadastrada no MedX.
+    duracao_consulta: z.coerce.number().int().positive().optional(),
 });
 
 export const schemaResposta = z.object({
