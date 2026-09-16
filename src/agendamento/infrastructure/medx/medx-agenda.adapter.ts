@@ -14,16 +14,16 @@ export const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
 
 function traduzir(cru: MedxAgendamento): AgendamentoExterno {
     return {
-        id: cru.Id_do_Agendamento,
-        idProfissional: cru.Id_do_Usuario,
-        idPaciente: cru.Vinculado_a,
-        inicio: cru.Inicio,
-        fim: cru.Final,
-        descricao: cru.Descricao,
-        status: cru.Status,
-        idTipoConsulta: cru.Id_do_TipoConsulta,
-        confirmacao: cru.Confirmacao,
-        ultimaEdicao: cru.LastEditDate,
+        id: cru.id_do_Agendamento,
+        idProfissional: cru.id_do_Usuario,
+        idPaciente: cru.vinculado_a,
+        inicio: cru.inicio,
+        fim: cru.final,
+        descricao: cru.descricao,
+        status: cru.status,
+        idTipoConsulta: cru.id_do_Diagnostico_QP,
+        confirmacao: cru.confirmacao ?? '',
+        ultimaEdicao: cru.lastEditDate ?? '',
         bruto: cru,
     };
 }
@@ -44,7 +44,9 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
         });
 
         const id = Number(resposta);
-        if (!Number.isInteger(id) || id <= 0) {
+        // Ids negativos são válidos nesta conta (confirmado ao vivo — o MedX usa
+        // esse esquema também para ids de profissional). Só 0/NaN indicam falha.
+        if (!Number.isInteger(id) || id === 0) {
             // Não serializar o corpo da resposta aqui: se o MedX ecoar a Descricao
             // enviada (que contém o nome da paciente), o conteúdo vaza em log/e-mail
             // de alerta sem passar pela redação de PII do pino.
@@ -78,15 +80,19 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
     ): Promise<void> {
         // O PUT não é um PATCH: partimos do payload original para não apagar
         // campos que este port não modela. Spread do bruto PRIMEIRO, overrides
-        // DEPOIS — a ordem inversa sobrescreveria Status/Confirmacao com o valor
+        // DEPOIS — a ordem inversa sobrescreveria status/confirmacao com o valor
         // antigo, deixando a consulta silenciosamente não confirmada.
+        //
+        // Os nomes de campo aqui (snake_case) batem com o que o GET devolve de
+        // verdade, mas o PUT em si ainda não foi testado ao vivo nesta conta —
+        // só a criação (POST) foi confirmada. Validar no primeiro teste real.
         const cru = agendamento.bruto as MedxAgendamento;
 
         await this.client.put(BASE, {
             ...cru,
-            Id_do_Agendamento: agendamento.id,
-            Status: indiceStatusConfirmado,
-            Confirmacao: CONFIRMACAO_LITERAL,
+            id_do_Agendamento: agendamento.id,
+            status: indiceStatusConfirmado,
+            confirmacao: CONFIRMACAO_LITERAL,
         });
     }
 }
