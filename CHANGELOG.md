@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.2.2](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.2.1...v1.2.2) (2026-09-16)
+
+### Bug Fixes
+
+- **medx:** usa campos reais (camelCase) da API de vínculo e catálogo ([5bcda85](https://github.com/useagendaflow/adapter-clint-medx/commit/5bcda85bcba02758dfeda67bb814bd8100009701))
+
 ### [1.2.1](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.2.0...v1.2.1) (2026-09-16)
 
 ### Bug Fixes
