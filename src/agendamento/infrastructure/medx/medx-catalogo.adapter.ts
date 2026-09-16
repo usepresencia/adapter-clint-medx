@@ -22,6 +22,11 @@ function encontrarIndiceStatus(rotulos: string[], alvo: string): number {
     return rotulos.findIndex(rotulo => chave(rotulo) === alvo);
 }
 
+/** Uma string só de dígitos é tratada como id direto, sem consulta ao catálogo. */
+function ehInteiroPuro(texto: string): boolean {
+    return /^\d+$/.test(texto.trim());
+}
+
 @Injectable()
 export class MedxCatalogoAdapter implements CatalogoClinicoPort {
     ttlMs = TTL_PADRAO_MS;
@@ -70,7 +75,7 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
 
     async resolverProfissional(valor: string | number): Promise<number> {
         if (typeof valor === 'number') return valor;
-        if (/^\d+$/.test(valor.trim())) return Number(valor.trim());
+        if (ehInteiroPuro(valor)) return Number(valor.trim());
 
         await this.garantirCache();
         const alvo = chave(valor);
@@ -87,7 +92,7 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
     async resolverTipoConsulta(valor: string | number): Promise<TipoConsultaResolvido> {
         await this.garantirCache();
 
-        const ehNumero = typeof valor === 'number' || /^\d+$/.test(String(valor).trim());
+        const ehNumero = typeof valor === 'number' || ehInteiroPuro(String(valor));
         const achado = ehNumero
             ? this.tipos.find(t => t.iddoDiagnosticoQP === Number(valor))
             : this.tipos.find(t => chave(t.diagnosticoQP) === chave(String(valor)));

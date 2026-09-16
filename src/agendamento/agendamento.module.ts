@@ -2,8 +2,8 @@ import { Inject, Module, OnModuleInit } from '@nestjs/common';
 import { PersistenceModule } from '../shared/persistence/persistence.module';
 import { ObservabilidadeModule } from '../shared/observabilidade/observabilidade.module';
 import { RedisHealthClient } from '../shared/observabilidade/redis-health.client';
+import { REDIS_HEALTH_CLIENT } from '../shared/observabilidade/redis-health.port';
 import { FilaModule } from './infrastructure/fila/fila.module';
-import { REDIS_HEALTH_CLIENT } from './presentation/http/health.controller';
 
 import { MedxTokenProvider } from './infrastructure/medx/medx-token.provider';
 import { MedxHttpClient } from './infrastructure/medx/medx-http.client';
@@ -48,7 +48,7 @@ export class AgendamentoModule implements OnModuleInit {
 
     async onModuleInit(): Promise<void> {
         // Falha cedo e alto se o rótulo de confirmação não existir nesta conta —
-        // deliberadamente sem try/catch. Ver Global Constraints.
+        // deliberadamente sem try/catch.
         await this.catalogo.carregar();
     }
 }

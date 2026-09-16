@@ -42,7 +42,7 @@ export class EventoPrismaRepositorio implements EventoRepositorio {
         return resultado.count;
     }
 
-    async registrarExistente(id: number): Promise<EventoRecebido> {
+    async buscarPorId(id: number): Promise<EventoRecebido> {
         const l = await this.prisma.eventoRecebido.findUnique({ where: { id } });
         if (!l) {
             throw new Error(`Evento ${id} não encontrado`);

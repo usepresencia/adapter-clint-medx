@@ -45,7 +45,7 @@ function eventosFalso() {
         async expurgar() {
             return 0;
         },
-        async registrarExistente(id: number) {
+        async buscarPorId(id: number) {
             return registros.get(id)!;
         },
     };
@@ -98,7 +98,7 @@ describe('AdapterProcessor.process', () => {
         await processor.process({
             data: { tipo: 'agendamento', eventoId: e.id, comando: {} },
         } as any);
-        expect((await eventos.registrarExistente(e.id)).status).toBe('processado');
+        expect((await eventos.buscarPorId(e.id)).status).toBe('processado');
     });
 
     it('marca falhou com a mensagem e repropaga para o BullMQ tentar de novo', async () => {
@@ -114,7 +114,7 @@ describe('AdapterProcessor.process', () => {
             } as any),
         ).rejects.toThrow(/fora do ar/);
 
-        const salvo = await eventos.registrarExistente(e.id);
+        const salvo = await eventos.buscarPorId(e.id);
         expect(salvo.status).toBe('falhou');
         expect(salvo.erro).toMatch(/fora do ar/);
     });
@@ -149,7 +149,7 @@ describe('AdapterProcessor.process', () => {
 
         expect(logger.warn).toHaveBeenCalled();
         expect(logger.error).not.toHaveBeenCalled();
-        expect((await eventos.registrarExistente(e.id)).status).toBe('recebido');
+        expect((await eventos.buscarPorId(e.id)).status).toBe('recebido');
     });
 });
 

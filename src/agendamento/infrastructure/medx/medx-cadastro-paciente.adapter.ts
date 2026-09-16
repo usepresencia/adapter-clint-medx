@@ -26,7 +26,9 @@ export class MedxCadastroPacienteAdapter implements CadastroPacientePort {
         );
 
         const idPaciente = Number(resposta?.id);
-        if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
+        // Ids negativos são válidos nesta conta (confirmado ao vivo em outras
+        // entidades do MedX — ver medx-agenda.adapter.ts). Só 0/NaN indicam falha.
+        if (!Number.isInteger(idPaciente) || idPaciente === 0) {
             throw new Error(
                 `Vínculo devolveu Id inesperado do MedX: ${JSON.stringify(resposta?.id)}`,
             );

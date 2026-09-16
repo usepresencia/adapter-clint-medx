@@ -2,16 +2,10 @@ import { Controller, Get, Inject, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { PrismaService } from '../../../shared/persistence/prisma.service';
 import { MedxTokenProvider } from '../../infrastructure/medx/medx-token.provider';
-
-export const REDIS_HEALTH_CLIENT = Symbol('VerificadorRedis');
-
-// Interface mínima que o health check precisa — implementada pela classe
-// concreta `RedisHealthClient` (Task 25, shared/observabilidade/redis-health.client.ts).
-// Nomes propositalmente diferentes (interface vs. classe) para não confundir
-// os dois arquivos.
-export interface VerificadorRedis {
-    ping(): Promise<string>;
-}
+import {
+    REDIS_HEALTH_CLIENT,
+    type VerificadorRedis,
+} from '../../../shared/observabilidade/redis-health.port';
 
 export interface Saude {
     redis: boolean;
