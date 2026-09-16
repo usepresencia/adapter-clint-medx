@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.8](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.7...v1.3.8) (2026-09-16)
+
+### Bug Fixes
+
+- reenvia id_agendamento_medx ao Clint quando o agendamento ja existia ([8364381](https://github.com/useagendaflow/adapter-clint-medx/commit/83643811a2bfbafabd118ada819dcdbc586c5e9d))
+
 ### [1.3.7](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.6...v1.3.7) (2026-09-16)
 
 ### Bug Fixes
