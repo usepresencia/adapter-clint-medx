@@ -28,7 +28,7 @@ export interface DadosCriacaoAgendamento {
 }
 
 export interface AgendaMedicaPort {
-    criar(dados: DadosCriacaoAgendamento): Promise<number>;
+    criar(dados: DadosCriacaoAgendamento, indiceStatusAgendado: number): Promise<number>;
     obter(id: number): Promise<AgendamentoExterno>;
     listarPorPaciente(idPaciente: number): Promise<AgendamentoExterno[]>;
     confirmar(agendamento: AgendamentoExterno, indiceStatusConfirmado: number): Promise<void>;

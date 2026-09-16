@@ -35,26 +35,30 @@ describe('contratos dos ports', () => {
             confirmar: async () => {},
         };
         expect(
-            await porta.criar({
-                idProfissional: 1,
-                idPaciente: 1,
-                inicio: 'x',
-                fim: 'y',
-                descricao: 'z',
-                idTipoConsulta: 1,
-            }),
+            await porta.criar(
+                {
+                    idProfissional: 1,
+                    idPaciente: 1,
+                    inicio: 'x',
+                    fim: 'y',
+                    descricao: 'z',
+                    idTipoConsulta: 1,
+                },
+                0,
+            ),
         ).toBe(1);
     });
 
     it('um dublê satisfaz os demais ports', async () => {
         const cadastro: CadastroPacientePort = {
             vincular: async () => ({ idPaciente: 1, matchConfiavel: true }),
-            registrarCpf: async () => {},
+            enriquecerFicha: async () => {},
         };
         const catalogo: CatalogoClinicoPort = {
             carregar: async () => {},
             resolverProfissional: async () => 1,
             resolverTipoConsulta: async () => ({ id: 1, nome: 'Consulta', duracaoMinutos: 30 }),
+            indiceStatusAgendado: () => 0,
             indiceStatusConfirmado: () => 1,
         };
         const crm: CrmPort = {
@@ -66,9 +70,10 @@ describe('contratos dos ports', () => {
         };
         const notificador: NotificadorPort = { alertar: async () => {} };
 
+        expect(catalogo.indiceStatusAgendado()).toBe(0);
         expect(catalogo.indiceStatusConfirmado()).toBe(1);
         expect((await catalogo.resolverTipoConsulta('x')).duracaoMinutos).toBe(30);
-        await expect(cadastro.registrarCpf(1, {} as never)).resolves.toBeUndefined();
+        await expect(cadastro.enriquecerFicha(1, {} as never)).resolves.toBeUndefined();
         await expect(crm.notificarConflito('d', 'm')).resolves.toBeUndefined();
         await expect(notificador.alertar('a', {})).resolves.toBeUndefined();
     });

@@ -69,6 +69,7 @@ export class ProcessarRespostaUseCase {
 
         const avaliacao = agendamento.avaliarConfirmacao(
             { status: externo.status, inicio: externo.inicio },
+            this.catalogo.indiceStatusAgendado(),
             this.catalogo.indiceStatusConfirmado(),
         );
 

@@ -16,6 +16,12 @@ function chave(texto: string): string {
         .replace(/\p{Diacritic}/gu, '');
 }
 
+function encontrarIndiceStatus(rotulos: string[], alvo: string): number {
+    // Igualdade exata pós-normalização — NUNCA startsWith (colidiria com um
+    // rótulo customizado como "Confirmação Pendente").
+    return rotulos.findIndex(rotulo => chave(rotulo) === alvo);
+}
+
 @Injectable()
 export class MedxCatalogoAdapter implements CatalogoClinicoPort {
     ttlMs = TTL_PADRAO_MS;
@@ -23,6 +29,7 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
 
     private profissionais: MedxProfissional[] = [];
     private tipos: MedxTipoAgendamento[] = [];
+    private indiceAgendado = -1;
     private indiceConfirmado = -1;
     private carregadoEm = -Infinity;
 
@@ -37,10 +44,16 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
 
         this.profissionais = p;
         this.tipos = t;
-        // Igualdade exata pós-normalização — NUNCA startsWith (colidiria com um
-        // rótulo customizado como "Confirmação Pendente").
-        this.indiceConfirmado = s.findIndex(rotulo => chave(rotulo) === 'confirmado');
 
+        this.indiceAgendado = encontrarIndiceStatus(s, 'agendado');
+        if (this.indiceAgendado < 0) {
+            throw new Error(
+                `Nenhum rótulo de status corresponde a "Agendado" nesta conta do MedX. ` +
+                    `Rótulos recebidos: ${JSON.stringify(s)}`,
+            );
+        }
+
+        this.indiceConfirmado = encontrarIndiceStatus(s, 'confirmado');
         if (this.indiceConfirmado < 0) {
             throw new Error(
                 `Nenhum rótulo de status corresponde a "Confirmado" nesta conta do MedX. ` +
@@ -62,13 +75,13 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
         await this.garantirCache();
         const alvo = chave(valor);
         const achado = this.profissionais.find(
-            p => chave(p.NomeCompleto) === alvo || chave(p.UsuarioNome) === alvo,
+            p => chave(p.nomeCompleto) === alvo || chave(p.usuarioNome) === alvo,
         );
 
         if (!achado) {
             throw new Error(`Profissional não encontrado no MedX: "${valor}"`);
         }
-        return achado.IdDoUsuario;
+        return achado.idDoUsuario;
     }
 
     async resolverTipoConsulta(valor: string | number): Promise<TipoConsultaResolvido> {
@@ -76,18 +89,25 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
 
         const ehNumero = typeof valor === 'number' || /^\d+$/.test(String(valor).trim());
         const achado = ehNumero
-            ? this.tipos.find(t => t.IddoDiagnosticoQP === Number(valor))
-            : this.tipos.find(t => chave(t.DiagnosticoQP) === chave(String(valor)));
+            ? this.tipos.find(t => t.iddoDiagnosticoQP === Number(valor))
+            : this.tipos.find(t => chave(t.diagnosticoQP) === chave(String(valor)));
 
         if (!achado) {
             throw new Error(`Tipo de consulta não encontrado no MedX: "${valor}"`);
         }
 
         return {
-            id: achado.IddoDiagnosticoQP,
-            nome: achado.DiagnosticoQP,
-            duracaoMinutos: achado.Tempo,
+            id: achado.iddoDiagnosticoQP,
+            nome: achado.diagnosticoQP,
+            duracaoMinutos: achado.tempo,
         };
+    }
+
+    indiceStatusAgendado(): number {
+        if (this.indiceAgendado < 0) {
+            throw new Error('Catálogo do MedX não foi inicializado — chame carregar() antes');
+        }
+        return this.indiceAgendado;
     }
 
     indiceStatusConfirmado(): number {

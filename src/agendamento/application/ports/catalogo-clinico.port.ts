@@ -7,9 +7,14 @@ export interface TipoConsultaResolvido {
 }
 
 export interface CatalogoClinicoPort {
-    /** Carrega as tabelas de apoio. Falha se o rótulo de confirmação não existir na conta. */
+    /**
+     * Carrega as tabelas de apoio. Falha se os rótulos de "Agendado" ou
+     * "Confirmado" não existirem na conta — os índices variam por conta e
+     * NUNCA devem ser fixados em código (ver Global Constraints).
+     */
     carregar(): Promise<void>;
     resolverProfissional(valor: string | number): Promise<number>;
     resolverTipoConsulta(valor: string | number): Promise<TipoConsultaResolvido>;
+    indiceStatusAgendado(): number;
     indiceStatusConfirmado(): number;
 }

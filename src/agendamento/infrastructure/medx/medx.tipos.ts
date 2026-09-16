@@ -1,16 +1,19 @@
+// A doc do MedX documenta PascalCase, mas a API real observada em produção
+// devolve camelCase — tratamos a doc como desatualizada e seguimos o
+// comportamento real.
 export interface MedxProfissional {
-    IdDoUsuario: number;
-    NomeCompleto: string;
-    UsuarioNome: string;
-    Ativo: boolean;
-    Agenda: boolean;
-    LinkAgendamentoOnline: string;
+    idDoUsuario: number;
+    nomeCompleto: string;
+    usuarioNome: string;
+    ativo: boolean;
+    agenda: boolean;
+    linkAgendamentoOnline: string;
 }
 
 export interface MedxTipoAgendamento {
-    IddoDiagnosticoQP: number;
-    DiagnosticoQP: string;
-    Tempo: number;
+    iddoDiagnosticoQP: number;
+    diagnosticoQP: string;
+    tempo: number;
 }
 
 export interface MedxAgendamento {
@@ -28,7 +31,10 @@ export interface MedxAgendamento {
     SMS?: string;
 }
 
+// A doc do MedX documenta `Id`/`Match` (PascalCase), mas a API real observada
+// em produção devolve minúsculo (`id`/`match`) — tratamos a doc como
+// desatualizada e seguimos o comportamento real.
 export interface MedxVinculoResposta {
-    Id: string;
-    Match: boolean;
+    id: string;
+    match: boolean;
 }

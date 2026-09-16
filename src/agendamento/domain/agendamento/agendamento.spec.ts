@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { Agendamento, STATUS_MEDX_AGENDADO } from './agendamento';
+import { Agendamento } from './agendamento';
 import { PeriodoConsulta } from './periodo-consulta';
 import { ErroDeDominio } from '../shared/erros';
 
 const PERIODO = PeriodoConsulta.criar('2026-07-10T14:00:00', 30);
+// Índices arbitrários pro teste — o ponto é que NENHUM é fixado em código
+// (ver MedxCatalogoAdapter, que descobre esses valores em runtime por conta).
+const INDICE_AGENDADO = 0;
 const INDICE_CONFIRMADO = 1;
 
 function novo() {
@@ -75,7 +78,8 @@ describe('avaliarConfirmacao', () => {
 
     it('permite quando o estado no MedX bate com o agendado', () => {
         const r = criado().avaliarConfirmacao(
-            { status: STATUS_MEDX_AGENDADO, inicio: '2026-07-10T14:00:00' },
+            { status: INDICE_AGENDADO, inicio: '2026-07-10T14:00:00' },
+            INDICE_AGENDADO,
             INDICE_CONFIRMADO,
         );
         expect(r).toEqual({ permitido: true });
@@ -84,6 +88,7 @@ describe('avaliarConfirmacao', () => {
     it('permite quando o MedX já está confirmado (reenvio do paciente)', () => {
         const r = criado().avaliarConfirmacao(
             { status: INDICE_CONFIRMADO, inicio: '2026-07-10T14:00:00' },
+            INDICE_AGENDADO,
             INDICE_CONFIRMADO,
         );
         expect(r.permitido).toBe(true);
@@ -91,7 +96,8 @@ describe('avaliarConfirmacao', () => {
 
     it('recusa quando o horário mudou desde o lembrete', () => {
         const r = criado().avaliarConfirmacao(
-            { status: STATUS_MEDX_AGENDADO, inicio: '2026-07-11T09:00:00' },
+            { status: INDICE_AGENDADO, inicio: '2026-07-11T09:00:00' },
+            INDICE_AGENDADO,
             INDICE_CONFIRMADO,
         );
         expect(r).toEqual({ permitido: false, motivo: expect.stringMatching(/horário/i) });
@@ -100,6 +106,7 @@ describe('avaliarConfirmacao', () => {
     it('recusa quando a consulta não está mais agendada', () => {
         const r = criado().avaliarConfirmacao(
             { status: 3, inicio: '2026-07-10T14:00:00' },
+            INDICE_AGENDADO,
             INDICE_CONFIRMADO,
         );
         expect(r).toEqual({ permitido: false, motivo: expect.stringMatching(/agendada/i) });
@@ -107,7 +114,8 @@ describe('avaliarConfirmacao', () => {
 
     it('recusa quando o agendamento ainda não foi criado no MedX', () => {
         const r = novo().avaliarConfirmacao(
-            { status: STATUS_MEDX_AGENDADO, inicio: '2026-07-10T14:00:00' },
+            { status: INDICE_AGENDADO, inicio: '2026-07-10T14:00:00' },
+            INDICE_AGENDADO,
             INDICE_CONFIRMADO,
         );
         expect(r.permitido).toBe(false);
@@ -115,7 +123,8 @@ describe('avaliarConfirmacao', () => {
 
     it('aceita o mesmo instante expresso em UTC', () => {
         const r = criado().avaliarConfirmacao(
-            { status: STATUS_MEDX_AGENDADO, inicio: '2026-07-10T17:00:00Z' },
+            { status: INDICE_AGENDADO, inicio: '2026-07-10T17:00:00Z' },
+            INDICE_AGENDADO,
             INDICE_CONFIRMADO,
         );
         expect(r.permitido).toBe(true);
