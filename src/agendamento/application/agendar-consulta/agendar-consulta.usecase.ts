@@ -145,21 +145,20 @@ export class AgendarConsultaUseCase {
         }
 
         const enriquecimento = {
+            telefone,
             ...(cpf ? { cpf } : {}),
             ...(comando.cidade ? { cidade: comando.cidade } : {}),
             ...(comando.endereco ? { endereco: comando.endereco } : {}),
             ...(comando.cep ? { cep: comando.cep } : {}),
         };
 
-        if (Object.keys(enriquecimento).length > 0) {
-            try {
-                await this.cadastro.enriquecerFicha(idPaciente, enriquecimento);
-            } catch (erro) {
-                this.logger.warn(
-                    { deal_id: comando.dealId, erro: (erro as Error).message },
-                    'não foi possível enriquecer a ficha do paciente no MedX',
-                );
-            }
+        try {
+            await this.cadastro.enriquecerFicha(idPaciente, enriquecimento);
+        } catch (erro) {
+            this.logger.warn(
+                { deal_id: comando.dealId, erro: (erro as Error).message },
+                'não foi possível enriquecer a ficha do paciente no MedX',
+            );
         }
 
         await this.crm.gravarIdAgendamento(comando.dealId, agendamento.idMedx!);

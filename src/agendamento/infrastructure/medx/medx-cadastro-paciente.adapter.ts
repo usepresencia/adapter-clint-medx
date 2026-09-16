@@ -38,6 +38,11 @@ export class MedxCadastroPacienteAdapter implements CadastroPacientePort {
     async enriquecerFicha(idPaciente: number, dados: DadosEnriquecimento): Promise<void> {
         const corpo: Record<string, string | number> = { Id_do_Cliente: idPaciente };
         if (dados.cpf) corpo.CPF_CGC = dados.cpf.digitos;
+        // `vincular()` manda o telefone em `Phone`, mas esse campo não é persistido
+        // no cadastro do paciente (confirmado no painel do MedX) — `Celular` é o
+        // nome real usado pela família de campos de `/contatos` (mesmo padrão de
+        // CPF_CGC/Cidade_Residencial/etc.), então repetimos aqui.
+        if (dados.telefone) corpo.Celular = dados.telefone.nacional;
         if (dados.cidade) corpo.Cidade_Residencial = dados.cidade;
         if (dados.endereco) corpo.Endereco_Residencial = dados.endereco;
         if (dados.cep) corpo.Cep_Residencial = dados.cep;

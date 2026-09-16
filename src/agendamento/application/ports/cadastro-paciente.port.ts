@@ -13,6 +13,7 @@ export interface DadosVinculo {
 
 export interface DadosEnriquecimento {
     cpf?: Cpf;
+    telefone?: Telefone;
     cidade?: string;
     endereco?: string;
     cep?: string;

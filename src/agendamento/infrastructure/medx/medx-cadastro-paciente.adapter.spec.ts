@@ -130,5 +130,18 @@ describe('enriquecerFicha', () => {
         expect(corpo).not.toHaveProperty('CPF_CGC');
         expect(corpo).not.toHaveProperty('Endereco_Residencial');
         expect(corpo).not.toHaveProperty('Cep_Residencial');
+        expect(corpo).not.toHaveProperty('Celular');
+    });
+
+    it('envia o telefone no campo Celular', async () => {
+        const { client, enviados } = clientFalso({});
+        await new MedxCadastroPacienteAdapter(client).enriquecerFicha(67890, {
+            telefone: TELEFONE,
+        });
+
+        expect(enviados[0]).toEqual({
+            caminho: '/api/integration/contatos',
+            corpo: { Id_do_Cliente: 67890, Celular: '11999998888' },
+        });
     });
 });
