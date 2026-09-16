@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.3](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.2...v1.3.3) (2026-09-16)
+
+### Bug Fixes
+
+- cadastra o telefone do paciente via enriquecerFicha (campo Celular) ([3072c85](https://github.com/useagendaflow/adapter-clint-medx/commit/3072c85b7e63560fbbeb06777dac50c2880a28d3))
+- usa nomes reais de campo (id_do_Cliente, celular, cpF_CGC) confirmados ao vivo ([c9b11ba](https://github.com/useagendaflow/adapter-clint-medx/commit/c9b11bafb4d052dde8cae73114c1e67c250718b1))
+
 ### [1.3.2](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.1...v1.3.2) (2026-09-16)
 
 ### [1.3.1](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.0...v1.3.1) (2026-09-16)
