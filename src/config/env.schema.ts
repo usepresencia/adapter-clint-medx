@@ -9,6 +9,8 @@ const schema = z.object({
     DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatório (connection string do Postgres)'),
     CLINT_WEBHOOK_AGENDAMENTO_URL: z.string().url(),
     CLINT_WEBHOOK_NOTIFICACAO_URL: z.string().url(),
+    CLINT_API_URL: z.string().url().default('https://api.clint.digital'),
+    CLINT_API_TOKEN: z.string().min(1),
     RETENCAO_DIAS: z.coerce.number().default(90),
     LOG_LEVEL: z.string().default('info'),
     SMTP_URL: z.string().optional(),

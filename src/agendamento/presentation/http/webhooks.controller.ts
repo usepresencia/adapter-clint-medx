@@ -4,7 +4,7 @@ import { FILA_PORT, type FilaPort, type JobAdapter } from '../../application/por
 import { LOGGER_PORT, type LoggerMinimo } from '../../application/ports/logger.port';
 import type { EventoRepositorio } from '../../domain/evento/evento.repositorio';
 import { EVENTO_REPOSITORIO } from '../../../shared/persistence/persistence.module';
-import { schemaAgendamento, schemaResposta } from './schemas';
+import { schemaAgendamento, schemaResposta, schemaLeadOrigem } from './schemas';
 import { WebhookAlwaysOkFilter } from './webhook-always-ok.filter';
 
 type ResultadoValidacao = { ok: true; job: JobAdapter } | { ok: false; motivo: string };
@@ -97,6 +97,35 @@ export class WebhooksController {
                         idAgendamentoMedx: p.id_agendamento_medx,
                         resposta: p.resposta,
                         telefone: p.telefone,
+                    },
+                },
+            };
+        });
+    }
+
+    @Post('lead-origem')
+    @HttpCode(200)
+    async leadOrigem(
+        @Headers('x-adapter-secret') segredo: string | undefined,
+        @Body() body: unknown,
+    ): Promise<{ ok: true }> {
+        return this.receber(body, segredo, '/webhooks/clint/lead-origem', payload => {
+            const validado = schemaLeadOrigem.safeParse(payload);
+            if (!validado.success) {
+                return {
+                    ok: false,
+                    motivo: validado.error.issues.map(i => i.path.join('.')).join(', '),
+                };
+            }
+            const p = validado.data;
+            return {
+                ok: true,
+                job: {
+                    tipo: 'lead-origem',
+                    eventoId: 0,
+                    comando: {
+                        telefone: p.telefone,
+                        textoMensagem: p.texto_mensagem,
                     },
                 },
             };

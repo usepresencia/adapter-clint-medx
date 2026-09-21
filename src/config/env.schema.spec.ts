@@ -7,6 +7,7 @@ const base = {
     DATABASE_URL: 'postgresql://user:pass@localhost:5432/adapter',
     CLINT_WEBHOOK_AGENDAMENTO_URL: 'https://clint.example/a',
     CLINT_WEBHOOK_NOTIFICACAO_URL: 'https://clint.example/n',
+    CLINT_API_TOKEN: 'token-clint',
 };
 
 describe('parseEnv', () => {
@@ -14,6 +15,7 @@ describe('parseEnv', () => {
         const env = parseEnv(base);
         expect(env.PORT).toBe(3000);
         expect(env.MEDX_HOST).toBe('https://integracao-app.medx.med.br');
+        expect(env.CLINT_API_URL).toBe('https://api.clint.digital');
         expect(env.RETENCAO_DIAS).toBe(90);
         expect(env.ALERTA_EMAIL_ORIGEM).toBe('adapter@localhost');
     });

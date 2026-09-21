@@ -39,6 +39,11 @@ export const schemaResposta = z.object({
     telefone: z.string().min(1),
 });
 
+export const schemaLeadOrigem = z.object({
+    telefone: z.string().min(1),
+    texto_mensagem: z.string().min(1),
+});
+
 export const schemaDisponibilidade = z.object({
     profissional: z.string().min(1),
     data_inicio: z
