@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.4.0...v1.5.0) (2026-09-21)
+
+### Features
+
+- adiciona endpoint de consulta de horarios disponiveis para o agente do Clint ([44e9e1c](https://github.com/usepresencia/adapter-clint-medx/commit/44e9e1c984eb4cc168dd7ccea5544ae9d4ed15ca))
+
+### Bug Fixes
+
+- ajusta duracao padrao da consulta de disponibilidade para 60min ([e5d3e7e](https://github.com/usepresencia/adapter-clint-medx/commit/e5d3e7e25d9b199b2f14ca376bfbc4671760aa6c))
+
 ## [1.4.0](https://github.com/useagendaflow/adapter-clint-medx/compare/v1.3.8...v1.4.0) (2026-09-16)
 
 ### Features
