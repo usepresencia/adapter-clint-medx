@@ -10,7 +10,7 @@ import {
 import { CATALOGO_CLINICO_PORT, type CatalogoClinicoPort } from '../ports/catalogo-clinico.port';
 import type { ComandoDisponibilidade } from './consultar-disponibilidade.comando';
 
-const DURACAO_PADRAO_MINUTOS = 30;
+const DURACAO_PADRAO_MINUTOS = 60;
 
 function limiteDoDia(data: string, borda: 'inicio' | 'fim'): string {
     const dt = DateTime.fromFormat(data, 'yyyy-LL-dd', { zone: FUSO_CLINICA });

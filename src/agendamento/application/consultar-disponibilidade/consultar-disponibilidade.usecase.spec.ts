@@ -36,7 +36,7 @@ describe('ConsultarDisponibilidadeUseCase', () => {
             idProfissional: 43013640,
             inicio: '2026-07-10T00:00:00',
             fim: '2026-07-10T23:59:59',
-            duracaoMinutos: 30,
+            duracaoMinutos: 60,
         });
     });
 
