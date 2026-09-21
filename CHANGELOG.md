@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.5.0...v1.5.1) (2026-09-21)
+
+### Bug Fixes
+
+- corrige campos reais e remove filtro proId quebrado da disponibilidade ([7f76a4b](https://github.com/usepresencia/adapter-clint-medx/commit/7f76a4b05098139d19d0726d9816ee96054f5099))
+
 ## [1.5.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.4.0...v1.5.0) (2026-09-21)
 
 ### Features
