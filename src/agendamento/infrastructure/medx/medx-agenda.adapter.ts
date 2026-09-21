@@ -14,6 +14,17 @@ const BASE = '/api/integration/agenda/agendamentos';
 /** Valor exigido pela API do MedX para marcar um agendamento como confirmado. */
 export const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
 
+/**
+ * `slot.data` traz o dia real (`yyyy-LL-ddT00:00:00`); `slot.de`/`slot.ate`
+ * trazem uma data-base fixa e sem sentido, com o valor útil só na parte de
+ * hora (`...THH:mm:ss+00:00`) — confirmado ao vivo. Combina os dois.
+ */
+function combinarDiaComHora(data: string, horaCompleta: string): string {
+    const dia = data.split('T')[0];
+    const hora = horaCompleta.split('T')[1]?.replace(/[+-]\d{2}:?\d{2}$/, '');
+    return `${dia}T${hora}`;
+}
+
 function traduzir(cru: MedxAgendamento): AgendamentoExterno {
     return {
         id: cru.id_do_Agendamento,
@@ -88,7 +99,10 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
         );
 
         if (!Array.isArray(resposta)) return [];
-        return resposta.map(slot => ({ inicio: slot.de, fim: slot.ate }));
+        return resposta.map(slot => ({
+            inicio: combinarDiaComHora(slot.data, slot.de),
+            fim: combinarDiaComHora(slot.data, slot.ate),
+        }));
     }
 
     async listarPorPaciente(idPaciente: number): Promise<AgendamentoExterno[]> {

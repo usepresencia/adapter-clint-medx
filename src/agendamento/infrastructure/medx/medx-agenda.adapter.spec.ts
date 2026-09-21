@@ -176,17 +176,28 @@ describe('confirmar', () => {
 });
 
 describe('consultarDisponibilidade', () => {
-    it('busca slots livres e traduz a resposta (nomes de campo reais, confirmados ao vivo)', async () => {
+    it('combina o dia real (campo data) com a hora de de/ate, ignorando a data-base bugada delas', async () => {
+        // Confirmado ao vivo: `de`/`ate` sempre trazem a MESMA data-base (não o
+        // dia do slot) — só a hora deles é significativa. Quem informa o dia
+        // real é o campo `data`. Exemplo real observado em produção:
         const { client, enviados } = clientFalso([
-            { data: '2026-07-10T00:00:00', de: '2026-07-10T09:00:00', ate: '2026-07-10T09:30:00' },
-            { data: '2026-07-10T00:00:00', de: '2026-07-10T09:30:00', ate: '2026-07-10T10:00:00' },
+            {
+                data: '2026-09-22T00:00:00',
+                de: '2026-09-21T08:00:00+00:00',
+                ate: '2026-09-21T09:00:00+00:00',
+            },
+            {
+                data: '2026-09-23T00:00:00',
+                de: '2026-09-21T08:00:00+00:00',
+                ate: '2026-09-21T09:00:00+00:00',
+            },
         ]);
 
         const slots = await new MedxAgendaAdapter(client).consultarDisponibilidade({
             idProfissional: 43013640,
-            inicio: '2026-07-10T00:00:00',
-            fim: '2026-07-10T23:59:59',
-            duracaoMinutos: 30,
+            inicio: '2026-09-22T00:00:00',
+            fim: '2026-09-28T23:59:59',
+            duracaoMinutos: 60,
         });
 
         // proId NÃO é enviado: confirmado ao vivo que qualquer id negativo
@@ -194,13 +205,13 @@ describe('consultarDisponibilidade', () => {
         // — é um bug do MedX, não algo que dá pra contornar do nosso lado.
         expect(enviados[0]!.caminho).toBe('/api/integration/agenda/disponibilidade');
         expect(enviados[0]!.query).toEqual({
-            inicio: '2026-07-10T00:00:00',
-            fim: '2026-07-10T23:59:59',
-            intervalo: 30,
+            inicio: '2026-09-22T00:00:00',
+            fim: '2026-09-28T23:59:59',
+            intervalo: 60,
         });
         expect(slots).toEqual([
-            { inicio: '2026-07-10T09:00:00', fim: '2026-07-10T09:30:00' },
-            { inicio: '2026-07-10T09:30:00', fim: '2026-07-10T10:00:00' },
+            { inicio: '2026-09-22T08:00:00', fim: '2026-09-22T09:00:00' },
+            { inicio: '2026-09-23T08:00:00', fim: '2026-09-23T09:00:00' },
         ]);
     });
 
