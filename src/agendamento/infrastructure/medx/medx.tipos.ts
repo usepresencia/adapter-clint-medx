@@ -49,7 +49,8 @@ export interface MedxVinculoResposta {
 
 // A doc documenta PascalCase (Data/De/Ate), mas a API real devolve minúsculo
 // — confirmado ao vivo em produção, mesmo padrão de todo outro endpoint desta
-// conta.
+// conta. Além disso, `de`/`ate` SEMPRE trazem a mesma data-base (não o dia do
+// slot) — só a hora deles é significativa; `data` é quem informa o dia real.
 export interface MedxDisponibilidade {
     data: string;
     de: string;
