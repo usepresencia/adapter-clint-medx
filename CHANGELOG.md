@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.2](https://github.com/usepresencia/adapter-clint-medx/compare/v1.5.1...v1.5.2) (2026-09-21)
+
+### Bug Fixes
+
+- combina dia real com hora de de/ate na disponibilidade ([70c47f8](https://github.com/usepresencia/adapter-clint-medx/commit/70c47f854b0c02a833921c58ca30c82023275e4d))
+
 ### [1.5.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.5.0...v1.5.1) (2026-09-21)
 
 ### Bug Fixes
