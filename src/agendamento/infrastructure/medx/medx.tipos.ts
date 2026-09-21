@@ -46,3 +46,12 @@ export interface MedxVinculoResposta {
     id: string;
     match: boolean;
 }
+
+// NÃO confirmado ao vivo ainda (endpoint novo) — segue a doc por enquanto.
+// Dado o histórico desta conta (todo outro endpoint teve capitalização
+// diferente da doc), validar a primeira chamada real antes de confiar cego.
+export interface MedxDisponibilidade {
+    Data: string;
+    De: string;
+    Ate: string;
+}

@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 import type {
     AgendaMedicaPort,
     AgendamentoExterno,
+    ConsultaDisponibilidade,
     DadosCriacaoAgendamento,
+    SlotDisponivel,
 } from '../../application/ports/agenda-medica.port';
 import { MedxHttpClient } from './medx-http.client';
-import type { MedxAgendamento } from './medx.tipos';
+import type { MedxAgendamento, MedxDisponibilidade } from './medx.tipos';
 
 const BASE = '/api/integration/agenda/agendamentos';
 
@@ -67,6 +69,21 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
             throw new Error(`Agendamento ${id} não encontrado no MedX`);
         }
         return traduzir(cru);
+    }
+
+    async consultarDisponibilidade(consulta: ConsultaDisponibilidade): Promise<SlotDisponivel[]> {
+        const resposta = await this.client.get<MedxDisponibilidade[]>(
+            '/api/integration/agenda/disponibilidade',
+            {
+                inicio: consulta.inicio,
+                fim: consulta.fim,
+                proId: consulta.idProfissional,
+                intervalo: consulta.duracaoMinutos,
+            },
+        );
+
+        if (!Array.isArray(resposta)) return [];
+        return resposta.map(slot => ({ inicio: slot.De, fim: slot.Ate }));
     }
 
     async listarPorPaciente(idPaciente: number): Promise<AgendamentoExterno[]> {

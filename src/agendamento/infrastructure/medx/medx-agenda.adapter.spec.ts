@@ -22,10 +22,10 @@ const CRU: MedxAgendamento & { CampoQueNaoModelamos: string } = {
 };
 
 function clientFalso(resposta: unknown) {
-    const enviados: Array<{ caminho: string; corpo?: unknown }> = [];
+    const enviados: Array<{ caminho: string; corpo?: unknown; query?: unknown }> = [];
     const client = {
-        get: async <T>(caminho: string) => {
-            enviados.push({ caminho });
+        get: async <T>(caminho: string, query?: unknown) => {
+            enviados.push({ caminho, query });
             return resposta as T;
         },
         post: async <T>(caminho: string, corpo: unknown) => {
@@ -172,6 +172,46 @@ describe('confirmar', () => {
         ]) {
             expect(corpo).toHaveProperty(campo);
         }
+    });
+});
+
+describe('consultarDisponibilidade', () => {
+    it('busca slots livres com os parâmetros certos e traduz a resposta', async () => {
+        const { client, enviados } = clientFalso([
+            { Data: '2026-07-10T00:00:00', De: '2026-07-10T09:00:00', Ate: '2026-07-10T09:30:00' },
+            { Data: '2026-07-10T00:00:00', De: '2026-07-10T09:30:00', Ate: '2026-07-10T10:00:00' },
+        ]);
+
+        const slots = await new MedxAgendaAdapter(client).consultarDisponibilidade({
+            idProfissional: 43013640,
+            inicio: '2026-07-10T00:00:00',
+            fim: '2026-07-10T23:59:59',
+            duracaoMinutos: 30,
+        });
+
+        expect(enviados[0]!.caminho).toBe('/api/integration/agenda/disponibilidade');
+        expect(enviados[0]!.query).toEqual({
+            inicio: '2026-07-10T00:00:00',
+            fim: '2026-07-10T23:59:59',
+            proId: 43013640,
+            intervalo: 30,
+        });
+        expect(slots).toEqual([
+            { inicio: '2026-07-10T09:00:00', fim: '2026-07-10T09:30:00' },
+            { inicio: '2026-07-10T09:30:00', fim: '2026-07-10T10:00:00' },
+        ]);
+    });
+
+    it('devolve lista vazia quando a API não retorna array', async () => {
+        const { client } = clientFalso(null);
+        expect(
+            await new MedxAgendaAdapter(client).consultarDisponibilidade({
+                idProfissional: 1,
+                inicio: '2026-07-10T00:00:00',
+                fim: '2026-07-10T23:59:59',
+                duracaoMinutos: 30,
+            }),
+        ).toEqual([]);
     });
 });
 

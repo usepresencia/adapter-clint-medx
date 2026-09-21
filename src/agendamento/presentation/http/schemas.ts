@@ -38,3 +38,15 @@ export const schemaResposta = z.object({
     resposta: z.enum(VALORES_RESPOSTA as unknown as [string, ...string[]]),
     telefone: z.string().min(1),
 });
+
+export const schemaDisponibilidade = z.object({
+    profissional: z.string().min(1),
+    data_inicio: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, 'data_inicio deve estar no formato YYYY-MM-DD'),
+    data_fim: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, 'data_fim deve estar no formato YYYY-MM-DD')
+        .optional(),
+    duracao_minutos: z.coerce.number().int().positive().optional(),
+});
