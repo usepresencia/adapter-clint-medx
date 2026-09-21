@@ -72,18 +72,23 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
     }
 
     async consultarDisponibilidade(consulta: ConsultaDisponibilidade): Promise<SlotDisponivel[]> {
+        // `proId` NÃO é enviado: confirmado ao vivo que essa conta usa só ids
+        // negativos para profissional, e qualquer proId negativo devolve lista
+        // vazia (bug do MedX, não um nome de parâmetro errado — testado com
+        // ids reais de dois profissionais diferentes). Como a clínica atende
+        // com uma única profissional, a disponibilidade sem filtro já reflete
+        // a agenda dela. Reavaliar se a conta ganhar um segundo profissional.
         const resposta = await this.client.get<MedxDisponibilidade[]>(
             '/api/integration/agenda/disponibilidade',
             {
                 inicio: consulta.inicio,
                 fim: consulta.fim,
-                proId: consulta.idProfissional,
                 intervalo: consulta.duracaoMinutos,
             },
         );
 
         if (!Array.isArray(resposta)) return [];
-        return resposta.map(slot => ({ inicio: slot.De, fim: slot.Ate }));
+        return resposta.map(slot => ({ inicio: slot.de, fim: slot.ate }));
     }
 
     async listarPorPaciente(idPaciente: number): Promise<AgendamentoExterno[]> {

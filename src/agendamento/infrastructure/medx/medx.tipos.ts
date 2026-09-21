@@ -47,11 +47,11 @@ export interface MedxVinculoResposta {
     match: boolean;
 }
 
-// NÃO confirmado ao vivo ainda (endpoint novo) — segue a doc por enquanto.
-// Dado o histórico desta conta (todo outro endpoint teve capitalização
-// diferente da doc), validar a primeira chamada real antes de confiar cego.
+// A doc documenta PascalCase (Data/De/Ate), mas a API real devolve minúsculo
+// — confirmado ao vivo em produção, mesmo padrão de todo outro endpoint desta
+// conta.
 export interface MedxDisponibilidade {
-    Data: string;
-    De: string;
-    Ate: string;
+    data: string;
+    de: string;
+    ate: string;
 }
