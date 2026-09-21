@@ -176,10 +176,10 @@ describe('confirmar', () => {
 });
 
 describe('consultarDisponibilidade', () => {
-    it('busca slots livres com os parâmetros certos e traduz a resposta', async () => {
+    it('busca slots livres e traduz a resposta (nomes de campo reais, confirmados ao vivo)', async () => {
         const { client, enviados } = clientFalso([
-            { Data: '2026-07-10T00:00:00', De: '2026-07-10T09:00:00', Ate: '2026-07-10T09:30:00' },
-            { Data: '2026-07-10T00:00:00', De: '2026-07-10T09:30:00', Ate: '2026-07-10T10:00:00' },
+            { data: '2026-07-10T00:00:00', de: '2026-07-10T09:00:00', ate: '2026-07-10T09:30:00' },
+            { data: '2026-07-10T00:00:00', de: '2026-07-10T09:30:00', ate: '2026-07-10T10:00:00' },
         ]);
 
         const slots = await new MedxAgendaAdapter(client).consultarDisponibilidade({
@@ -189,11 +189,13 @@ describe('consultarDisponibilidade', () => {
             duracaoMinutos: 30,
         });
 
+        // proId NÃO é enviado: confirmado ao vivo que qualquer id negativo
+        // (o único tipo que esta conta usa para profissional) zera a resposta
+        // — é um bug do MedX, não algo que dá pra contornar do nosso lado.
         expect(enviados[0]!.caminho).toBe('/api/integration/agenda/disponibilidade');
         expect(enviados[0]!.query).toEqual({
             inicio: '2026-07-10T00:00:00',
             fim: '2026-07-10T23:59:59',
-            proId: 43013640,
             intervalo: 30,
         });
         expect(slots).toEqual([

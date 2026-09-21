@@ -28,6 +28,13 @@ export interface DadosCriacaoAgendamento {
 }
 
 export interface ConsultaDisponibilidade {
+    /**
+     * Confirmado ao vivo: o MedxAgendaAdapter atual NÃO filtra por este id
+     * (bug do MedX — qualquer proId negativo, único tipo de id que esta conta
+     * usa para profissional, zera a resposta). Mantido no contrato para o dia
+     * em que isso for corrigido do lado do MedX ou a clínica ganhar mais de
+     * um profissional.
+     */
     idProfissional: number;
     /** Início da janela consultada, formato `yyyy-LL-ddTHH:mm:ss` (horário local da clínica). */
     inicio: string;
