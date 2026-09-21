@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import { ErroDeDominio } from '../shared/erros';
 
 export const FUSO_CLINICA = 'America/Sao_Paulo';
-const FORMATO_MEDX = "yyyy-LL-dd'T'HH:mm:ss";
+export const FORMATO_MEDX = "yyyy-LL-dd'T'HH:mm:ss";
 
 function interpretar(valor: string): DateTime | null {
     const temOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(valor);

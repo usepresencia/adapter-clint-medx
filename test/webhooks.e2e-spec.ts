@@ -47,6 +47,9 @@ const agendaFalsa = {
     })),
     listarPorPaciente: vi.fn(async () => []),
     confirmar: vi.fn(async () => {}),
+    consultarDisponibilidade: vi.fn(async () => [
+        { inicio: '2026-07-10T09:00:00', fim: '2026-07-10T09:30:00' },
+    ]),
 };
 const cadastroFalso = {
     vincular: vi.fn(async () => ({ idPaciente: 67890, matchConfiavel: true })),
@@ -260,6 +263,50 @@ describe('webhooks (e2e)', () => {
         it('continua respondendo 404 de verdade fora de /webhooks', async () => {
             const r = await request(app.getHttpServer()).get('/rota-que-nao-existe');
             expect(r.status).toBe(404);
+        });
+    });
+
+    describe('GET /clint/disponibilidade', () => {
+        it('devolve os slots com 200 quando os parâmetros são válidos', async () => {
+            const r = await request(app.getHttpServer())
+                .get('/clint/disponibilidade')
+                .set('x-adapter-secret', SEGREDO)
+                .query({ profissional: 'Leize', data_inicio: '2026-07-10' });
+
+            expect(r.status).toBe(200);
+            expect(r.body).toEqual({
+                slots: [{ inicio: '2026-07-10T09:00:00', fim: '2026-07-10T09:30:00' }],
+            });
+        });
+
+        it('responde 401 sem o segredo — diferente dos webhooks, não mascara como 200', async () => {
+            const r = await request(app.getHttpServer())
+                .get('/clint/disponibilidade')
+                .query({ profissional: 'Leize', data_inicio: '2026-07-10' });
+
+            expect(r.status).toBe(401);
+        });
+
+        it('responde 400 com data em formato inválido', async () => {
+            const r = await request(app.getHttpServer())
+                .get('/clint/disponibilidade')
+                .set('x-adapter-secret', SEGREDO)
+                .query({ profissional: 'Leize', data_inicio: '10/07/2026' });
+
+            expect(r.status).toBe(400);
+        });
+
+        it('responde 400 quando o profissional não é encontrado', async () => {
+            catalogoFalso.resolverProfissional.mockRejectedValueOnce(
+                new Error('Profissional não encontrado no MedX: "Fulano"'),
+            );
+
+            const r = await request(app.getHttpServer())
+                .get('/clint/disponibilidade')
+                .set('x-adapter-secret', SEGREDO)
+                .query({ profissional: 'Fulano', data_inicio: '2026-07-10' });
+
+            expect(r.status).toBe(400);
         });
     });
 });

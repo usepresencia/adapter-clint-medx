@@ -23,13 +23,15 @@ import { CRM_PORT } from './application/ports/crm.port';
 
 import { AgendarConsultaUseCase } from './application/agendar-consulta/agendar-consulta.usecase';
 import { ProcessarRespostaUseCase } from './application/processar-resposta-lembrete/processar-resposta.usecase';
+import { ConsultarDisponibilidadeUseCase } from './application/consultar-disponibilidade/consultar-disponibilidade.usecase';
 
 import { WebhooksController } from './presentation/http/webhooks.controller';
 import { HealthController } from './presentation/http/health.controller';
+import { DisponibilidadeController } from './presentation/http/disponibilidade.controller';
 
 @Module({
     imports: [PersistenceModule, ObservabilidadeModule, FilaModule],
-    controllers: [WebhooksController, HealthController],
+    controllers: [WebhooksController, HealthController, DisponibilidadeController],
     providers: [
         MedxTokenProvider,
         MedxHttpClient,
@@ -39,6 +41,7 @@ import { HealthController } from './presentation/http/health.controller';
         { provide: CRM_PORT, useClass: ClintWebhookAdapter },
         AgendarConsultaUseCase,
         ProcessarRespostaUseCase,
+        ConsultarDisponibilidadeUseCase,
         AdapterProcessor,
         { provide: REDIS_HEALTH_CLIENT, useClass: RedisHealthClient },
     ],
