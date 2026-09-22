@@ -44,6 +44,15 @@ export const schemaLeadOrigem = z.object({
     texto_mensagem: z.string().min(1),
 });
 
+export const schemaCapturarClique = z.object({
+    fbclid: z.string().optional(),
+    utm_source: z.string().optional(),
+    utm_medium: z.string().optional(),
+    utm_campaign: z.string().optional(),
+    utm_content: z.string().optional(),
+    utm_term: z.string().optional(),
+});
+
 export const schemaDisponibilidade = z.object({
     profissional: z.string().min(1),
     data_inicio: z

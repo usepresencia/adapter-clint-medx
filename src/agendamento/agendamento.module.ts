@@ -28,14 +28,16 @@ import { AgendarConsultaUseCase } from './application/agendar-consulta/agendar-c
 import { ProcessarRespostaUseCase } from './application/processar-resposta-lembrete/processar-resposta.usecase';
 import { ProcessarLeadOrigemUseCase } from './application/processar-lead-origem/processar-lead-origem.usecase';
 import { ConsultarDisponibilidadeUseCase } from './application/consultar-disponibilidade/consultar-disponibilidade.usecase';
+import { CapturarCliqueUseCase } from './application/capturar-clique/capturar-clique.usecase';
 
 import { WebhooksController } from './presentation/http/webhooks.controller';
 import { HealthController } from './presentation/http/health.controller';
 import { DisponibilidadeController } from './presentation/http/disponibilidade.controller';
+import { LeadsController } from './presentation/http/leads.controller';
 
 @Module({
     imports: [PersistenceModule, ObservabilidadeModule, FilaModule],
-    controllers: [WebhooksController, HealthController, DisponibilidadeController],
+    controllers: [WebhooksController, HealthController, DisponibilidadeController, LeadsController],
     providers: [
         MedxTokenProvider,
         MedxHttpClient,
@@ -49,6 +51,7 @@ import { DisponibilidadeController } from './presentation/http/disponibilidade.c
         ProcessarRespostaUseCase,
         ProcessarLeadOrigemUseCase,
         ConsultarDisponibilidadeUseCase,
+        CapturarCliqueUseCase,
         AdapterProcessor,
         { provide: REDIS_HEALTH_CLIENT, useClass: RedisHealthClient },
     ],

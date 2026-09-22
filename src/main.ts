@@ -17,6 +17,7 @@ async function bootstrap(): Promise<void> {
     const env = parseEnv(process.env);
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
     app.useLogger(app.get(Logger));
+    app.enableCors({ origin: env.SITE_ORIGEM_URL });
 
     const logger = app.get<LoggerMinimo>(LOGGER_PORT);
     app.useGlobalFilters(new NotFoundFilter(app.get(HttpAdapterHost), logger));
