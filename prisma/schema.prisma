@@ -47,3 +47,20 @@ model Agendamento {
   @@index([medxIdAgendamento])
   @@map("agendamentos")
 }
+
+model CliqueOrigem {
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique
+  fbclid      String?
+  utmSource   String?  @map("utm_source")
+  utmMedium   String?  @map("utm_medium")
+  utmCampaign String?  @map("utm_campaign")
+  utmContent  String?  @map("utm_content")
+  utmTerm     String?  @map("utm_term")
+  telefone    String?
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  @@index([telefone])
+  @@index([criadoEm])
+  @@map("cliques_origem")
+}
