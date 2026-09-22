@@ -6,6 +6,7 @@ import type { JobAdapter } from '../../application/ports/fila.port';
 import type { EventoRepositorio } from '../../domain/evento/evento.repositorio';
 import { AgendarConsultaUseCase } from '../../application/agendar-consulta/agendar-consulta.usecase';
 import { ProcessarRespostaUseCase } from '../../application/processar-resposta-lembrete/processar-resposta.usecase';
+import { ProcessarLeadOrigemUseCase } from '../../application/processar-lead-origem/processar-lead-origem.usecase';
 import { EVENTO_REPOSITORIO } from '../../../shared/persistence/persistence.module';
 import { ErroRateLimit } from '../medx/medx.erros';
 import { LIMITER, NOME_FILA } from './fila.constants';
@@ -16,6 +17,7 @@ export class AdapterProcessor extends WorkerHost {
         @Inject(EVENTO_REPOSITORIO) private readonly eventos: EventoRepositorio,
         private readonly agendarConsulta: AgendarConsultaUseCase,
         private readonly processarResposta: ProcessarRespostaUseCase,
+        private readonly processarLeadOrigem: ProcessarLeadOrigemUseCase,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
     ) {
         super();
@@ -28,8 +30,10 @@ export class AdapterProcessor extends WorkerHost {
         try {
             if (dados.tipo === 'agendamento') {
                 await this.agendarConsulta.executar(dados.comando);
-            } else {
+            } else if (dados.tipo === 'resposta') {
                 await this.processarResposta.executar(dados.comando);
+            } else {
+                await this.processarLeadOrigem.executar(dados.comando);
             }
 
             evento.marcarProcessado();

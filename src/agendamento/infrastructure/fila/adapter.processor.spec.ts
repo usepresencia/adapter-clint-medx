@@ -55,12 +55,14 @@ function montar() {
     const eventos = eventosFalso();
     const agendarConsulta = { executar: vi.fn(async () => {}) };
     const processarResposta = { executar: vi.fn(async () => {}) };
+    const processarLeadOrigem = { executar: vi.fn(async () => {}) };
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     const processor = new AdapterProcessor(
         eventos as any,
         agendarConsulta as any,
         processarResposta as any,
+        processarLeadOrigem as any,
         logger as any,
     );
     // WorkerHost.worker é um getter só-leitura apoiado no campo privado
@@ -68,7 +70,7 @@ function montar() {
     // o dublê diretamente no backing field.
     (processor as any)._worker = { rateLimit: vi.fn() };
 
-    return { eventos, agendarConsulta, processarResposta, logger, processor };
+    return { eventos, agendarConsulta, processarResposta, processarLeadOrigem, logger, processor };
 }
 
 describe('AdapterProcessor.process', () => {
@@ -90,6 +92,19 @@ describe('AdapterProcessor.process', () => {
 
         expect(processarResposta.executar).toHaveBeenCalled();
         expect(agendarConsulta.executar).not.toHaveBeenCalled();
+    });
+
+    it('roteia job de lead-origem para o caso de uso certo', async () => {
+        const { eventos, agendarConsulta, processarResposta, processarLeadOrigem, processor } =
+            montar();
+        const e = await eventos.registrar('/x');
+        await processor.process({
+            data: { tipo: 'lead-origem', eventoId: e.id, comando: {} },
+        } as any);
+
+        expect(processarLeadOrigem.executar).toHaveBeenCalled();
+        expect(agendarConsulta.executar).not.toHaveBeenCalled();
+        expect(processarResposta.executar).not.toHaveBeenCalled();
     });
 
     it('marca o evento como processado no sucesso', async () => {

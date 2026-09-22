@@ -8,6 +8,7 @@ process.env.ADAPTER_SECRET = 'segredo-de-teste';
 process.env.MEDX_INTEGRATION_TOKEN = 'token-fake';
 process.env.CLINT_WEBHOOK_AGENDAMENTO_URL = 'https://clint.test/a';
 process.env.CLINT_WEBHOOK_NOTIFICACAO_URL = 'https://clint.test/n';
+process.env.CLINT_API_TOKEN = 'token-fake';
 process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@localhost:5432/adapter';
 process.env.REDIS_URL ??= 'redis://127.0.0.1:6379';
 
@@ -16,6 +17,7 @@ import { CATALOGO_CLINICO_PORT } from '../src/agendamento/application/ports/cata
 import { AGENDA_MEDICA_PORT } from '../src/agendamento/application/ports/agenda-medica.port';
 import { CADASTRO_PACIENTE_PORT } from '../src/agendamento/application/ports/cadastro-paciente.port';
 import { CRM_PORT } from '../src/agendamento/application/ports/crm.port';
+import { CRM_CONTATO_PORT } from '../src/agendamento/application/ports/crm-contato.port';
 import { FILA_PORT } from '../src/agendamento/application/ports/fila.port';
 import { LOGGER_PORT } from '../src/agendamento/application/ports/logger.port';
 import { NotFoundFilter } from '../src/shared/presentation/not-found.filter';
@@ -61,6 +63,10 @@ const crmFalso = {
     notificarReagendamento: vi.fn(async () => {}),
     notificarCancelamento: vi.fn(async () => {}),
     notificarConflito: vi.fn(async () => {}),
+};
+const contatosFalso = {
+    buscarIdPorTelefone: vi.fn(async () => 'contato-1'),
+    adicionarTag: vi.fn(async () => {}),
 };
 
 const AGENDAMENTO = {
@@ -109,7 +115,9 @@ async function construirApp(overrideFila = false): Promise<INestApplication> {
         .overrideProvider(CADASTRO_PACIENTE_PORT)
         .useValue(cadastroFalso)
         .overrideProvider(CRM_PORT)
-        .useValue(crmFalso);
+        .useValue(crmFalso)
+        .overrideProvider(CRM_CONTATO_PORT)
+        .useValue(contatosFalso);
 
     if (overrideFila) {
         builder.overrideProvider(FILA_PORT).useValue({
@@ -244,6 +252,30 @@ describe('webhooks (e2e)', () => {
             const evento = await eventoDoDeal(prisma, dealId);
             expect(evento?.status).toBe('invalido');
             expect(evento?.erro).toContain('resposta');
+        });
+    });
+
+    describe('POST /webhooks/clint/lead-origem', () => {
+        it('aceita o payload válido, identifica a origem e aplica a tag no contato', async () => {
+            const r = await request(app.getHttpServer())
+                .post('/webhooks/clint/lead-origem')
+                .set('x-adapter-secret', SEGREDO)
+                .send({ telefone: '+5511999998888', texto_mensagem: 'Olá, vim pelo Google' });
+            expect(r.status).toBe(200);
+            expect(r.body).toEqual({ ok: true });
+
+            await vi.waitFor(() => {
+                expect(contatosFalso.adicionarTag).toHaveBeenCalledWith('contato-1', 'Google');
+            });
+        });
+
+        it('responde 200 e não enfileira quando falta o texto da mensagem', async () => {
+            const r = await request(app.getHttpServer())
+                .post('/webhooks/clint/lead-origem')
+                .set('x-adapter-secret', SEGREDO)
+                .send({ telefone: '+5511999998888' });
+            expect(r.status).toBe(200);
+            expect(r.body).toEqual({ ok: true });
         });
     });
 
