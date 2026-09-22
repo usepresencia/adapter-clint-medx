@@ -12,6 +12,8 @@ const schema = z.object({
     CLINT_API_URL: z.string().url().default('https://api.clint.digital'),
     CLINT_API_TOKEN: z.string().min(1),
     SITE_ORIGEM_URL: z.string().url().default('https://leize.com.br'),
+    META_PIXEL_ID: z.string().optional(),
+    META_CAPI_ACCESS_TOKEN: z.string().optional(),
     RETENCAO_DIAS: z.coerce.number().default(90),
     LOG_LEVEL: z.string().default('info'),
     SMTP_URL: z.string().optional(),
