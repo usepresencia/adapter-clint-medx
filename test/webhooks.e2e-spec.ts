@@ -9,6 +9,8 @@ process.env.MEDX_INTEGRATION_TOKEN = 'token-fake';
 process.env.CLINT_WEBHOOK_AGENDAMENTO_URL = 'https://clint.test/a';
 process.env.CLINT_WEBHOOK_NOTIFICACAO_URL = 'https://clint.test/n';
 process.env.CLINT_API_TOKEN = 'token-fake';
+process.env.META_PIXEL_ID = 'pixel-teste';
+process.env.META_CAPI_ACCESS_TOKEN = 'token-teste';
 process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@localhost:5432/adapter';
 process.env.REDIS_URL ??= 'redis://127.0.0.1:6379';
 
@@ -18,6 +20,7 @@ import { AGENDA_MEDICA_PORT } from '../src/agendamento/application/ports/agenda-
 import { CADASTRO_PACIENTE_PORT } from '../src/agendamento/application/ports/cadastro-paciente.port';
 import { CRM_PORT } from '../src/agendamento/application/ports/crm.port';
 import { CRM_CONTATO_PORT } from '../src/agendamento/application/ports/crm-contato.port';
+import { CONVERSAO_PORT } from '../src/agendamento/application/ports/conversao.port';
 import { FILA_PORT } from '../src/agendamento/application/ports/fila.port';
 import { LOGGER_PORT } from '../src/agendamento/application/ports/logger.port';
 import { NotFoundFilter } from '../src/shared/presentation/not-found.filter';
@@ -68,6 +71,7 @@ const contatosFalso = {
     buscarIdPorTelefone: vi.fn(async () => 'contato-1'),
     adicionarTag: vi.fn(async () => {}),
 };
+const conversaoFalso = { notificarConversao: vi.fn(async () => {}) };
 
 const AGENDAMENTO = {
     deal_id: '8feade82-d77b-4e8b-9d35-fd43e972b5c8',
@@ -117,7 +121,9 @@ async function construirApp(overrideFila = false): Promise<INestApplication> {
         .overrideProvider(CRM_PORT)
         .useValue(crmFalso)
         .overrideProvider(CRM_CONTATO_PORT)
-        .useValue(contatosFalso);
+        .useValue(contatosFalso)
+        .overrideProvider(CONVERSAO_PORT)
+        .useValue(conversaoFalso);
 
     if (overrideFila) {
         builder.overrideProvider(FILA_PORT).useValue({
@@ -276,6 +282,94 @@ describe('webhooks (e2e)', () => {
                 .send({ telefone: '+5511999998888' });
             expect(r.status).toBe(200);
             expect(r.body).toEqual({ ok: true });
+        });
+    });
+
+    describe('POST /leads/click', () => {
+        it('devolve um código e aceita payload vazio', async () => {
+            const r = await request(app.getHttpServer()).post('/leads/click').send({});
+            expect(r.status).toBe(200);
+            expect(r.body.codigo).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
+        });
+
+        it('devolve 400 quando um campo vem em formato errado', async () => {
+            const r = await request(app.getHttpServer()).post('/leads/click').send({ fbclid: 123 });
+            expect(r.status).toBe(400);
+        });
+    });
+
+    describe('fluxo completo: clique no site → mensagem com Ref → confirmação → CAPI', () => {
+        it('associa o clique ao telefone e dispara a conversão na confirmação', async () => {
+            // A confirmação só segue o caminho de sucesso (e só aí dispara a
+            // conversão) quando o adapter já tem um registro LOCAL do
+            // agendamento — por isso este teste cria um agendamento de
+            // verdade via /webhooks/clint/agendamento antes de confirmar,
+            // diferente dos testes de resposta-lembrete isolados mais acima
+            // (que testam só a recusa, deliberadamente sem esse registro).
+            conversaoFalso.notificarConversao.mockClear();
+
+            const dealId = '66666666-6666-4666-8666-666666666666';
+            const telefone = '+5511988887777';
+
+            // O mock padrão de agenda.obter devolve inicio/fim vazios, o que
+            // reprovaria a confirmação (horário não bate com o combinado em
+            // dia_da_consulta/hora_da_consulta do AGENDAMENTO). Só este
+            // teste chega de fato nessa checagem — os outros testes de
+            // resposta-lembrete acima recusam antes, por não terem um
+            // agendamento local registrado.
+            agendaFalsa.obter.mockResolvedValueOnce({
+                id: 1275002478,
+                idProfissional: 43013640,
+                idPaciente: 67890,
+                inicio: '2026-07-10T14:00:00',
+                fim: '2026-07-10T14:30:00',
+                descricao: '',
+                status: 0,
+                idTipoConsulta: 111,
+                confirmacao: '',
+                ultimaEdicao: '2026-07-10T10:00:00',
+                bruto: {},
+            });
+
+            const clique = await request(app.getHttpServer())
+                .post('/leads/click')
+                .send({ fbclid: 'fb.e2e.123', utm_source: 'meta', utm_campaign: 'promo' });
+            const codigo = clique.body.codigo as string;
+
+            const leadOrigem = await request(app.getHttpServer())
+                .post('/webhooks/clint/lead-origem')
+                .set('x-adapter-secret', SEGREDO)
+                .send({ telefone, texto_mensagem: `Olá, vim pelo site (Ref: ${codigo})` });
+            expect(leadOrigem.status).toBe(200);
+
+            await vi.waitFor(() => {
+                expect(contatosFalso.adicionarTag).toHaveBeenCalledWith('contato-1', 'Meta');
+            });
+
+            const agendamento = await request(app.getHttpServer())
+                .post('/webhooks/clint/agendamento')
+                .set('x-adapter-secret', SEGREDO)
+                .send({ ...AGENDAMENTO, deal_id: dealId, telefone });
+            expect(agendamento.status).toBe(200);
+
+            await vi.waitFor(async () => {
+                const registro = await prisma.agendamento.findUnique({ where: { dealId } });
+                expect(registro).not.toBeNull();
+            });
+
+            const resposta = await request(app.getHttpServer())
+                .post('/webhooks/clint/resposta-lembrete')
+                .set('x-adapter-secret', SEGREDO)
+                .send({ ...RESPOSTA, deal_id: dealId, telefone, id_agendamento_medx: 1275002478 });
+            expect(resposta.status).toBe(200);
+
+            await vi.waitFor(() => {
+                expect(conversaoFalso.notificarConversao).toHaveBeenCalledWith(
+                    expect.objectContaining({ e164: telefone }),
+                    'fb.e2e.123',
+                    expect.any(Date),
+                );
+            });
         });
     });
 
