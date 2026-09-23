@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.6.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.5.2...v1.6.0) (2026-09-23)
+
+### Features
+
+- adiciona cliente da Meta Conversions API ([ebdc6f4](https://github.com/usepresencia/adapter-clint-medx/commit/ebdc6f43fa1ab20d1134f74e7b8d1826137a4f5d))
+- adiciona endpoint de captura de clique do site ([0fe56fc](https://github.com/usepresencia/adapter-clint-medx/commit/0fe56fce9dc81fcc536f2d9848bd61dc43cf8986))
+- adiciona tabela e repositorio de clique de origem ([2f92f75](https://github.com/usepresencia/adapter-clint-medx/commit/2f92f75ab8cc2dcfb83331221221e2383d7cbad9))
+- dispara conversao Meta CAPI ao confirmar consulta ([b007499](https://github.com/usepresencia/adapter-clint-medx/commit/b007499898f042abb319ecc950b91b74cd762e3e))
+- dispara Purchase pra Meta CAPI quando negocio chega em venda ganha ([35c4b2e](https://github.com/usepresencia/adapter-clint-medx/commit/35c4b2e753451edbf3420d697fec765319ef3b0f))
+- expurga cliques de origem nao reivindicados na retencao diaria ([32170c4](https://github.com/usepresencia/adapter-clint-medx/commit/32170c42f367c8c59f6d4df6b608b789fbaccefc))
+- identifica origem do lead (Google/Meta) e aplica tag no Clint ([94ae0e2](https://github.com/usepresencia/adapter-clint-medx/commit/94ae0e244d82080ce366c0f4765e69df431c211a))
+- reconhece codigo de referencia do site na deteccao de origem ([2e4c70d](https://github.com/usepresencia/adapter-clint-medx/commit/2e4c70d4122307b7b27162b6acbd09684aba8148))
+
+### Bug Fixes
+
+- normaliza telefone antes de reivindicar clique de origem ([3079166](https://github.com/usepresencia/adapter-clint-medx/commit/3079166ec878bf9edae8727aa3f2f1071e414b9f))
+
 ### [1.5.2](https://github.com/usepresencia/adapter-clint-medx/compare/v1.5.1...v1.5.2) (2026-09-21)
 
 ### Bug Fixes

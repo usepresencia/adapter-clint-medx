@@ -1,6 +1,6 @@
 {
     "name": "adapter-clint-medx",
-    "version": "1.5.2",
+    "version": "1.6.0",
     "description": "",
     "scripts": {
         "test": "vitest run --passWithNoTests",
