@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.6.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.6.0...v1.6.1) (2026-09-23)
+
+### Bug Fixes
+
+- aceita dia_da_consulta no formato DD/MM/AAAA da Clint ([86f3e4d](https://github.com/usepresencia/adapter-clint-medx/commit/86f3e4dd7c9b1513b76adcd662f036cd05100130))
+
 ## [1.6.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.5.2...v1.6.0) (2026-09-23)
 
 ### Features
