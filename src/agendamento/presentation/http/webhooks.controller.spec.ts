@@ -31,7 +31,7 @@ const AGENDAMENTO = {
     nome: 'Maria Silva',
     telefone: '+5511999998888',
     data_nascimento: '1990-05-20',
-    dia_da_consulta: '2026-07-10',
+    dia_da_consulta: '10/07/2026',
     hora_da_consulta: '14:00',
     profissional: 'Leize Ferreira',
     tipo_consulta: 'Consulta de Rotina',
@@ -61,7 +61,7 @@ describe('WebhooksController.agendamento', () => {
         expect(fila.add).not.toHaveBeenCalled();
     });
 
-    it('combina dia_da_consulta com hora_da_consulta no formato HH:mm', async () => {
+    it('converte dia_da_consulta de DD/MM/AAAA (formato da Clint) e combina com a hora', async () => {
         const { controller, fila } = montar();
         await controller.agendamento('segredo-certo', AGENDAMENTO);
         const job = fila.add.mock.calls[0]![1] as { comando: { dataHora: string } };
@@ -78,5 +78,15 @@ describe('WebhooksController.agendamento', () => {
         });
         const job = fila.add.mock.calls[0]![1] as { comando: { dataHora: string } };
         expect(job.comando.dataHora).toBe('2026-07-10T10:00:00');
+    });
+
+    it('marca inválido quando dia_da_consulta vem no formato AAAA-MM-DD (não é mais o que a Clint manda)', async () => {
+        const { controller, fila } = montar();
+        const r = await controller.agendamento('segredo-certo', {
+            ...AGENDAMENTO,
+            dia_da_consulta: '2026-07-10',
+        });
+        expect(r).toEqual({ ok: true });
+        expect(fila.add).not.toHaveBeenCalled();
     });
 });

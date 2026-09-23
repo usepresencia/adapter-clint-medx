@@ -10,15 +10,19 @@ import { WebhookAlwaysOkFilter } from './webhook-always-ok.filter';
 type ResultadoValidacao = { ok: true; job: JobAdapter } | { ok: false; motivo: string };
 
 /**
- * A Clint manda dia e hora da consulta em campos separados. `hora_da_consulta`
+ * A Clint manda dia e hora da consulta em campos separados. `dia_da_consulta`
+ * vem no formato DD/MM/AAAA (é como a Clint serializa o campo DATE do
+ * negócio) e precisa virar AAAA-MM-DD antes de virar ISO. `hora_da_consulta`
  * às vezes vem só como "HH:mm"/"HH:mm:ss", às vezes como uma data-hora ISO
  * completa (o dia embutido nela é irrelevante/placeholder — o dia real é
  * sempre `dia_da_consulta`). Se tiver "T", usamos só a parte depois dele.
  */
 function combinarDataHora(dia: string, hora: string): string {
+    const [diaDoMes, mes, ano] = dia.split('/');
+    const diaIso = `${ano}-${mes}-${diaDoMes}`;
     const partes = hora.split('T');
     const horaLimpa = partes.length > 1 ? partes[1] : partes[0];
-    return `${dia}T${horaLimpa}`;
+    return `${diaIso}T${horaLimpa}`;
 }
 
 @Controller('webhooks/clint')

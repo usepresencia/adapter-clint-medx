@@ -9,11 +9,13 @@ export const schemaAgendamento = z.object({
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/, 'data de nascimento deve estar no formato YYYY-MM-DD'),
     // A Clint manda dia e hora em campos separados — combinados em data_hora
-    // antes de chegar no comando (ver WebhooksController). Formato do dia:
-    // YYYY-MM-DD (confirmado com payload real); hora aceita HH:mm ou HH:mm:ss.
+    // antes de chegar no comando (ver WebhooksController). O dia agora vem de
+    // um campo DATE do negócio (DEAL/data_agendamento), que a Clint sempre
+    // serializa como DD/MM/AAAA (confirmado com payload real) — não é o
+    // AAAA-MM-DD que a validação exigia antes. Hora aceita HH:mm ou HH:mm:ss.
     dia_da_consulta: z
         .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/, 'dia da consulta deve estar no formato YYYY-MM-DD'),
+        .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'dia da consulta deve estar no formato DD/MM/AAAA'),
     hora_da_consulta: z.string().min(1),
     profissional: z.union([z.string().min(1), z.number()]),
     tipo_consulta: z.union([z.string().min(1), z.number()]),
