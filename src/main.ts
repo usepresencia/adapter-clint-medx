@@ -8,8 +8,12 @@ import { AppModule } from './app.module';
 import { parseEnv } from './config/env.schema';
 import { NotFoundFilter } from './shared/presentation/not-found.filter';
 import { LOGGER_PORT, type LoggerMinimo } from './agendamento/application/ports/logger.port';
-import { EVENTO_REPOSITORIO } from './shared/persistence/persistence.module';
+import {
+    EVENTO_REPOSITORIO,
+    CLIQUE_ORIGEM_REPOSITORIO,
+} from './shared/persistence/persistence.module';
 import type { EventoRepositorio } from './agendamento/domain/evento/evento.repositorio';
+import type { CliqueOrigemRepositorio } from './agendamento/domain/clique-origem/clique-origem.repositorio';
 import { registrarPainelFila } from './agendamento/presentation/http/painel-fila';
 import { NOME_FILA } from './agendamento/infrastructure/fila/fila.constants';
 
@@ -17,6 +21,7 @@ async function bootstrap(): Promise<void> {
     const env = parseEnv(process.env);
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
     app.useLogger(app.get(Logger));
+    app.enableCors({ origin: env.SITE_ORIGEM_URL });
 
     const logger = app.get<LoggerMinimo>(LOGGER_PORT);
     app.useGlobalFilters(new NotFoundFilter(app.get(HttpAdapterHost), logger));
@@ -34,10 +39,16 @@ async function bootstrap(): Promise<void> {
     );
 
     const eventos = app.get<EventoRepositorio>(EVENTO_REPOSITORIO);
+    const cliques = app.get<CliqueOrigemRepositorio>(CLIQUE_ORIGEM_REPOSITORIO);
     const expurgoDiario = setInterval(
         () => {
             void eventos.expurgar(env.RETENCAO_DIAS).then(removidos => {
                 if (removidos > 0) logger.info({ removidos }, 'expurgo de eventos antigos');
+            });
+            void cliques.expurgarNaoReivindicados(env.RETENCAO_DIAS).then(removidos => {
+                if (removidos > 0) {
+                    logger.info({ removidos }, 'expurgo de cliques de origem não reivindicados');
+                }
             });
         },
         24 * 60 * 60 * 1000,

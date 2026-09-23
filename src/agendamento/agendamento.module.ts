@@ -13,6 +13,7 @@ import { MedxAgendaAdapter } from './infrastructure/medx/medx-agenda.adapter';
 import { ClintWebhookAdapter } from './infrastructure/clint/clint-webhook.adapter';
 import { ClintHttpClient } from './infrastructure/clint/clint-http.client';
 import { ClintContatoAdapter } from './infrastructure/clint/clint-contato.adapter';
+import { MetaCapiAdapter } from './infrastructure/meta/meta-capi.adapter';
 import { AdapterProcessor } from './infrastructure/fila/adapter.processor';
 
 import {
@@ -23,19 +24,23 @@ import { CADASTRO_PACIENTE_PORT } from './application/ports/cadastro-paciente.po
 import { AGENDA_MEDICA_PORT } from './application/ports/agenda-medica.port';
 import { CRM_PORT } from './application/ports/crm.port';
 import { CRM_CONTATO_PORT } from './application/ports/crm-contato.port';
+import { CONVERSAO_PORT } from './application/ports/conversao.port';
 
 import { AgendarConsultaUseCase } from './application/agendar-consulta/agendar-consulta.usecase';
 import { ProcessarRespostaUseCase } from './application/processar-resposta-lembrete/processar-resposta.usecase';
 import { ProcessarLeadOrigemUseCase } from './application/processar-lead-origem/processar-lead-origem.usecase';
 import { ConsultarDisponibilidadeUseCase } from './application/consultar-disponibilidade/consultar-disponibilidade.usecase';
+import { CapturarCliqueUseCase } from './application/capturar-clique/capturar-clique.usecase';
+import { ProcessarVendaGanhaUseCase } from './application/processar-venda-ganha/processar-venda-ganha.usecase';
 
 import { WebhooksController } from './presentation/http/webhooks.controller';
 import { HealthController } from './presentation/http/health.controller';
 import { DisponibilidadeController } from './presentation/http/disponibilidade.controller';
+import { LeadsController } from './presentation/http/leads.controller';
 
 @Module({
     imports: [PersistenceModule, ObservabilidadeModule, FilaModule],
-    controllers: [WebhooksController, HealthController, DisponibilidadeController],
+    controllers: [WebhooksController, HealthController, DisponibilidadeController, LeadsController],
     providers: [
         MedxTokenProvider,
         MedxHttpClient,
@@ -45,10 +50,13 @@ import { DisponibilidadeController } from './presentation/http/disponibilidade.c
         { provide: CRM_PORT, useClass: ClintWebhookAdapter },
         ClintHttpClient,
         { provide: CRM_CONTATO_PORT, useClass: ClintContatoAdapter },
+        { provide: CONVERSAO_PORT, useClass: MetaCapiAdapter },
         AgendarConsultaUseCase,
         ProcessarRespostaUseCase,
         ProcessarLeadOrigemUseCase,
         ConsultarDisponibilidadeUseCase,
+        CapturarCliqueUseCase,
+        ProcessarVendaGanhaUseCase,
         AdapterProcessor,
         { provide: REDIS_HEALTH_CLIENT, useClass: RedisHealthClient },
     ],

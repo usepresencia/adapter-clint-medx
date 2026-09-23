@@ -5,8 +5,13 @@ import { Telefone } from '../../domain/paciente/telefone';
 import { AGENDA_MEDICA_PORT, type AgendaMedicaPort } from '../ports/agenda-medica.port';
 import { CATALOGO_CLINICO_PORT, type CatalogoClinicoPort } from '../ports/catalogo-clinico.port';
 import { CRM_PORT, type CrmPort } from '../ports/crm.port';
+import { CONVERSAO_PORT, type ConversaoPort } from '../ports/conversao.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../ports/logger.port';
-import { AGENDAMENTO_REPOSITORIO } from '../../../shared/persistence/persistence.module';
+import {
+    AGENDAMENTO_REPOSITORIO,
+    CLIQUE_ORIGEM_REPOSITORIO,
+} from '../../../shared/persistence/persistence.module';
+import type { CliqueOrigemRepositorio } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { ComandoResposta } from './processar-resposta.comando';
 
 @Injectable()
@@ -16,6 +21,8 @@ export class ProcessarRespostaUseCase {
         @Inject(AGENDA_MEDICA_PORT) private readonly agenda: AgendaMedicaPort,
         @Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort,
         @Inject(CRM_PORT) private readonly crm: CrmPort,
+        @Inject(CLIQUE_ORIGEM_REPOSITORIO) private readonly cliques: CliqueOrigemRepositorio,
+        @Inject(CONVERSAO_PORT) private readonly conversao: ConversaoPort,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
     ) {}
 
@@ -86,9 +93,30 @@ export class ProcessarRespostaUseCase {
 
         await this.crm.notificarConfirmacao(comando.dealId, telefone);
 
+        await this.notificarConversaoSeAplicavel(telefone);
+
         this.logger.info(
             { deal_id: comando.dealId, id_agendamento: comando.idAgendamentoMedx },
             'agendamento confirmado no MedX',
         );
+    }
+
+    /**
+     * Falha ao notificar a Meta CAPI é só logada — nunca relançada. É um
+     * efeito colateral de marketing, não algo que deveria travar ou
+     * reprocessar a confirmação do paciente.
+     */
+    private async notificarConversaoSeAplicavel(telefone: Telefone): Promise<void> {
+        const clique = await this.cliques.buscarMaisRecentePorTelefone(telefone.e164);
+        if (!clique?.fbclid) return;
+
+        try {
+            await this.conversao.notificarConversao(telefone, clique.fbclid, clique.criadoEm);
+        } catch (erro) {
+            this.logger.error(
+                { erro: (erro as Error).message },
+                'falha ao notificar conversão pra Meta CAPI',
+            );
+        }
     }
 }

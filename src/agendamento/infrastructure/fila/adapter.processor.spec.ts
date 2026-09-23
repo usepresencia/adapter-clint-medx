@@ -56,6 +56,7 @@ function montar() {
     const agendarConsulta = { executar: vi.fn(async () => {}) };
     const processarResposta = { executar: vi.fn(async () => {}) };
     const processarLeadOrigem = { executar: vi.fn(async () => {}) };
+    const processarVendaGanha = { executar: vi.fn(async () => {}) };
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     const processor = new AdapterProcessor(
@@ -63,6 +64,7 @@ function montar() {
         agendarConsulta as any,
         processarResposta as any,
         processarLeadOrigem as any,
+        processarVendaGanha as any,
         logger as any,
     );
     // WorkerHost.worker é um getter só-leitura apoiado no campo privado
@@ -70,7 +72,15 @@ function montar() {
     // o dublê diretamente no backing field.
     (processor as any)._worker = { rateLimit: vi.fn() };
 
-    return { eventos, agendarConsulta, processarResposta, processarLeadOrigem, logger, processor };
+    return {
+        eventos,
+        agendarConsulta,
+        processarResposta,
+        processarLeadOrigem,
+        processarVendaGanha,
+        logger,
+        processor,
+    };
 }
 
 describe('AdapterProcessor.process', () => {
@@ -103,6 +113,19 @@ describe('AdapterProcessor.process', () => {
         } as any);
 
         expect(processarLeadOrigem.executar).toHaveBeenCalled();
+        expect(agendarConsulta.executar).not.toHaveBeenCalled();
+        expect(processarResposta.executar).not.toHaveBeenCalled();
+    });
+
+    it('roteia job de venda-ganha para o caso de uso certo', async () => {
+        const { eventos, agendarConsulta, processarResposta, processarVendaGanha, processor } =
+            montar();
+        const e = await eventos.registrar('/x');
+        await processor.process({
+            data: { tipo: 'venda-ganha', eventoId: e.id, comando: {} },
+        } as any);
+
+        expect(processarVendaGanha.executar).toHaveBeenCalled();
         expect(agendarConsulta.executar).not.toHaveBeenCalled();
         expect(processarResposta.executar).not.toHaveBeenCalled();
     });

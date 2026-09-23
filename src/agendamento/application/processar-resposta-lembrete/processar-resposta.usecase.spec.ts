@@ -34,7 +34,25 @@ function agendamentosFalso() {
     };
 }
 
-async function montar(noMedx: AgendamentoExterno = externo(), comRegistro = true) {
+function cliquesFalso(clique: { fbclid: string | null; criadoEm: Date } | null = null) {
+    return {
+        criar: vi.fn(async () => {}),
+        buscarPorCodigo: vi.fn(async () => null),
+        reivindicar: vi.fn(async () => {}),
+        buscarMaisRecentePorTelefone: vi.fn(async () => clique),
+        expurgarNaoReivindicados: vi.fn(async () => 0),
+    };
+}
+
+function conversaoFalso() {
+    return { notificarConversao: vi.fn(async () => {}) };
+}
+
+async function montar(
+    noMedx: AgendamentoExterno = externo(),
+    comRegistro = true,
+    clique: { fbclid: string | null; criadoEm: Date } | null = null,
+) {
     const agendamentos = agendamentosFalso();
 
     if (comRegistro) {
@@ -68,6 +86,8 @@ async function montar(noMedx: AgendamentoExterno = externo(), comRegistro = true
         notificarCancelamento: vi.fn(async () => {}),
         notificarConflito: vi.fn(async () => {}),
     };
+    const cliques = cliquesFalso(clique);
+    const conversao = conversaoFalso();
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     const usecase = new ProcessarRespostaUseCase(
@@ -75,10 +95,12 @@ async function montar(noMedx: AgendamentoExterno = externo(), comRegistro = true
         agenda as any,
         catalogo as any,
         crm as any,
+        cliques as any,
+        conversao as any,
         logger as any,
     );
 
-    return { agendamentos, agenda, catalogo, crm, logger, usecase };
+    return { agendamentos, agenda, catalogo, crm, cliques, conversao, logger, usecase };
 }
 
 const CONFIRMAR = {
@@ -207,5 +229,66 @@ describe('reagendar e cancelar', () => {
         expect(agenda.obter).not.toHaveBeenCalled();
         expect(agenda.confirmar).not.toHaveBeenCalled();
         expect((crm as any)[metodo]).toHaveBeenCalledWith('deal-1', expect.any(Telefone));
+    });
+});
+
+describe('conversão pra Meta CAPI', () => {
+    it('notifica a conversão quando há clique com fbclid pro telefone', async () => {
+        const criadoEm = new Date('2026-09-20T12:00:00Z');
+        const { conversao, usecase } = await montar(externo(), true, {
+            fbclid: 'fb.clique.123',
+            criadoEm,
+        });
+
+        await usecase.executar(CONFIRMAR);
+
+        expect(conversao.notificarConversao).toHaveBeenCalledWith(
+            expect.any(Telefone),
+            'fb.clique.123',
+            criadoEm,
+        );
+    });
+
+    it('não notifica quando não há clique associado ao telefone', async () => {
+        const { conversao, usecase } = await montar(externo(), true, null);
+        await usecase.executar(CONFIRMAR);
+        expect(conversao.notificarConversao).not.toHaveBeenCalled();
+    });
+
+    it('não notifica quando o clique não tem fbclid', async () => {
+        const { conversao, usecase } = await montar(externo(), true, {
+            fbclid: null,
+            criadoEm: new Date(),
+        });
+        await usecase.executar(CONFIRMAR);
+        expect(conversao.notificarConversao).not.toHaveBeenCalled();
+    });
+
+    it('não notifica em recusas nem em reagendar/cancelar', async () => {
+        const { conversao, usecase } = await montar(externo({ status: 3 }), true, {
+            fbclid: 'fb.clique.123',
+            criadoEm: new Date(),
+        });
+        await usecase.executar(CONFIRMAR);
+        expect(conversao.notificarConversao).not.toHaveBeenCalled();
+    });
+
+    it('captura e loga a falha da Meta CAPI sem interromper a confirmação', async () => {
+        const { conversao, crm, logger, usecase, agendamentos } = await montar(externo(), true, {
+            fbclid: 'fb.clique.123',
+            criadoEm: new Date(),
+        });
+        conversao.notificarConversao = vi.fn(async () => {
+            throw new Error('Meta CAPI respondeu HTTP 500');
+        });
+
+        await usecase.executar(CONFIRMAR);
+
+        expect(crm.notificarConfirmacao).toHaveBeenCalled();
+        expect((await agendamentos.buscarPorDeal('deal-1'))!.status).toBe('confirmado');
+        expect(logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({ erro: expect.stringContaining('Meta CAPI') }),
+            expect.any(String),
+        );
     });
 });
