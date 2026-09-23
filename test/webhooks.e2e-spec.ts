@@ -81,7 +81,7 @@ const AGENDAMENTO = {
     nome: 'Maria Silva',
     telefone: '+5511999998888',
     data_nascimento: '1990-05-20',
-    dia_da_consulta: '2026-07-10',
+    dia_da_consulta: '10/07/2026',
     hora_da_consulta: '14:00',
     profissional: 'Leize Ferreira',
     tipo_consulta: 'Consulta de Rotina',
