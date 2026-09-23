@@ -48,15 +48,15 @@ export class ProcessarLeadOrigemUseCase {
     ) {}
 
     async executar(comando: ComandoLeadOrigem): Promise<void> {
+        const telefone = Telefone.criar(comando.telefone);
         const referencia = comando.textoMensagem.match(PADRAO_REF);
 
         const origem = referencia
-            ? await this.origemPorReferencia(referencia[1]!.toUpperCase(), comando.telefone)
+            ? await this.origemPorReferencia(referencia[1]!.toUpperCase(), telefone)
             : identificarOrigemPorMarcador(comando.textoMensagem);
 
         if (!origem) return;
 
-        const telefone = Telefone.criar(comando.telefone);
         const contatoId = await this.contatos.buscarIdPorTelefone(telefone);
         if (!contatoId) return;
 
@@ -67,13 +67,17 @@ export class ProcessarLeadOrigemUseCase {
      * Código não encontrado (expirado/inválido): termina sem tag, não cai no
      * fallback de marcador de texto no mesmo processamento — evita marcar
      * "Google"/"Meta" por engano a partir de um "Ref:" que não bateu com
-     * nenhum clique real.
+     * nenhum clique real. Reivindica com o telefone NORMALIZADO (e164) —
+     * ProcessarRespostaUseCase e ProcessarVendaGanhaUseCase sempre buscam
+     * por esse mesmo formato, então gravar o telefone cru aqui quebraria a
+     * atribuição sempre que o Clint mandasse o número formatado diferente
+     * entre um webhook e outro.
      */
-    private async origemPorReferencia(codigo: string, telefone: string): Promise<string | null> {
+    private async origemPorReferencia(codigo: string, telefone: Telefone): Promise<string | null> {
         const clique = await this.cliques.buscarPorCodigo(codigo);
         if (!clique) return null;
 
-        await this.cliques.reivindicar(codigo, telefone);
+        await this.cliques.reivindicar(codigo, telefone.e164);
         return identificarOrigemPorUtm(clique.utmSource);
     }
 }

@@ -113,6 +113,17 @@ describe('código de referência do site (POST /leads/click)', () => {
         expect(contatos.adicionarTag).toHaveBeenCalledWith('contato-1', 'Meta');
     });
 
+    it('reivindica com o telefone normalizado (e164), mesmo quando chega formatado diferente', async () => {
+        const contatos = contatosFalso();
+        const cliques = cliquesFalso(cliqueDe('meta'));
+        await new ProcessarLeadOrigemUseCase(contatos, cliques).executar({
+            telefone: '+55 (11) 99999-8888',
+            textoMensagem: 'Ref: ABC12345',
+        });
+
+        expect(cliques.reivindicar).toHaveBeenCalledWith('ABC12345', '+5511999998888');
+    });
+
     it('normaliza o código pra maiúsculo antes de buscar', async () => {
         const contatos = contatosFalso();
         const cliques = cliquesFalso(cliqueDe('google'));
