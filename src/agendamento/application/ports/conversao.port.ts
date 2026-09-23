@@ -9,4 +9,11 @@ export interface ConversaoPort {
      * parâmetro `fbc`.
      */
     notificarConversao(telefone: Telefone, fbclid: string, capturadoEm: Date): Promise<void>;
+    /** Disparado quando o negócio chega em "VENDA GANHA" — `valor` é o valor do negócio. */
+    notificarCompra(
+        telefone: Telefone,
+        fbclid: string,
+        capturadoEm: Date,
+        valor: number,
+    ): Promise<void>;
 }

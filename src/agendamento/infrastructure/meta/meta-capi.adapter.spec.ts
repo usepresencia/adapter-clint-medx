@@ -75,3 +75,56 @@ describe('notificarConversao', () => {
         expect(spy).not.toHaveBeenCalled();
     });
 });
+
+describe('notificarCompra', () => {
+    it('posta o evento Purchase com valor e moeda em custom_data', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue(new Response('{}', { status: 200 }));
+
+        await new MetaCapiAdapter(configFalso()).notificarCompra(
+            TELEFONE,
+            'fb.clique.123',
+            CAPTURADO_EM,
+            350,
+        );
+
+        const corpo = corpoDe(spy.mock.calls[0] as [any, any]);
+        expect(corpo.data[0].event_name).toBe('Purchase');
+        expect(corpo.data[0].custom_data).toEqual({ value: 350, currency: 'BRL' });
+        expect(corpo.data[0].user_data.fbc).toBe(`fb.1.${CAPTURADO_EM.getTime()}.fb.clique.123`);
+
+        const hashEsperado = createHash('sha256').update('5511999998888').digest('hex');
+        expect(corpo.data[0].user_data.ph).toEqual([hashEsperado]);
+    });
+
+    it('lança quando a Meta responde erro', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+            new Response('{"error":"token inválido"}', { status: 401 }),
+        );
+
+        await expect(
+            new MetaCapiAdapter(configFalso()).notificarCompra(
+                TELEFONE,
+                'fb.clique.123',
+                CAPTURADO_EM,
+                350,
+            ),
+        ).rejects.toThrow(/401/);
+    });
+
+    it('lança um erro claro quando as credenciais não estão configuradas', async () => {
+        const spy = vi.spyOn(globalThis, 'fetch');
+
+        await expect(
+            new MetaCapiAdapter(configFalso({})).notificarCompra(
+                TELEFONE,
+                'fb.clique.123',
+                CAPTURADO_EM,
+                350,
+            ),
+        ).rejects.toThrow(/META_PIXEL_ID|META_CAPI_ACCESS_TOKEN/);
+
+        expect(spy).not.toHaveBeenCalled();
+    });
+});

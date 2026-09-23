@@ -31,6 +31,7 @@ import { ProcessarRespostaUseCase } from './application/processar-resposta-lembr
 import { ProcessarLeadOrigemUseCase } from './application/processar-lead-origem/processar-lead-origem.usecase';
 import { ConsultarDisponibilidadeUseCase } from './application/consultar-disponibilidade/consultar-disponibilidade.usecase';
 import { CapturarCliqueUseCase } from './application/capturar-clique/capturar-clique.usecase';
+import { ProcessarVendaGanhaUseCase } from './application/processar-venda-ganha/processar-venda-ganha.usecase';
 
 import { WebhooksController } from './presentation/http/webhooks.controller';
 import { HealthController } from './presentation/http/health.controller';
@@ -55,6 +56,7 @@ import { LeadsController } from './presentation/http/leads.controller';
         ProcessarLeadOrigemUseCase,
         ConsultarDisponibilidadeUseCase,
         CapturarCliqueUseCase,
+        ProcessarVendaGanhaUseCase,
         AdapterProcessor,
         { provide: REDIS_HEALTH_CLIENT, useClass: RedisHealthClient },
     ],

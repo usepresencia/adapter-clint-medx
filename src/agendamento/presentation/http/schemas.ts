@@ -53,6 +53,11 @@ export const schemaCapturarClique = z.object({
     utm_term: z.string().optional(),
 });
 
+export const schemaVendaGanha = z.object({
+    telefone: z.string().min(1),
+    valor: z.coerce.number(),
+});
+
 export const schemaDisponibilidade = z.object({
     profissional: z.string().min(1),
     data_inicio: z

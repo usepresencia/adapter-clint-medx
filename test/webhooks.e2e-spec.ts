@@ -71,7 +71,10 @@ const contatosFalso = {
     buscarIdPorTelefone: vi.fn(async () => 'contato-1'),
     adicionarTag: vi.fn(async () => {}),
 };
-const conversaoFalso = { notificarConversao: vi.fn(async () => {}) };
+const conversaoFalso = {
+    notificarConversao: vi.fn(async () => {}),
+    notificarCompra: vi.fn(async () => {}),
+};
 
 const AGENDAMENTO = {
     deal_id: '8feade82-d77b-4e8b-9d35-fd43e972b5c8',
@@ -285,6 +288,26 @@ describe('webhooks (e2e)', () => {
         });
     });
 
+    describe('POST /webhooks/clint/venda-ganha', () => {
+        it('aceita o payload válido e responde 200', async () => {
+            const r = await request(app.getHttpServer())
+                .post('/webhooks/clint/venda-ganha')
+                .set('x-adapter-secret', SEGREDO)
+                .send({ telefone: '+5511999998888', valor: 350 });
+            expect(r.status).toBe(200);
+            expect(r.body).toEqual({ ok: true });
+        });
+
+        it('responde 200 e não enfileira quando falta o valor', async () => {
+            const r = await request(app.getHttpServer())
+                .post('/webhooks/clint/venda-ganha')
+                .set('x-adapter-secret', SEGREDO)
+                .send({ telefone: '+5511999998888' });
+            expect(r.status).toBe(200);
+            expect(r.body).toEqual({ ok: true });
+        });
+    });
+
     describe('POST /leads/click', () => {
         it('devolve um código e aceita payload vazio', async () => {
             const r = await request(app.getHttpServer()).post('/leads/click').send({});
@@ -299,7 +322,7 @@ describe('webhooks (e2e)', () => {
     });
 
     describe('fluxo completo: clique no site → mensagem com Ref → confirmação → CAPI', () => {
-        it('associa o clique ao telefone e dispara a conversão na confirmação', async () => {
+        it('associa o clique ao telefone e dispara QualifiedLead na confirmação e Purchase na venda ganha', async () => {
             // A confirmação só segue o caminho de sucesso (e só aí dispara a
             // conversão) quando o adapter já tem um registro LOCAL do
             // agendamento — por isso este teste cria um agendamento de
@@ -307,6 +330,7 @@ describe('webhooks (e2e)', () => {
             // diferente dos testes de resposta-lembrete isolados mais acima
             // (que testam só a recusa, deliberadamente sem esse registro).
             conversaoFalso.notificarConversao.mockClear();
+            conversaoFalso.notificarCompra.mockClear();
 
             const dealId = '66666666-6666-4666-8666-666666666666';
             const telefone = '+5511988887777';
@@ -368,6 +392,21 @@ describe('webhooks (e2e)', () => {
                     expect.objectContaining({ e164: telefone }),
                     'fb.e2e.123',
                     expect.any(Date),
+                );
+            });
+
+            const vendaGanha = await request(app.getHttpServer())
+                .post('/webhooks/clint/venda-ganha')
+                .set('x-adapter-secret', SEGREDO)
+                .send({ telefone, valor: 350 });
+            expect(vendaGanha.status).toBe(200);
+
+            await vi.waitFor(() => {
+                expect(conversaoFalso.notificarCompra).toHaveBeenCalledWith(
+                    expect.objectContaining({ e164: telefone }),
+                    'fb.e2e.123',
+                    expect.any(Date),
+                    350,
                 );
             });
         });
