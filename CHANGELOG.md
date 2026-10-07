@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.7.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.6.1...v1.7.0) (2026-10-07)
+
+### Features
+
+- desconta horarios ocupados da disponibilidade da agenda ([6ab657c](https://github.com/usepresencia/adapter-clint-medx/commit/6ab657ce08312a3cf4291fa0d1cf9aff964f71d7))
+
 ### [1.6.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.6.0...v1.6.1) (2026-09-23)
 
 ### Bug Fixes
