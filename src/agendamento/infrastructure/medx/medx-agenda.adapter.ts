@@ -4,10 +4,11 @@ import type {
     AgendamentoExterno,
     ConsultaDisponibilidade,
     DadosCriacaoAgendamento,
+    OcupacaoAgenda,
     SlotDisponivel,
 } from '../../application/ports/agenda-medica.port';
 import { MedxHttpClient } from './medx-http.client';
-import type { MedxAgendamento, MedxDisponibilidade } from './medx.tipos';
+import type { MedxAgendamento, MedxAgendamentoPeriodo, MedxDisponibilidade } from './medx.tipos';
 
 const BASE = '/api/integration/agenda/agendamentos';
 
@@ -102,6 +103,17 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
         return resposta.map(slot => ({
             inicio: combinarDiaComHora(slot.data, slot.de),
             fim: combinarDiaComHora(slot.data, slot.ate),
+        }));
+    }
+
+    async listarPorPeriodo(inicio: string, fim: string): Promise<OcupacaoAgenda[]> {
+        const resposta = await this.client.get<MedxAgendamentoPeriodo[]>(BASE, { inicio, fim });
+        if (!Array.isArray(resposta)) return [];
+        return resposta.map(cru => ({
+            idProfissional: cru.id_Usuario,
+            inicio: cru.inicio,
+            fim: cru.fim,
+            status: cru.status,
         }));
     }
 

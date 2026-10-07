@@ -60,6 +60,7 @@ describe('contratos dos ports', () => {
             resolverTipoConsulta: async () => ({ id: 1, nome: 'Consulta', duracaoMinutos: 30 }),
             indiceStatusAgendado: () => 0,
             indiceStatusConfirmado: () => 1,
+            indicesStatusQueLiberamHorario: () => [],
         };
         const crm: CrmPort = {
             gravarIdAgendamento: async () => {},

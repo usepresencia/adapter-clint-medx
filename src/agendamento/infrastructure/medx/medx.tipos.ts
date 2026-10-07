@@ -51,6 +51,18 @@ export interface MedxVinculoResposta {
 // — confirmado ao vivo em produção, mesmo padrão de todo outro endpoint desta
 // conta. Além disso, `de`/`ate` SEMPRE trazem a mesma data-base (não o dia do
 // slot) — só a hora deles é significativa; `data` é quem informa o dia real.
+/**
+ * Item de GET /agenda/agendamentos?inicio=&fim= (confirmado ao vivo). Os nomes
+ * diferem do GET por id: id_Usuario, fim e id_Agendamento. Só os campos de
+ * ocupação são modelados — o resto traz dados de paciente que não usamos.
+ */
+export interface MedxAgendamentoPeriodo {
+    id_Usuario: number;
+    inicio: string;
+    fim: string;
+    status: number;
+}
+
 export interface MedxDisponibilidade {
     data: string;
     de: string;

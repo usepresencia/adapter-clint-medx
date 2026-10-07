@@ -7,6 +7,7 @@ import { MedxHttpClient } from './medx-http.client';
 import type { MedxProfissional, MedxTipoAgendamento } from './medx.tipos';
 
 const TTL_PADRAO_MS = 6 * 60 * 60 * 1000;
+const STATUS_QUE_LIBERAM_HORARIO = ['desmarcado', 'cancelou', 'faltou'];
 
 function chave(texto: string): string {
     return texto
@@ -36,6 +37,7 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
     private tipos: MedxTipoAgendamento[] = [];
     private indiceAgendado = -1;
     private indiceConfirmado = -1;
+    private indicesLiberam: number[] | null = null;
     private carregadoEm = -Infinity;
 
     constructor(private readonly client: MedxHttpClient) {}
@@ -65,6 +67,10 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
                     `Rótulos recebidos: ${JSON.stringify(s)}`,
             );
         }
+
+        this.indicesLiberam = STATUS_QUE_LIBERAM_HORARIO.map(alvo =>
+            encontrarIndiceStatus(s, alvo),
+        ).filter(indice => indice >= 0);
 
         this.carregadoEm = this.agora();
     }
@@ -120,5 +126,12 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
             throw new Error('Catálogo do MedX não foi inicializado — chame carregar() antes');
         }
         return this.indiceConfirmado;
+    }
+
+    indicesStatusQueLiberamHorario(): number[] {
+        if (!this.indicesLiberam) {
+            throw new Error('Catálogo do MedX não foi inicializado — chame carregar() antes');
+        }
+        return this.indicesLiberam;
     }
 }

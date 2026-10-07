@@ -93,6 +93,37 @@ describe('índice de status', () => {
     });
 });
 
+describe('status que liberam o horário', () => {
+    // Rótulos reais desta conta, na ordem em que o MedX devolve.
+    const STATUS_REAIS = [
+        'Desmarcado',
+        'Agendado',
+        'Confirmado',
+        'Faltou',
+        'Laser',
+        'Cancelou',
+        'Intramuscular/tzp',
+    ];
+
+    it('descobre pelo nome os índices de Desmarcado, Cancelou e Faltou', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso(STATUS_REAIS).client);
+        await c.carregar();
+        expect([...c.indicesStatusQueLiberamHorario()].sort()).toEqual([0, 3, 5]);
+    });
+
+    it('não falha quando a conta não tem algum desses rótulos — só não o considera', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso(STATUS).client);
+        await c.carregar();
+        expect(c.indicesStatusQueLiberamHorario()).toEqual([]);
+    });
+
+    it('erra com mensagem clara se consultado antes de carregar', () => {
+        expect(() =>
+            new MedxCatalogoAdapter(clientFalso().client).indicesStatusQueLiberamHorario(),
+        ).toThrow(/carregar/);
+    });
+});
+
 describe('resolução de profissional e tipo', () => {
     it('resolve profissional por nome completo', async () => {
         const c = new MedxCatalogoAdapter(clientFalso().client);

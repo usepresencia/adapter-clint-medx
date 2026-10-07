@@ -228,6 +228,53 @@ describe('consultarDisponibilidade', () => {
     });
 });
 
+describe('listarPorPeriodo', () => {
+    it('consulta a janela e traduz só os campos de ocupação (nomes diferentes do GET por id)', async () => {
+        // Formato confirmado ao vivo: a listagem por período usa id_Usuario/fim/
+        // id_Agendamento, não id_do_Usuario/final/id_do_Agendamento do GET por id.
+        const { client, enviados } = clientFalso([
+            {
+                id_Usuario: -692937676,
+                inicio: '2026-10-07T13:30:00',
+                fim: '2026-10-07T13:40:00',
+                descricao: 'nome da paciente',
+                status: 2,
+                id_Paciente: 1523,
+                id_Agendamento: -516518988,
+            },
+        ]);
+
+        const ocupacoes = await new MedxAgendaAdapter(client).listarPorPeriodo(
+            '2026-10-07T00:00:00',
+            '2026-10-07T23:59:59',
+        );
+
+        expect(enviados[0]!.caminho).toBe('/api/integration/agenda/agendamentos');
+        expect(enviados[0]!.query).toEqual({
+            inicio: '2026-10-07T00:00:00',
+            fim: '2026-10-07T23:59:59',
+        });
+        expect(ocupacoes).toEqual([
+            {
+                idProfissional: -692937676,
+                inicio: '2026-10-07T13:30:00',
+                fim: '2026-10-07T13:40:00',
+                status: 2,
+            },
+        ]);
+    });
+
+    it('devolve lista vazia quando a API não retorna array', async () => {
+        const { client } = clientFalso(null);
+        expect(
+            await new MedxAgendaAdapter(client).listarPorPeriodo(
+                '2026-10-07T00:00:00',
+                '2026-10-07T23:59:59',
+            ),
+        ).toEqual([]);
+    });
+});
+
 describe('listarPorPaciente', () => {
     it('traduz cada item para o port', async () => {
         const { client } = clientFalso([CRU]);
