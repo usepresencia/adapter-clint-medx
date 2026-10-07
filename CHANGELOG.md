@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.7.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.7.0...v1.7.1) (2026-10-07)
+
+### Bug Fixes
+
+- devolve hora do agendamento sem segundos para a clint ([dd92be0](https://github.com/usepresencia/adapter-clint-medx/commit/dd92be04a154fbd58a5e5db038e3122f0d933834))
+
 ## [1.7.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.6.1...v1.7.0) (2026-10-07)
 
 ### Features
