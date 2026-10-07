@@ -17,4 +17,9 @@ export interface CatalogoClinicoPort {
     resolverTipoConsulta(valor: string | number): Promise<TipoConsultaResolvido>;
     indiceStatusAgendado(): number;
     indiceStatusConfirmado(): number;
+    /**
+     * Índices dos status que deixam o horário livre na agenda (Desmarcado,
+     * Cancelou, Faltou). Rótulo ausente na conta é só ignorado.
+     */
+    indicesStatusQueLiberamHorario(): number[];
 }

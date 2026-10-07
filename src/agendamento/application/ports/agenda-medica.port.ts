@@ -50,10 +50,21 @@ export interface SlotDisponivel {
     fim: string;
 }
 
+/** Horário ocupado na agenda, sem dados do paciente. */
+export interface OcupacaoAgenda {
+    idProfissional: number;
+    /** Formato `yyyy-LL-ddTHH:mm:ss`, horário local da clínica. */
+    inicio: string;
+    fim: string;
+    /** Índice na lista de status da conta (ver CatalogoClinicoPort). */
+    status: number;
+}
+
 export interface AgendaMedicaPort {
     criar(dados: DadosCriacaoAgendamento, indiceStatusAgendado: number): Promise<number>;
     obter(id: number): Promise<AgendamentoExterno>;
     listarPorPaciente(idPaciente: number): Promise<AgendamentoExterno[]>;
     confirmar(agendamento: AgendamentoExterno, indiceStatusConfirmado: number): Promise<void>;
     consultarDisponibilidade(consulta: ConsultaDisponibilidade): Promise<SlotDisponivel[]>;
+    listarPorPeriodo(inicio: string, fim: string): Promise<OcupacaoAgenda[]>;
 }

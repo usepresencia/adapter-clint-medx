@@ -34,6 +34,7 @@ const catalogoFalso = {
     resolverTipoConsulta: vi.fn(async () => ({ id: 111, nome: 'Consulta', duracaoMinutos: 30 })),
     indiceStatusAgendado: () => 0,
     indiceStatusConfirmado: () => 1,
+    indicesStatusQueLiberamHorario: () => [5],
 };
 const agendaFalsa = {
     criar: vi.fn(async () => 1275002478),
@@ -52,8 +53,20 @@ const agendaFalsa = {
     })),
     listarPorPaciente: vi.fn(async () => []),
     confirmar: vi.fn(async () => {}),
+    // Data futura: horários que já passaram são descartados pelo relógio real.
     consultarDisponibilidade: vi.fn(async () => [
-        { inicio: '2026-07-10T09:00:00', fim: '2026-07-10T09:30:00' },
+        { inicio: '2099-07-10T09:00:00', fim: '2099-07-10T09:30:00' },
+        { inicio: '2099-07-10T09:30:00', fim: '2099-07-10T10:00:00' },
+        { inicio: '2099-07-10T13:00:00', fim: '2099-07-10T13:30:00' },
+        { inicio: '2099-07-10T13:30:00', fim: '2099-07-10T14:00:00' },
+    ]),
+    listarPorPeriodo: vi.fn(async () => [
+        {
+            idProfissional: 43013640,
+            inicio: '2099-07-10T13:30:00',
+            fim: '2099-07-10T13:40:00',
+            status: 0,
+        },
     ]),
 };
 const cadastroFalso = {
@@ -432,15 +445,15 @@ describe('webhooks (e2e)', () => {
     });
 
     describe('GET /clint/disponibilidade', () => {
-        it('devolve os slots com 200 quando os parâmetros são válidos', async () => {
+        it('devolve com 200 os horários de 60 min, descontando os já ocupados', async () => {
             const r = await request(app.getHttpServer())
                 .get('/clint/disponibilidade')
                 .set('x-adapter-secret', SEGREDO)
-                .query({ profissional: 'Leize', data_inicio: '2026-07-10' });
+                .query({ profissional: 'Leize', data_inicio: '2099-07-10' });
 
             expect(r.status).toBe(200);
             expect(r.body).toEqual({
-                slots: [{ inicio: '2026-07-10T09:00:00', fim: '2026-07-10T09:30:00' }],
+                slots: [{ inicio: '2099-07-10T09:00:00', fim: '2099-07-10T10:00:00' }],
             });
         });
 
