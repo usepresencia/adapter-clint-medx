@@ -25,7 +25,7 @@ function espiar() {
 }
 
 describe('gravarIdAgendamento', () => {
-    it('posta o id, o telefone e a data/hora separadas na url de agendamento', async () => {
+    it('posta o id, o telefone, a data e a hora no formato HH:mm na url de agendamento', async () => {
         const spy = espiar();
         await new ClintWebhookAdapter(configFalso()).gravarIdAgendamento(
             'deal-1',
@@ -40,7 +40,7 @@ describe('gravarIdAgendamento', () => {
             id_agendamento_medx: 1275002478,
             telefone: '+5545988383189',
             data_agendamento: '2026-07-10',
-            hora_agendamento: '14:00:00',
+            hora_agendamento: '14:00',
         });
     });
 
