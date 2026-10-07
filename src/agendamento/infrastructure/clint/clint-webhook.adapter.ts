@@ -39,13 +39,14 @@ export class ClintWebhookAdapter implements CrmPort {
         inicio: string,
     ): Promise<void> {
         const url = this.config.get<string>('CLINT_WEBHOOK_AGENDAMENTO_URL');
-        const [dataAgendamento, horaAgendamento] = inicio.split('T');
+        const [dataAgendamento, horaCompleta] = inicio.split('T');
         return postar(url!, {
             deal_id: dealId,
             id_agendamento_medx: idAgendamento,
             telefone: telefone.e164,
             data_agendamento: dataAgendamento,
-            hora_agendamento: horaAgendamento,
+            // Vai direto para a mensagem dos lembretes ("às 14:00"): sem segundos.
+            hora_agendamento: horaCompleta?.slice(0, 5),
         });
     }
 
