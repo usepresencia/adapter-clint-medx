@@ -93,6 +93,35 @@ describe('índice de status', () => {
     });
 });
 
+describe('índice de status finalizado', () => {
+    const STATUS_COM_FINALIZADO = [
+        'Desmarcado',
+        'Agendado',
+        'Confirmado',
+        'Faltou',
+        'Cancelou',
+        'Finalizado Atendimento',
+    ];
+
+    it('descobre pelo nome o índice de Finalizado Atendimento', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso(STATUS_COM_FINALIZADO).client);
+        await c.carregar();
+        expect(c.indiceStatusFinalizado()).toBe(5);
+    });
+
+    it('devolve -1 quando a conta não tem o rótulo Finalizado Atendimento, sem falhar o carregamento', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso(STATUS).client);
+        await c.carregar();
+        expect(c.indiceStatusFinalizado()).toBe(-1);
+    });
+
+    it('erra com mensagem clara se consultado antes de carregar', () => {
+        expect(() =>
+            new MedxCatalogoAdapter(clientFalso().client).indiceStatusFinalizado(),
+        ).toThrow(/carregar/);
+    });
+});
+
 describe('status que liberam o horário', () => {
     // Rótulos reais desta conta, na ordem em que o MedX devolve.
     const STATUS_REAIS = [

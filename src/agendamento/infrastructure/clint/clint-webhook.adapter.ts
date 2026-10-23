@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { CrmPort } from '../../application/ports/crm.port';
 import type { Telefone } from '../../domain/paciente/telefone';
 import { calcularHorarioLembreteChegada } from '../../domain/agendamento/lembrete-chegada';
+import { calcularHorarioChecagemComparecimento } from '../../domain/agendamento/checagem-comparecimento';
 
 async function postar(url: string, corpo: Record<string, unknown>): Promise<void> {
     const resposta = await fetch(url, {
@@ -49,6 +50,7 @@ export class ClintWebhookAdapter implements CrmPort {
             // Vai direto para a mensagem dos lembretes ("às 14:00"): sem segundos.
             hora_agendamento: horaCompleta?.slice(0, 5),
             horario_lembrete_chegada: calcularHorarioLembreteChegada(inicio),
+            horario_checagem_comparecimento: calcularHorarioChecagemComparecimento(inicio),
         });
     }
 
@@ -66,5 +68,13 @@ export class ClintWebhookAdapter implements CrmPort {
 
     notificarConflito(dealId: string, motivo: string, telefone: Telefone): Promise<void> {
         return this.notificar(dealId, 'conflito', telefone, { motivo });
+    }
+
+    notificarComparecimento(dealId: string, telefone: Telefone): Promise<void> {
+        return this.notificar(dealId, 'compareceu', telefone);
+    }
+
+    notificarNaoComparecimento(dealId: string, telefone: Telefone): Promise<void> {
+        return this.notificar(dealId, 'nao_compareceu', telefone);
     }
 }

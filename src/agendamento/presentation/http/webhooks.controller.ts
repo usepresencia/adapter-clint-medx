@@ -4,7 +4,13 @@ import { FILA_PORT, type FilaPort, type JobAdapter } from '../../application/por
 import { LOGGER_PORT, type LoggerMinimo } from '../../application/ports/logger.port';
 import type { EventoRepositorio } from '../../domain/evento/evento.repositorio';
 import { EVENTO_REPOSITORIO } from '../../../shared/persistence/persistence.module';
-import { schemaAgendamento, schemaResposta, schemaLeadOrigem, schemaVendaGanha } from './schemas';
+import {
+    schemaAgendamento,
+    schemaResposta,
+    schemaLeadOrigem,
+    schemaVendaGanha,
+    schemaComparecimento,
+} from './schemas';
 import { WebhookAlwaysOkFilter } from './webhook-always-ok.filter';
 
 type ResultadoValidacao = { ok: true; job: JobAdapter } | { ok: false; motivo: string };
@@ -159,6 +165,36 @@ export class WebhooksController {
                     comando: {
                         telefone: p.telefone,
                         valor: p.valor,
+                    },
+                },
+            };
+        });
+    }
+
+    @Post('comparecimento')
+    @HttpCode(200)
+    async comparecimento(
+        @Headers('x-adapter-secret') segredo: string | undefined,
+        @Body() body: unknown,
+    ): Promise<{ ok: true }> {
+        return this.receber(body, segredo, '/webhooks/clint/comparecimento', payload => {
+            const validado = schemaComparecimento.safeParse(payload);
+            if (!validado.success) {
+                return {
+                    ok: false,
+                    motivo: validado.error.issues.map(i => i.path.join('.')).join(', '),
+                };
+            }
+            const p = validado.data;
+            return {
+                ok: true,
+                job: {
+                    tipo: 'comparecimento',
+                    eventoId: 0,
+                    comando: {
+                        dealId: p.deal_id,
+                        idAgendamentoMedx: p.id_agendamento_medx,
+                        telefone: p.telefone,
                     },
                 },
             };

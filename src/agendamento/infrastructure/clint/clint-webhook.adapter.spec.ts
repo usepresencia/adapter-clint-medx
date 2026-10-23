@@ -42,6 +42,7 @@ describe('gravarIdAgendamento', () => {
             data_agendamento: '2026-07-10',
             hora_agendamento: '14:00',
             horario_lembrete_chegada: '2026-07-10T12:00:00',
+            horario_checagem_comparecimento: '2026-07-10T16:00:00',
         });
     });
 
@@ -79,6 +80,8 @@ describe('notificações', () => {
         ['notificarConfirmacao', 'confirmado'],
         ['notificarReagendamento', 'reagendamento_solicitado'],
         ['notificarCancelamento', 'cancelamento_solicitado'],
+        ['notificarComparecimento', 'compareceu'],
+        ['notificarNaoComparecimento', 'nao_compareceu'],
     ])('%s posta o evento %s com telefone na url de notificação', async (metodo, evento) => {
         const spy = espiar();
         await (new ClintWebhookAdapter(configFalso()) as any)[metodo]('deal-1', TELEFONE);

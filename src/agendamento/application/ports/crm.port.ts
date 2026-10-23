@@ -19,4 +19,6 @@ export interface CrmPort {
     notificarReagendamento(dealId: string, telefone: Telefone): Promise<void>;
     notificarCancelamento(dealId: string, telefone: Telefone): Promise<void>;
     notificarConflito(dealId: string, motivo: string, telefone: Telefone): Promise<void>;
+    notificarComparecimento(dealId: string, telefone: Telefone): Promise<void>;
+    notificarNaoComparecimento(dealId: string, telefone: Telefone): Promise<void>;
 }
