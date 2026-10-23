@@ -57,6 +57,7 @@ function montar() {
     const processarResposta = { executar: vi.fn(async () => {}) };
     const processarLeadOrigem = { executar: vi.fn(async () => {}) };
     const processarVendaGanha = { executar: vi.fn(async () => {}) };
+    const processarComparecimento = { executar: vi.fn(async () => {}) };
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     const processor = new AdapterProcessor(
@@ -65,6 +66,7 @@ function montar() {
         processarResposta as any,
         processarLeadOrigem as any,
         processarVendaGanha as any,
+        processarComparecimento as any,
         logger as any,
     );
     // WorkerHost.worker é um getter só-leitura apoiado no campo privado
@@ -78,6 +80,7 @@ function montar() {
         processarResposta,
         processarLeadOrigem,
         processarVendaGanha,
+        processarComparecimento,
         logger,
         processor,
     };
@@ -128,6 +131,24 @@ describe('AdapterProcessor.process', () => {
         expect(processarVendaGanha.executar).toHaveBeenCalled();
         expect(agendarConsulta.executar).not.toHaveBeenCalled();
         expect(processarResposta.executar).not.toHaveBeenCalled();
+    });
+
+    it('roteia job de comparecimento para o caso de uso certo', async () => {
+        const {
+            eventos,
+            agendarConsulta,
+            processarVendaGanha,
+            processarComparecimento,
+            processor,
+        } = montar();
+        const e = await eventos.registrar('/x');
+        await processor.process({
+            data: { tipo: 'comparecimento', eventoId: e.id, comando: {} },
+        } as any);
+
+        expect(processarComparecimento.executar).toHaveBeenCalled();
+        expect(agendarConsulta.executar).not.toHaveBeenCalled();
+        expect(processarVendaGanha.executar).not.toHaveBeenCalled();
     });
 
     it('marca o evento como processado no sucesso', async () => {

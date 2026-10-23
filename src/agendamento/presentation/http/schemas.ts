@@ -60,6 +60,12 @@ export const schemaVendaGanha = z.object({
     valor: z.coerce.number(),
 });
 
+export const schemaComparecimento = z.object({
+    deal_id: z.string().uuid(),
+    id_agendamento_medx: z.coerce.number().int().positive(),
+    telefone: z.string().min(1),
+});
+
 export const schemaDisponibilidade = z.object({
     profissional: z.string().min(1),
     data_inicio: z
