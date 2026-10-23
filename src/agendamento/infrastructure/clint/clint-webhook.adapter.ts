@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { CrmPort } from '../../application/ports/crm.port';
 import type { Telefone } from '../../domain/paciente/telefone';
+import { calcularHorarioLembreteChegada } from '../../domain/agendamento/lembrete-chegada';
 
 async function postar(url: string, corpo: Record<string, unknown>): Promise<void> {
     const resposta = await fetch(url, {
@@ -47,6 +48,7 @@ export class ClintWebhookAdapter implements CrmPort {
             data_agendamento: dataAgendamento,
             // Vai direto para a mensagem dos lembretes ("às 14:00"): sem segundos.
             hora_agendamento: horaCompleta?.slice(0, 5),
+            horario_lembrete_chegada: calcularHorarioLembreteChegada(inicio),
         });
     }
 

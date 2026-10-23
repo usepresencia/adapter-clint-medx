@@ -41,6 +41,21 @@ describe('gravarIdAgendamento', () => {
             telefone: '+5545988383189',
             data_agendamento: '2026-07-10',
             hora_agendamento: '14:00',
+            horario_lembrete_chegada: '2026-07-10T12:00:00',
+        });
+    });
+
+    it('usa a véspera às 18h no lembrete de chegada quando 2h antes cairia antes das 8h', async () => {
+        const spy = espiar();
+        await new ClintWebhookAdapter(configFalso()).gravarIdAgendamento(
+            'deal-1',
+            1275002478,
+            TELEFONE,
+            '2026-07-10T09:00:00',
+        );
+
+        expect(corpoDe(spy.mock.calls[0] as [any, any])).toMatchObject({
+            horario_lembrete_chegada: '2026-07-09T18:00:00',
         });
     });
 
