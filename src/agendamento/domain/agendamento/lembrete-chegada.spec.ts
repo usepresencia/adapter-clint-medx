@@ -22,6 +22,17 @@ describe('calcularHorarioLembreteChegada', () => {
         expect(calcularHorarioLembreteChegada('2026-07-10T01:00:00')).toBe('2026-07-09T18:00:00');
     });
 
+    it('pula o fim de semana: consulta numa segunda de manhã usa a sexta às 18h', () => {
+        // 2026-07-13 é segunda-feira; 2h antes das 8h cairia no domingo.
+        expect(calcularHorarioLembreteChegada('2026-07-13T08:00:00')).toBe('2026-07-10T18:00:00');
+    });
+
+    it('pula o fim de semana: consulta excepcional de sábado usa a sexta às 18h', () => {
+        // 2026-07-11 é sábado; mesmo com 2h de antecedência dentro do horário
+        // comercial, sábado não é dia de disparo.
+        expect(calcularHorarioLembreteChegada('2026-07-11T14:00:00')).toBe('2026-07-10T18:00:00');
+    });
+
     it('rejeita data inválida', () => {
         expect(() => calcularHorarioLembreteChegada('não é data')).toThrow();
     });

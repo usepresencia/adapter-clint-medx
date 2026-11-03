@@ -8,11 +8,19 @@ describe('calcularHorarioChecagemComparecimento', () => {
         );
     });
 
-    it('atravessa a virada do dia quando ainda cai antes das 18h', () => {
-        // 2026-07-10 é sexta-feira; +2h cai às 01:00 de sábado, antes das 18h —
-        // não aciona o adiamento por horário comercial.
+    it('adia para a segunda-feira às 8h quando a virada do dia cai em sábado, mesmo antes das 18h', () => {
+        // 2026-07-10 é sexta-feira; +2h cai às 01:00 de sábado — sábado não é
+        // dia de disparo, mesmo em horário comercial.
         expect(calcularHorarioChecagemComparecimento('2026-07-10T23:00:00')).toBe(
-            '2026-07-11T01:00:00',
+            '2026-07-13T08:00:00',
+        );
+    });
+
+    it('adia para a segunda-feira às 8h quando a checagem cai num sábado em horário comercial', () => {
+        // 2026-07-11 é sábado; +2h cai às 11:00 — antes das 18h, mas sábado
+        // não é dia de disparo.
+        expect(calcularHorarioChecagemComparecimento('2026-07-11T09:00:00')).toBe(
+            '2026-07-13T08:00:00',
         );
     });
 
