@@ -37,6 +37,7 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
     private tipos: MedxTipoAgendamento[] = [];
     private indiceAgendado = -1;
     private indiceConfirmado = -1;
+    private indiceFinalizado = -1;
     private indicesLiberam: number[] | null = null;
     private carregadoEm = -Infinity;
 
@@ -71,6 +72,8 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
         this.indicesLiberam = STATUS_QUE_LIBERAM_HORARIO.map(alvo =>
             encontrarIndiceStatus(s, alvo),
         ).filter(indice => indice >= 0);
+
+        this.indiceFinalizado = encontrarIndiceStatus(s, 'finalizado atendimento');
 
         this.carregadoEm = this.agora();
     }
@@ -126,6 +129,13 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
             throw new Error('Catálogo do MedX não foi inicializado — chame carregar() antes');
         }
         return this.indiceConfirmado;
+    }
+
+    indiceStatusFinalizado(): number {
+        if (this.carregadoEm === -Infinity) {
+            throw new Error('Catálogo do MedX não foi inicializado — chame carregar() antes');
+        }
+        return this.indiceFinalizado;
     }
 
     indicesStatusQueLiberamHorario(): number[] {
