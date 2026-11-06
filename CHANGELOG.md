@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.8.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.7.1...v1.8.0) (2026-11-06)
+
+### Features
+
+- calcula horario do lembrete de chegada 2h antes da consulta ([013f5c6](https://github.com/usepresencia/adapter-clint-medx/commit/013f5c6e45f7b8c49aca46f5df85bdc4f5a5b2e9))
+
 ### [1.7.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.7.0...v1.7.1) (2026-10-07)
 
 ### Bug Fixes
