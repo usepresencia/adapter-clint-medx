@@ -90,3 +90,37 @@ describe('WebhooksController.agendamento', () => {
         expect(fila.add).not.toHaveBeenCalled();
     });
 });
+
+const COMPARECIMENTO = {
+    deal_id: '8feade82-d77b-4e8b-9d35-fd43e972b5c8',
+    id_agendamento_medx: 1275002478,
+    telefone: '+5511999998888',
+};
+
+describe('WebhooksController.comparecimento', () => {
+    it('grava o evento e enfileira com o segredo certo', async () => {
+        const { controller, eventos, fila } = montar();
+        const r = await controller.comparecimento('segredo-certo', COMPARECIMENTO);
+        expect(r).toEqual({ ok: true });
+        expect(eventos.registrar).toHaveBeenCalled();
+        expect(fila.add).toHaveBeenCalledWith(
+            'comparecimento',
+            expect.objectContaining({
+                tipo: 'comparecimento',
+                comando: {
+                    dealId: COMPARECIMENTO.deal_id,
+                    idAgendamentoMedx: COMPARECIMENTO.id_agendamento_medx,
+                    telefone: COMPARECIMENTO.telefone,
+                },
+            }),
+        );
+    });
+
+    it('marca inválido e não enfileira quando falta campo obrigatório', async () => {
+        const { controller, fila } = montar();
+        const { telefone, ...semTelefone } = COMPARECIMENTO;
+        const r = await controller.comparecimento('segredo-certo', semTelefone);
+        expect(r).toEqual({ ok: true });
+        expect(fila.add).not.toHaveBeenCalled();
+    });
+});

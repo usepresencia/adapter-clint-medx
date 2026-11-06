@@ -8,6 +8,7 @@ import { AgendarConsultaUseCase } from '../../application/agendar-consulta/agend
 import { ProcessarRespostaUseCase } from '../../application/processar-resposta-lembrete/processar-resposta.usecase';
 import { ProcessarLeadOrigemUseCase } from '../../application/processar-lead-origem/processar-lead-origem.usecase';
 import { ProcessarVendaGanhaUseCase } from '../../application/processar-venda-ganha/processar-venda-ganha.usecase';
+import { VerificarComparecimentoUseCase } from '../../application/verificar-comparecimento/verificar-comparecimento.usecase';
 import { EVENTO_REPOSITORIO } from '../../../shared/persistence/persistence.module';
 import { ErroRateLimit } from '../medx/medx.erros';
 import { LIMITER, NOME_FILA } from './fila.constants';
@@ -20,6 +21,7 @@ export class AdapterProcessor extends WorkerHost {
         private readonly processarResposta: ProcessarRespostaUseCase,
         private readonly processarLeadOrigem: ProcessarLeadOrigemUseCase,
         private readonly processarVendaGanha: ProcessarVendaGanhaUseCase,
+        private readonly verificarComparecimento: VerificarComparecimentoUseCase,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
     ) {
         super();
@@ -36,8 +38,10 @@ export class AdapterProcessor extends WorkerHost {
                 await this.processarResposta.executar(dados.comando);
             } else if (dados.tipo === 'lead-origem') {
                 await this.processarLeadOrigem.executar(dados.comando);
-            } else {
+            } else if (dados.tipo === 'venda-ganha') {
                 await this.processarVendaGanha.executar(dados.comando);
+            } else {
+                await this.verificarComparecimento.executar(dados.comando);
             }
 
             evento.marcarProcessado();
