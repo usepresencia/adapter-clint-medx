@@ -34,9 +34,16 @@ export const schemaAgendamento = z.object({
     duracao_consulta: z.coerce.number().int().positive().optional(),
 });
 
+// O MedX devolve ids de agendamento de 32 bits com sinal, então vêm negativos
+// (ex.: -1008453570). Só o zero não é um id válido.
+const idAgendamentoMedx = z.coerce
+    .number()
+    .int()
+    .refine(id => id !== 0, 'id_agendamento_medx não pode ser 0');
+
 export const schemaResposta = z.object({
     deal_id: z.string().uuid(),
-    id_agendamento_medx: z.coerce.number().int().positive(),
+    id_agendamento_medx: idAgendamentoMedx,
     resposta: z.enum(VALORES_RESPOSTA as unknown as [string, ...string[]]),
     telefone: z.string().min(1),
 });
@@ -62,7 +69,7 @@ export const schemaVendaGanha = z.object({
 
 export const schemaComparecimento = z.object({
     deal_id: z.string().uuid(),
-    id_agendamento_medx: z.coerce.number().int().positive(),
+    id_agendamento_medx: idAgendamentoMedx,
     telefone: z.string().min(1),
 });
 
