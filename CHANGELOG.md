@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.9.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.8.0...v1.9.0) (2026-11-06)
+
+### Features
+
+- verifica comparecimento da paciente 2h apos a consulta via status do MedX ([82d93cd](https://github.com/usepresencia/adapter-clint-medx/commit/82d93cd0532797508e81f8293c361f58816b0053))
+
+### Bug Fixes
+
+- lembrete de chegada e checagem de comparecimento consideram apenas dias uteis para disparo ([535aea1](https://github.com/usepresencia/adapter-clint-medx/commit/535aea13cb729e09ecfd5b44fa5324b4f38ecc8b))
+
 ## [1.8.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.7.1...v1.8.0) (2026-11-06)
 
 ### Features
