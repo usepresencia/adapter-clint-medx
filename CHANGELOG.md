@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.9.0...v1.9.1) (2026-11-07)
+
+### Bug Fixes
+
+- aceita id de agendamento negativo nos webhooks de comparecimento e resposta ([de47163](https://github.com/usepresencia/adapter-clint-medx/commit/de47163382b99f7ab58520d78914cfe27ef41000))
+
 ## [1.9.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.8.0...v1.9.0) (2026-11-06)
 
 ### Features
