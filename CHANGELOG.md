@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.2](https://github.com/usepresencia/adapter-clint-medx/compare/v1.9.1...v1.9.2) (2026-11-07)
+
+### Bug Fixes
+
+- aceita telefone internacional (E.164 fora do Brasil) na checagem de comparecimento ([84151fc](https://github.com/usepresencia/adapter-clint-medx/commit/84151fc689272da4e28228c72265a96c60e3b4a4))
+
 ### [1.9.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.9.0...v1.9.1) (2026-11-07)
 
 ### Bug Fixes
