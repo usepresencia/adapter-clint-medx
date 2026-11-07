@@ -14,6 +14,33 @@ describe('Telefone.criar', () => {
         expect(t.nacional).toBe(nacional);
     });
 
+    describe('número internacional', () => {
+        it.each([
+            ['+595 981 342249', '+595981342249'],
+            ['+595981342249', '+595981342249'],
+            ['595981342249', '+595981342249'],
+        ])('mantém %s como E.164 estrangeiro', (entrada, e164) => {
+            const t = Telefone.criar(entrada);
+            expect(t.e164).toBe(e164);
+            expect(t.estrangeiro).toBe(true);
+        });
+
+        it('não marca número brasileiro como estrangeiro', () => {
+            expect(Telefone.criar('+55 11 99999-8888').estrangeiro).toBe(false);
+            expect(Telefone.criar('11999998888').estrangeiro).toBe(false);
+        });
+
+        it('compara dois números estrangeiros escritos de formas diferentes', () => {
+            expect(Telefone.criar('+595 981 342249').igual(Telefone.criar('595981342249'))).toBe(
+                true,
+            );
+        });
+
+        it.each(['+5959', '+1234567890123456'])('rejeita %s por tamanho inválido', entrada => {
+            expect(() => Telefone.criar(entrada)).toThrow(ErroDeDominio);
+        });
+    });
+
     it('preserva fixos de 8 dígitos sem inventar o nono', () => {
         expect(Telefone.criar('1133334444').nacional).toBe('1133334444');
     });
