@@ -65,4 +65,19 @@ describe('VerificarComparecimentoUseCase', () => {
         );
         expect(crm.notificarComparecimento).not.toHaveBeenCalled();
     });
+
+    it('mantém o DDI de paciente estrangeira ao notificar o Clint (ex.: Paraguai +595)', async () => {
+        const { usecase, crm } = montar(INDICE_FINALIZADO);
+
+        await usecase.executar({
+            dealId: 'deal-1',
+            idAgendamentoMedx: -1008453570,
+            telefone: '+595981342249',
+        });
+
+        expect(crm.notificarComparecimento).toHaveBeenCalledWith(
+            'deal-1',
+            expect.objectContaining({ e164: '+595981342249', estrangeiro: true }),
+        );
+    });
 });
