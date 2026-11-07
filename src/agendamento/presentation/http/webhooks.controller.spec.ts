@@ -116,6 +116,30 @@ describe('WebhooksController.comparecimento', () => {
         );
     });
 
+    it('aceita id de agendamento negativo (o MedX devolve ids de 32 bits com sinal)', async () => {
+        const { controller, fila } = montar();
+        const r = await controller.comparecimento('segredo-certo', {
+            ...COMPARECIMENTO,
+            id_agendamento_medx: -1008453570,
+        });
+        expect(r).toEqual({ ok: true });
+        expect(fila.add).toHaveBeenCalledWith(
+            'comparecimento',
+            expect.objectContaining({
+                comando: expect.objectContaining({ idAgendamentoMedx: -1008453570 }),
+            }),
+        );
+    });
+
+    it('rejeita id de agendamento zero', async () => {
+        const { controller, fila } = montar();
+        await controller.comparecimento('segredo-certo', {
+            ...COMPARECIMENTO,
+            id_agendamento_medx: 0,
+        });
+        expect(fila.add).not.toHaveBeenCalled();
+    });
+
     it('marca inválido e não enfileira quando falta campo obrigatório', async () => {
         const { controller, fila } = montar();
         const { telefone, ...semTelefone } = COMPARECIMENTO;
