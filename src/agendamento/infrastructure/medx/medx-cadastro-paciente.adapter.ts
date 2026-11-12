@@ -58,4 +58,12 @@ export class MedxCadastroPacienteAdapter implements CadastroPacientePort {
             dados: campos,
         });
     }
+
+    async obterCelular(idPaciente: number): Promise<string | null> {
+        const ficha = await this.client.get<{
+            dados?: { celular?: string | null; telefoneResidencial?: string | null };
+        }>(`/api/integration/v1/contatos/${idPaciente}`);
+        const telefone = ficha?.dados?.celular || ficha?.dados?.telefoneResidencial;
+        return telefone ? telefone : null;
+    }
 }

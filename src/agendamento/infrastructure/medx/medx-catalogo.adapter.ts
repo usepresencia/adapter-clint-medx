@@ -8,6 +8,7 @@ import type { MedxProfissional, MedxReferencia, MedxTipoAgendamento } from './me
 
 const TTL_PADRAO_MS = 6 * 60 * 60 * 1000;
 const STATUS_QUE_LIBERAM_HORARIO = ['desmarcado', 'cancelou', 'faltou'];
+const STATUS_DE_CANCELAMENTO = ['desmarcado', 'cancelou'];
 
 function chave(texto: string): string {
     return texto
@@ -35,6 +36,8 @@ interface Carregado {
     confirmado: number;
     finalizado: number;
     liberam: number[];
+    endovenoso: number;
+    cancelamento: number[];
 }
 
 /**
@@ -86,6 +89,10 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
             agendado,
             confirmado,
             finalizado: encontrarIdStatus(status, 'finalizado atendimento'),
+            endovenoso: encontrarIdStatus(status, 'endovenoso'),
+            cancelamento: STATUS_DE_CANCELAMENTO.map(alvo =>
+                encontrarIdStatus(status, alvo),
+            ).filter(id => id >= 0),
             liberam: STATUS_QUE_LIBERAM_HORARIO.map(alvo => encontrarIdStatus(status, alvo)).filter(
                 id => id >= 0,
             ),
@@ -148,5 +155,13 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
 
     async indicesStatusQueLiberamHorario(): Promise<number[]> {
         return (await this.garantir()).liberam;
+    }
+
+    async indiceStatusEndovenoso(): Promise<number> {
+        return (await this.garantir()).endovenoso;
+    }
+
+    async indicesStatusCancelamento(): Promise<number[]> {
+        return (await this.garantir()).cancelamento;
     }
 }

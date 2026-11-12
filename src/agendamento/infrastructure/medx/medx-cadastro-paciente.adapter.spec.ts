@@ -106,3 +106,31 @@ describe('enriquecerFicha', () => {
         });
     });
 });
+
+describe('obterCelular', () => {
+    const com = (dados: Record<string, unknown>) => {
+        const caminhos: string[] = [];
+        const client = {
+            get: async <T>(caminho: string) => {
+                caminhos.push(caminho);
+                return { id: 1, dados } as T;
+            },
+        } as unknown as MedxHttpClient;
+        return { client, caminhos };
+    };
+
+    it('obterCelular lê dados.celular e cai para telefoneResidencial', async () => {
+        const a = com({ celular: '45999197847', telefoneResidencial: '4532221111' });
+        expect(await new MedxCadastroPacienteAdapter(a.client).obterCelular(1090077047)).toBe(
+            '45999197847',
+        );
+        expect(a.caminhos[0]).toBe('/api/integration/v1/contatos/1090077047');
+        const b = com({ celular: '', telefoneResidencial: '4532221111' });
+        expect(await new MedxCadastroPacienteAdapter(b.client).obterCelular(1)).toBe('4532221111');
+    });
+
+    it('obterCelular sem telefone → null', async () => {
+        const { client } = com({ celular: null, telefoneResidencial: '' });
+        expect(await new MedxCadastroPacienteAdapter(client).obterCelular(1)).toBeNull();
+    });
+});

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { MedxAgendaAdapter } from './medx-agenda.adapter';
 import type { MedxHttpClient } from './medx-http.client';
 import type { MedxAgendaDetalhe } from './medx.tipos';
+import { ErroMedx } from './medx.erros';
 
 const DETALHE: MedxAgendaDetalhe = {
     id: -1646861682,
@@ -315,5 +316,33 @@ describe('consultarDisponibilidade', () => {
             duracaoMinutos: 30,
         });
         expect(slots).toEqual([]);
+    });
+});
+
+describe('leituras para o monitor', () => {
+    it('listarDetalhadosPorPeriodo traz paciente e status', async () => {
+        const { client, chamadas } = clientFalso({ paginas: () => [DETALHE] });
+        const lista = await new MedxAgendaAdapter(client).listarDetalhadosPorPeriodo(
+            '2026-11-12T00:00:00',
+            '2026-12-12T00:00:00',
+        );
+        expect(chamadas[0]!.caminho).toBe('/api/integration/v1/agenda/agendamentos/detalhes');
+        expect(lista).toHaveLength(1);
+        expect(lista[0]).toMatchObject({
+            idPaciente: 30094605,
+            status: 2,
+            inicio: '2026-11-12T10:10:00',
+        });
+    });
+
+    it('existe devolve false só no 404', async () => {
+        const com = (erro: Error) =>
+            ({ get: async () => Promise.reject(erro) }) as unknown as MedxHttpClient;
+        expect(await new MedxAgendaAdapter(com(new ErroMedx(404, 'x'))).existe(1)).toBe(false);
+        await expect(
+            new MedxAgendaAdapter(com(new ErroMedx(500, 'x'))).existe(1),
+        ).rejects.toThrow();
+        const { client } = clientFalso({ get: DETALHE });
+        expect(await new MedxAgendaAdapter(client).existe(1)).toBe(true);
     });
 });

@@ -10,6 +10,7 @@ import type {
 } from '../../application/ports/agenda-medica.port';
 import { MedxHttpClient } from './medx-http.client';
 import type { MedxAgendaDetalhe, MedxDisponibilidadeV1 } from './medx.tipos';
+import { ErroMedx } from './medx.erros';
 import { FORMATO_MEDX, interpretarHorarioClinica } from '../../domain/agendamento/periodo-consulta';
 
 const BASE_V1 = '/api/integration/v1/agenda/agendamentos';
@@ -132,6 +133,30 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
     }
 
     async listarPorPeriodo(inicio: string, fim: string): Promise<OcupacaoAgenda[]> {
+        const itens = await this.listarDetalhes(inicio, fim);
+        return itens.map(item => ({
+            idProfissional: item.profissional?.id ?? 0,
+            inicio: paraHorarioLocal(item.inicio),
+            fim: paraHorarioLocal(item.fim),
+            status: item.status.id,
+        }));
+    }
+
+    async listarDetalhadosPorPeriodo(inicio: string, fim: string): Promise<AgendamentoExterno[]> {
+        return (await this.listarDetalhes(inicio, fim)).map(traduzir);
+    }
+
+    async existe(id: number): Promise<boolean> {
+        try {
+            await this.obter(id);
+            return true;
+        } catch (erro) {
+            if (erro instanceof ErroMedx && erro.status === 404) return false;
+            throw erro;
+        }
+    }
+
+    private async listarDetalhes(inicio: string, fim: string): Promise<MedxAgendaDetalhe[]> {
         const porId = new Map<number, MedxAgendaDetalhe>();
         for (const [ini, fimJanela] of janelas(inicio, fim, MAX_DIAS_AGENDAMENTOS)) {
             const itens = await this.client.listarTodos<MedxAgendaDetalhe>(`${BASE_V1}/detalhes`, {
@@ -140,13 +165,7 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
             });
             for (const item of itens) porId.set(item.id, item);
         }
-
-        return [...porId.values()].map(item => ({
-            idProfissional: item.profissional?.id ?? 0,
-            inicio: paraHorarioLocal(item.inicio),
-            fim: paraHorarioLocal(item.fim),
-            status: item.status.id,
-        }));
+        return [...porId.values()];
     }
 
     async listarPorPaciente(idPaciente: number): Promise<AgendamentoExterno[]> {
