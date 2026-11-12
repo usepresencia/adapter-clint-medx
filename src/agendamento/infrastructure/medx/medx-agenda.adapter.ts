@@ -9,10 +9,9 @@ import type {
     SlotDisponivel,
 } from '../../application/ports/agenda-medica.port';
 import { MedxHttpClient } from './medx-http.client';
-import type { MedxAgendaDetalhe, MedxAgendamento, MedxDisponibilidadeV1 } from './medx.tipos';
+import type { MedxAgendaDetalhe, MedxDisponibilidadeV1 } from './medx.tipos';
 import { FORMATO_MEDX, FUSO_CLINICA } from '../../domain/agendamento/periodo-consulta';
 
-const BASE = '/api/integration/agenda/agendamentos';
 const BASE_V1 = '/api/integration/v1/agenda/agendamentos';
 /** Limite do MedX para Inicio/Fim em /agendamentos/detalhes (o Fim é exclusivo). */
 const MAX_DIAS_JANELA = 31;
@@ -52,27 +51,27 @@ function traduzir(detalhe: MedxAgendaDetalhe): AgendamentoExterno {
 export class MedxAgendaAdapter implements AgendaMedicaPort {
     constructor(private readonly client: MedxHttpClient) {}
 
-    async criar(dados: DadosCriacaoAgendamento, indiceStatusAgendado: number): Promise<number> {
-        const resposta = await this.client.post<unknown>(BASE, {
-            Id_do_Usuario: dados.idProfissional,
-            Inicio: dados.inicio,
-            Final: dados.fim,
-            Descricao: dados.descricao,
-            Status: indiceStatusAgendado,
-            Vinculado_a: dados.idPaciente,
-            Id_do_TipoConsulta: dados.idTipoConsulta,
-        });
+    async criar(dados: DadosCriacaoAgendamento): Promise<number> {
+        const duracaoMinutos = Math.round(
+            interpretar(dados.fim).diff(interpretar(dados.inicio), 'minutes').minutes,
+        );
+        const resposta = await this.client.executarOperacao<{ agendamento?: { id?: number } }>(
+            '/api/integration/v1/agenda/operacoes',
+            {
+                acao: 'criar',
+                pacienteId: dados.idPaciente,
+                profissionalId: dados.idProfissional,
+                inicio: dados.inicio,
+                duracaoMinutos,
+                tipoId: dados.idTipoConsulta,
+            },
+        );
 
-        const id = Number(resposta);
-        // Ids negativos são válidos nesta conta (confirmado ao vivo — o MedX usa
-        // esse esquema também para ids de profissional). Só 0/NaN indicam falha.
+        const id = Number(resposta?.agendamento?.id);
+        // Ids negativos são válidos nesta conta; só 0/NaN indicam falha. Não
+        // serializar a resposta: ela traz o nome da paciente.
         if (!Number.isInteger(id) || id === 0) {
-            // Não serializar o corpo da resposta aqui: se o MedX ecoar a Descricao
-            // enviada (que contém o nome da paciente), o conteúdo vaza em log/e-mail
-            // de alerta sem passar pela redação de PII do pino.
-            throw new Error(
-                `MedX não devolveu um id de agendamento válido (tipo recebido: ${typeof resposta})`,
-            );
+            throw new Error('MedX não devolveu um id de agendamento válido');
         }
         return id;
     }
@@ -139,21 +138,29 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
         agendamento: AgendamentoExterno,
         indiceStatusConfirmado: number,
     ): Promise<void> {
-        // O PUT não é um PATCH: partimos do payload original para não apagar
-        // campos que este port não modela. Spread do bruto PRIMEIRO, overrides
-        // DEPOIS — a ordem inversa sobrescreveria status/confirmacao com o valor
-        // antigo, deixando a consulta silenciosamente não confirmada.
-        //
-        // Os nomes de campo aqui (snake_case) batem com o que o GET devolve de
-        // verdade, mas o PUT em si ainda não foi testado ao vivo nesta conta —
-        // só a criação (POST) foi confirmada. Validar no primeiro teste real.
-        const cru = agendamento.bruto as MedxAgendamento;
-
-        await this.client.put(BASE, {
-            ...cru,
-            id_do_Agendamento: agendamento.id,
-            status: indiceStatusConfirmado,
-            confirmacao: CONFIRMACAO_LITERAL,
+        // Atualização completa: o MedX apaga o que não for reenviado, então
+        // tudo sai do detalhe lido (com a `versao` intacta) e só status e
+        // confirmação mudam.
+        const d = agendamento.bruto as MedxAgendaDetalhe;
+        await this.client.executarOperacao('/api/integration/v1/agenda/cadastros', {
+            acao: 'atualizar_agendamento',
+            agendamento: {
+                id: d.id,
+                profissionalId: d.profissional?.id ?? null,
+                pacienteId: d.paciente?.id ?? null,
+                tipoId: d.tipo?.id ?? null,
+                procedimentoId: d.procedimentoId,
+                inicio: d.inicio,
+                fim: d.fim,
+                status: indiceStatusConfirmado,
+                descricao: d.descricao,
+                confirmacao: CONFIRMACAO_LITERAL,
+                sms: d.sms,
+                chegada: d.chegada,
+                atendidoEm: d.atendidoEm,
+                saiuEm: d.saiuEm,
+                versao: d.versao,
+            },
         });
     }
 }

@@ -61,7 +61,8 @@ export interface OcupacaoAgenda {
 }
 
 export interface AgendaMedicaPort {
-    criar(dados: DadosCriacaoAgendamento, indiceStatusAgendado: number): Promise<number>;
+    /** Nasce com o status padrão do MedX para criação (Agendado). */
+    criar(dados: DadosCriacaoAgendamento): Promise<number>;
     obter(id: number): Promise<AgendamentoExterno>;
     listarPorPaciente(idPaciente: number): Promise<AgendamentoExterno[]>;
     confirmar(agendamento: AgendamentoExterno, indiceStatusConfirmado: number): Promise<void>;

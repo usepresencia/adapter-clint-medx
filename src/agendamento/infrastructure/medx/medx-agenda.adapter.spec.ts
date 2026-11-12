@@ -65,66 +65,70 @@ const CRIACAO = {
     idTipoConsulta: 111,
 };
 
-// Falso da assinatura antiga, usado só pelos testes de criar até a migração da escrita.
-function clientFalsoLegado(resposta: unknown) {
-    const enviados: Array<{ caminho: string; corpo?: unknown }> = [];
-    const client = {
-        post: async <T>(caminho: string, corpo: unknown) => {
-            enviados.push({ caminho, corpo });
-            return resposta as T;
-        },
-    } as unknown as MedxHttpClient;
-    return { client, enviados };
-}
-
 describe('criar', () => {
-    it('devolve o inteiro que o MedX retorna', async () => {
-        const { client } = clientFalsoLegado(1275002478);
-        expect(await new MedxAgendaAdapter(client).criar(CRIACAO, 0)).toBe(1275002478);
-    });
+    it('criar usa operacoes/criar com duração calculada e devolve o id', async () => {
+        const { client, chamadas } = clientFalso({ post: { agendamento: { id: -123 } } });
 
-    it('mapeia para os nomes exatos da API e nasce com o índice de "Agendado" recebido', async () => {
-        const { client, enviados } = clientFalsoLegado(1);
-        await new MedxAgendaAdapter(client).criar(CRIACAO, 0);
+        const id = await new MedxAgendaAdapter(client).criar(CRIACAO);
 
-        expect(enviados[0]).toEqual({
-            caminho: '/api/integration/agenda/agendamentos',
+        expect(id).toBe(-123);
+        expect(chamadas[0]).toEqual({
+            metodo: 'executarOperacao',
+            caminho: '/api/integration/v1/agenda/operacoes',
             corpo: {
-                Id_do_Usuario: 43013640,
-                Inicio: '2026-07-10T14:00:00',
-                Final: '2026-07-10T14:30:00',
-                Descricao: 'Consulta de Rotina — Maria Silva',
-                Status: 0,
-                Vinculado_a: 30094605,
-                Id_do_TipoConsulta: 111,
+                acao: 'criar',
+                pacienteId: 30094605,
+                profissionalId: 43013640,
+                inicio: '2026-07-10T14:00:00',
+                duracaoMinutos: 30,
+                tipoId: 111,
             },
         });
     });
 
-    it('usa o índice de "Agendado" recebido, nunca um valor fixo', async () => {
-        const { client, enviados } = clientFalsoLegado(1);
-        await new MedxAgendaAdapter(client).criar(CRIACAO, 3);
-
-        const corpo = enviados[0]!.corpo as Record<string, unknown>;
-        expect(corpo.Status).toBe(3);
+    it('rejeita id zero sem serializar a resposta na mensagem', async () => {
+        const { client } = clientFalso({
+            post: { agendamento: { id: 0, descricao: 'Maria Silva' } },
+        });
+        const erro = await new MedxAgendaAdapter(client).criar(CRIACAO).catch(e => e as Error);
+        expect(erro.message).toMatch(/id de agendamento válido/);
+        expect(erro.message).not.toMatch(/Maria/);
     });
+});
 
-    it('rejeita retorno que não é um id válido, sem serializar a resposta na mensagem', async () => {
-        const { client } = clientFalsoLegado({ Descricao: 'contém nome da paciente' });
-        await expect(new MedxAgendaAdapter(client).criar(CRIACAO, 0)).rejects.toThrow(/id/i);
-        await expect(new MedxAgendaAdapter(client).criar(CRIACAO, 0)).rejects.not.toThrow(
-            /nome da paciente/,
-        );
-    });
+describe('confirmar', () => {
+    it('confirmar reenvia todos os campos do detalhe com versao e status confirmado', async () => {
+        const { client, chamadas } = clientFalso({ get: DETALHE, post: {} });
+        const agenda = new MedxAgendaAdapter(client);
+        const externo = await agenda.obter(-1646861682);
+        chamadas.length = 0;
 
-    it('aceita id negativo — confirmado ao vivo que esta conta usa ids negativos', async () => {
-        const { client } = clientFalsoLegado(-1452025979);
-        expect(await new MedxAgendaAdapter(client).criar(CRIACAO, 0)).toBe(-1452025979);
-    });
+        await agenda.confirmar(externo, 2);
 
-    it('rejeita zero como id (provável sentinela de falha)', async () => {
-        const { client } = clientFalsoLegado(0);
-        await expect(new MedxAgendaAdapter(client).criar(CRIACAO, 0)).rejects.toThrow(/id/i);
+        expect(chamadas[0]).toEqual({
+            metodo: 'executarOperacao',
+            caminho: '/api/integration/v1/agenda/cadastros',
+            corpo: {
+                acao: 'atualizar_agendamento',
+                agendamento: {
+                    id: -1646861682,
+                    profissionalId: -692937676,
+                    pacienteId: 30094605,
+                    tipoId: 111,
+                    procedimentoId: null,
+                    inicio: '2026-11-12T10:10:00-03:00',
+                    fim: '2026-11-12T10:20:00-03:00',
+                    status: 2,
+                    descricao: 'Consulta — Maria Silva',
+                    confirmacao: 'Mensagem Salva com Sucesso',
+                    sms: '44999999999',
+                    chegada: null,
+                    atendidoEm: null,
+                    saiuEm: null,
+                    versao: 'v-abc',
+                },
+            },
+        });
     });
 });
 
