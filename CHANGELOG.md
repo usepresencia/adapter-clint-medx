@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.10.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.9.2...v1.10.0) (2026-11-12)
+
+### Features
+
+- grava campos de data do negócio na Clint pelo deal_id ([580b6ba](https://github.com/usepresencia/adapter-clint-medx/commit/580b6baac95481136804c0e1d86e962de4b1777d))
+- lembrete de chegada às 06h quando a antecedência cai antes das 8h ([1773cc2](https://github.com/usepresencia/adapter-clint-medx/commit/1773cc2087686fe5bb9758d3b0349e00f38b9d02))
+- rota para as automações regravarem o campo de data do negócio ([bee1f34](https://github.com/usepresencia/adapter-clint-medx/commit/bee1f341900a118669279750fb7106b0e9ecc47b))
+
+### Bug Fixes
+
+- catálogo do MedX compartilha a carga entre chamadas simultâneas ([d163408](https://github.com/usepresencia/adapter-clint-medx/commit/d1634080e02a116f42e479c6c93b977705ee2544))
+- catálogo do MedX v1 sob demanda e boot sem depender do MedX ([48ffdb7](https://github.com/usepresencia/adapter-clint-medx/commit/48ffdb7958ea3f35b25058afc9de251f41981f3e))
+- confirmação falha claro quando o agendamento não tem profissional ou paciente ([ed6f302](https://github.com/usepresencia/adapter-clint-medx/commit/ed6f3021716bfc1f6a581988ff95018250357b44))
+- correções da revisão final da migração para a API v1 ([bbf5106](https://github.com/usepresencia/adapter-clint-medx/commit/bbf51066f94e4ba7ed8bd3f6701b89ff647e93a0))
+- cria agendamento com a descrição pela rota de cadastros da API v1 ([c685873](https://github.com/usepresencia/adapter-clint-medx/commit/c68587366441207348559e729c8725baed109113))
+- criação e confirmação de agendamento na API v1 do MedX ([a9b7960](https://github.com/usepresencia/adapter-clint-medx/commit/a9b7960f150403d5c4ed229d94dd66a5a56e5225))
+- disponibilidade envia o profissional exigido pela API v1 do MedX ([775eac3](https://github.com/usepresencia/adapter-clint-medx/commit/775eac38a57962ebc26fbf6e313f1b4791f7ecc8))
+- leituras da agenda na API v1 do MedX ([f4350bb](https://github.com/usepresencia/adapter-clint-medx/commit/f4350bbd1d8ee4db30d4f6547db49f432a2c3f24))
+- paginação do MedX com limite e sem loop em cursor repetido ([7f2b1e0](https://github.com/usepresencia/adapter-clint-medx/commit/7f2b1e0a3067ec748f213322eeab37381d6f0219))
+- troca de token e operações em duas etapas na API v1 do MedX ([2a10860](https://github.com/usepresencia/adapter-clint-medx/commit/2a1086046d0f765ff0e70d9d198e1e9e9f902db1))
+- vínculo e atualização de paciente na API v1 do MedX ([19de85b](https://github.com/usepresencia/adapter-clint-medx/commit/19de85b589e7701058c798de4d6b2315338ac4dd))
+
 ### [1.9.2](https://github.com/usepresencia/adapter-clint-medx/compare/v1.9.1...v1.9.2) (2026-11-07)
 
 ### Bug Fixes
