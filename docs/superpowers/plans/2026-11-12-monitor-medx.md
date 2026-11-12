@@ -22,6 +22,7 @@
 - `proximo_lembrete` ∈ `d3 | d1 | d0_chegada | nenhum`; `etapa_lembrete` de cancelamento = `cancelado`.
 - Tags: `sem telefone no MedX` (sem telefone nos dois sistemas) e `conferir agendamento MedX` (contato ambíguo).
 - Janela: hoje 00:00 → +30 dias; intervalo 5 min. `MONITOR_MEDX_MODO` = `desligado` (padrão) | `observar` | `agir`.
+- Telefones internacionais continuam cobertos (`Telefone.estrangeiro`): na Clint o DDI fica separado do número (ex.: ddi `595`, phone `983111455`).
 - Nunca gravar horário que já passou; nunca logar nome/telefone fora da redação do pino.
 
 ## Review Focus
@@ -30,7 +31,8 @@
 2. Primeira rodada com negócios já vinculados por `id_agendamento_medx` → nenhuma criação, nenhuma boas-vindas (teste na Task 7).
 3. Remarcação para depois de 30 dias (some da listagem, mas existe) → não é tratada como cancelamento (teste na Task 7).
 4. Consulta antecipada que deixa a etapa atual para trás → grava `proximo_lembrete` diferente do atual; sem salto quando a etapa atual ainda é alcançável (teste na Task 2 e Task 7).
-5. Falha da Clint ou do MedX no meio da rodada → os outros agendamentos continuam; a rodada seguinte corrige (teste na Task 7).
+5. Telefone estrangeiro (Paraguai, +595) — gravado completo ou sem o 5 inicial no MedX (`95982663052`) → acha o contato certo, sem criar duplicado (testes nas Tasks 5 e 6).
+6. Falha da Clint ou do MedX no meio da rodada → os outros agendamentos continuam; a rodada seguinte corrige (teste na Task 7).
 
 ---
 
@@ -42,7 +44,8 @@ Negócio de teste `521e2bf6-1ce0-4cf0-91d9-ea2dc7627eb1`. Registrar cada resulta
 - [ ] **2.** No negócio de teste, gravar `horario_checagem_comparecimento` = agora+3 min, depois (sem apagar) agora+6 min: a Checagem executa só no segundo horário?
 - [ ] **3.** `GET /v1/deals?origin_id=…&status=OPEN&limit=…` traz `fields` com `id_agendamento_medx` e o `contact.phone`.
 - [ ] **4.** `GET /v1/contacts?name=…` encontra por parte do nome?
-- [ ] **5.** Prévia (sem executar) de `contatos/operacoes` `acao: atualizar` só com `dados.celular`: a proposta preserva os outros campos.
+- [ ] **5.** `GET /v1/contacts` encontra um contato estrangeiro (ddi `595`) por `phone` sem ddi e por `ddi`+`phone`? Registrar qual forma funciona.
+- [ ] **6.** Prévia (sem executar) de `contatos/operacoes` `acao: atualizar` só com `dados.celular`: a proposta preserva os outros campos.
 
 ### Task 2: Regras de janela e de datas no domínio
 
@@ -106,12 +109,12 @@ Negócio de teste `521e2bf6-1ce0-4cf0-91d9-ea2dc7627eb1`. Registrar cada resulta
 - `ContatoClint { id: string; nome: string; telefone: string | null }`
 - `CrmNegocioPort` ganha:
   - `listarAbertosRecepcao(): Promise<NegocioRecepcao[]>` — `GET /v1/deals?origin_id&status=OPEN&limit=1000&page=n` até `hasNext=false`.
-  - `buscarContatos(filtro: { telefone?: Telefone; nome?: string }): Promise<ContatoClint[]>` — `GET /v1/contacts` (`ddi=55`/`phone=nacional` ou `name`).
+  - `buscarContatos(filtro: { telefone?: Telefone; nome?: string }): Promise<ContatoClint[]>` — `GET /v1/contacts`: brasileiro → `ddi=55&phone=nacional`; estrangeiro → forma confirmada na verificação 5 da Task 1 (padrão: `phone` = últimos 9 dígitos) e filtra os resultados cujo `ddi`+`phone` são os dígitos do E.164; nome → `name`. `ContatoClint.telefone` em E.164 (`+` + ddi + phone).
   - `criarNegocio(dados: { contatoId?: string; nome: string; telefone?: Telefone; campos: CamposNegocio }): Promise<string>` — `POST /v1/deals` com `origin_id`, `stage_id` BOAS VINDAS, `contact_id` quando houver, `fields`.
   - `encerrarComoPerdido(dealId: string): Promise<void>` — `POST /v1/deals/{id}` `{ status: 'LOST', lost_status_id }`; sem `CLINT_MOTIVO_PERDA_CANCELAMENTO_ID` lança erro claro.
 - Env novas: `CLINT_ORIGEM_RECEPCAO_ID`, `CLINT_ETAPA_BOAS_VINDAS_ID`, `CLINT_ETAPA_ENDOVENOSO_ID` (defaults acima), `CLINT_MOTIVO_PERDA_CANCELAMENTO_ID` (opcional).
 
-- [ ] **Step 1: Testes que falham:** `'lista todas as páginas de negócios abertos da RECEPÇÃO'` (2 páginas → concatena; query com `origin_id` e `status=OPEN`); `'criarNegocio usa contato existente e etapa BOAS VINDAS'`; `'criarNegocio sem contato manda nome e telefone'`; `'encerrarComoPerdido manda LOST com o motivo'`; `'encerrarComoPerdido sem motivo configurado falha claro'`.
+- [ ] **Step 1: Testes que falham:** `'lista todas as páginas de negócios abertos da RECEPÇÃO'` (2 páginas → concatena; query com `origin_id` e `status=OPEN`); `'criarNegocio usa contato existente e etapa BOAS VINDAS'`; `'criarNegocio sem contato manda nome e telefone'`; `'encerrarComoPerdido manda LOST com o motivo'`; `'encerrarComoPerdido sem motivo configurado falha claro'`; `'busca telefone do Paraguai e confere o DDI 595'`.
 - [ ] **Step 2:** rodar — FAIL. **Step 3:** implementar (`ClintHttpClient.get` com query). **Step 4:** PASS + tsc.
 - [ ] **Step 5:** `git commit -m "feat: operações da Clint para o monitor"`
 
@@ -123,11 +126,11 @@ Negócio de teste `521e2bf6-1ce0-4cf0-91d9-ea2dc7627eb1`. Registrar cada resulta
 - Consumes: `obterCelular`, `enriquecerFicha` (Task 4/existente), `buscarContatos` (Task 5), `adicionarTag` (`CrmContatoPort`), `nomeCasa` (Task 3).
 - Produces: `resolverContato(ag: AgendamentoExterno, nomePaciente: string, deps): Promise<ResultadoContato>` com
   `ResultadoContato = { tipo: 'contato'; contato: ContatoClint; telefone: Telefone } | { tipo: 'novo'; telefone: Telefone | null } | { tipo: 'ambiguo'; candidatos: ContatoClint[] }`
-  - celular no MedX → `buscarContatos({telefone})`: 0 → `novo` com telefone; 1 → `contato`; 2+ → filtra por `nomeCasa`; 1 → `contato`; senão `ambiguo`.
+  - celular no MedX → `buscarContatos({telefone})`: 0 → tenta pelo nome (`buscarContatos({nome})` + `nomeCasa`; um só → `contato`), senão `novo` com telefone; 1 → `contato`; 2+ → filtra por `nomeCasa`; 1 → `contato`; senão `ambiguo`.
   - sem celular → `buscarContatos({nome})` filtrado por `nomeCasa`: 1 com telefone → `enriquecerFicha(idPaciente, {telefone})` e `contato`; 0 → `novo` sem telefone; 2+ → `ambiguo`.
   - Recebe uma flag `gravar` (modo agir); em observar não chama `enriquecerFicha`.
 
-- [ ] **Step 1: Testes que falham:** `'telefone com um contato usa direto'`; `'telefone compartilhado escolhe pelo nome'` (Karmen/Silvia); `'telefone compartilhado sem nome que case é ambíguo'`; `'sem celular acha pelo nome e grava o telefone no MedX'`; `'sem celular e sem contato é novo sem telefone'`; `'em observar não grava no MedX'`.
+- [ ] **Step 1: Testes que falham:** `'telefone com um contato usa direto'`; `'telefone compartilhado escolhe pelo nome'` (Karmen/Silvia); `'telefone compartilhado sem nome que case é ambíguo'`; `'sem celular acha pelo nome e grava o telefone no MedX'`; `'sem celular e sem contato é novo sem telefone'`; `'em observar não grava no MedX'`; `'telefone estrangeiro gravado sem o 5 no MedX acha a paciente pelo nome'` (MedX `95982663052`, Clint `Juliane Rafaeli` ddi 595 → `contato`, não `novo`).
 - [ ] **Step 2:** FAIL. **Step 3:** implementar. **Step 4:** PASS.
 - [ ] **Step 5:** `git commit -m "feat: resolução do contato da paciente para o monitor"`
 
