@@ -1,8 +1,8 @@
 export const CRM_NEGOCIO_PORT = Symbol('CrmNegocioPort');
 
-/** Campos de data do negócio que armam automações de gatilho de data na Clint. */
-export type CampoDataNegocio =
-    'data_agendamento' | 'horario_lembrete_chegada' | 'horario_checagem_comparecimento';
+import type { CampoDataNegocio } from '../../domain/agendamento/campos-data';
+
+export type { CampoDataNegocio };
 
 /**
  * Formatos: `data_agendamento` `yyyy-LL-dd`; horários `yyyy-LL-dd'T'HH:mm:ss`
