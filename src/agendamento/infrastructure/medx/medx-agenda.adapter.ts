@@ -66,24 +66,27 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
     constructor(private readonly client: MedxHttpClient) {}
 
     async criar(dados: DadosCriacaoAgendamento): Promise<number> {
-        const duracaoMinutos = Math.round(
-            interpretar(dados.fim).diff(interpretar(dados.inicio), 'minutes').minutes,
-        );
-        const resposta = await this.client.executarOperacao<{ agendamento?: { id?: number } }>(
-            '/api/integration/v1/agenda/operacoes',
+        // `cadastros/criar_agendamento` (e não `operacoes/criar`) porque só ele
+        // aceita a descrição que a recepção lê na agenda. Sem `status`: o
+        // padrão do MedX é 1, "Agendado" nesta conta.
+        const resposta = await this.client.executarOperacao<{ dados?: { id?: number } }>(
+            '/api/integration/v1/agenda/cadastros',
             {
-                acao: 'criar',
-                pacienteId: dados.idPaciente,
-                profissionalId: dados.idProfissional,
-                inicio: dados.inicio,
-                duracaoMinutos,
-                tipoId: dados.idTipoConsulta,
+                acao: 'criar_agendamento',
+                agendamento: {
+                    profissionalId: dados.idProfissional,
+                    pacienteId: dados.idPaciente,
+                    tipoId: dados.idTipoConsulta,
+                    inicio: dados.inicio,
+                    fim: dados.fim,
+                    descricao: dados.descricao,
+                },
             },
         );
 
-        const id = Number(resposta?.agendamento?.id);
+        const id = Number(resposta?.dados?.id);
         // Ids negativos são válidos nesta conta; só 0/NaN indicam falha. Não
-        // serializar a resposta: ela traz o nome da paciente.
+        // serializar a resposta: ela pode trazer o nome da paciente.
         if (!Number.isInteger(id) || id === 0) {
             throw new Error('MedX não devolveu um id de agendamento válido');
         }

@@ -66,22 +66,27 @@ const CRIACAO = {
 };
 
 describe('criar', () => {
-    it('criar usa operacoes/criar com duração calculada e devolve o id', async () => {
-        const { client, chamadas } = clientFalso({ post: { agendamento: { id: -123 } } });
+    it('criar usa cadastros/criar_agendamento com a descrição e devolve o id', async () => {
+        const { client, chamadas } = clientFalso({
+            post: { dados: { id: -123, recurso: 'agendamento' } },
+        });
 
         const id = await new MedxAgendaAdapter(client).criar(CRIACAO);
 
         expect(id).toBe(-123);
         expect(chamadas[0]).toEqual({
             metodo: 'executarOperacao',
-            caminho: '/api/integration/v1/agenda/operacoes',
+            caminho: '/api/integration/v1/agenda/cadastros',
             corpo: {
-                acao: 'criar',
-                pacienteId: 30094605,
-                profissionalId: 43013640,
-                inicio: '2026-07-10T14:00:00',
-                duracaoMinutos: 30,
-                tipoId: 111,
+                acao: 'criar_agendamento',
+                agendamento: {
+                    profissionalId: 43013640,
+                    pacienteId: 30094605,
+                    tipoId: 111,
+                    inicio: '2026-07-10T14:00:00',
+                    fim: '2026-07-10T14:30:00',
+                    descricao: 'Consulta de Rotina — Maria Silva',
+                },
             },
         });
     });
