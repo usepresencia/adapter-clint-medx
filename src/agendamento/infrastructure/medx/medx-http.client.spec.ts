@@ -95,4 +95,50 @@ describe('MedxHttpClient', () => {
             'Agendamento atualizado com sucesso.',
         );
     });
+
+    it('listarTodos segue o cursor até hasMore=false', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(json({ items: [1], page: { hasMore: true, nextCursor: 'c2' } }))
+            .mockResolvedValueOnce(
+                json({ items: [2], page: { hasMore: false, nextCursor: null } }),
+            );
+
+        const itens = await cliente().client.listarTodos<number>('/x', { Inicio: 'a' });
+
+        expect(itens).toEqual([1, 2]);
+        expect(String(spy.mock.calls[0]![0])).toBe('https://medx.test/x?Inicio=a');
+        expect(String(spy.mock.calls[1]![0])).toBe('https://medx.test/x?Inicio=a&Cursor=c2');
+    });
+
+    it('executarOperacao faz preview e executar com Idempotency-Key', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(json({ operationId: 'op-1' }))
+            .mockResolvedValueOnce(json({ agendamento: { id: -7 } }));
+
+        const resultado = await cliente().client.executarOperacao<{ agendamento: { id: number } }>(
+            '/x',
+            { acao: 'criar' },
+        );
+
+        expect(resultado).toEqual({ agendamento: { id: -7 } });
+        expect(String(spy.mock.calls[0]![0])).toBe('https://medx.test/x/preview');
+        expect(JSON.parse(String(spy.mock.calls[0]![1]!.body))).toEqual({ acao: 'criar' });
+        expect(String(spy.mock.calls[1]![0])).toBe('https://medx.test/x/executar');
+        expect(JSON.parse(String(spy.mock.calls[1]![1]!.body))).toEqual({ operationId: 'op-1' });
+        const headers = spy.mock.calls[1]![1]!.headers as Record<string, string>;
+        expect(headers['idempotency-key']).toBe('op-1');
+    });
+
+    it('executarOperacao propaga 409 da prévia como ErroMedx sem chamar executar', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue(json({ title: 'conflito' }, 409));
+
+        await expect(cliente().client.executarOperacao('/x', {})).rejects.toMatchObject({
+            status: 409,
+        });
+        expect(spy).toHaveBeenCalledTimes(1);
+    });
 });

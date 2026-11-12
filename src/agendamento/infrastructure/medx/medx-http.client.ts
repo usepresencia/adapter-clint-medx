@@ -5,6 +5,11 @@ import { ErroMedx, ErroRateLimit } from './medx.erros';
 
 export type Query = Record<string, string | number | undefined>;
 
+interface PaginaMedx<T> {
+    items: T[];
+    page?: { hasMore?: boolean; nextCursor?: string | null };
+}
+
 function montarUrl(host: string, caminho: string, query?: Query): string {
     if (!query) return `${host}${caminho}`;
 
@@ -39,12 +44,42 @@ export class MedxHttpClient {
         return this.chamar<T>('GET', caminho, query);
     }
 
-    post<T>(caminho: string, corpo: unknown): Promise<T> {
-        return this.chamar<T>('POST', caminho, undefined, corpo);
+    post<T>(caminho: string, corpo: unknown, cabecalhos?: Record<string, string>): Promise<T> {
+        return this.chamar<T>('POST', caminho, undefined, corpo, false, cabecalhos);
     }
 
     put<T>(caminho: string, corpo: unknown): Promise<T> {
         return this.chamar<T>('PUT', caminho, undefined, corpo);
+    }
+
+    /** Lista paginada da API v1: segue `page.nextCursor` enquanto `page.hasMore`. */
+    async listarTodos<T>(caminho: string, query?: Query): Promise<T[]> {
+        const itens: T[] = [];
+        let cursor: string | undefined;
+        do {
+            const pagina = await this.get<PaginaMedx<T>>(caminho, { ...query, Cursor: cursor });
+            itens.push(...(pagina?.items ?? []));
+            cursor = pagina?.page?.hasMore ? (pagina.page.nextCursor ?? undefined) : undefined;
+        } while (cursor);
+        return itens;
+    }
+
+    /**
+     * Escrita em duas etapas da API v1: prévia em `{prefixo}/preview` e
+     * execução em `{prefixo}/executar` com o mesmo `operationId` no corpo e no
+     * Idempotency-Key. Erro na prévia interrompe antes de executar.
+     */
+    async executarOperacao<R>(prefixo: string, corpoPrevia: unknown): Promise<R> {
+        const previa = await this.post<{ operationId: string }>(`${prefixo}/preview`, corpoPrevia);
+        const operationId = previa?.operationId;
+        if (!operationId) {
+            throw new Error(`Prévia do MedX em ${prefixo} não devolveu operationId`);
+        }
+        return this.post<R>(
+            `${prefixo}/executar`,
+            { operationId },
+            { 'idempotency-key': operationId },
+        );
     }
 
     private async chamar<T>(
@@ -53,6 +88,7 @@ export class MedxHttpClient {
         query?: Query,
         corpo?: unknown,
         jaRenovou = false,
+        cabecalhos?: Record<string, string>,
     ): Promise<T> {
         const host = this.config.get<string>('MEDX_HOST');
         const token = await this.tokens.obterToken();
@@ -62,6 +98,7 @@ export class MedxHttpClient {
             headers: {
                 authorization: `Bearer ${token}`,
                 ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}),
+                ...cabecalhos,
             },
             ...(corpo !== undefined ? { body: JSON.stringify(corpo) } : {}),
         });
@@ -74,7 +111,7 @@ export class MedxHttpClient {
 
         if (resposta.status === 401 && !jaRenovou) {
             this.tokens.invalidar();
-            return this.chamar<T>(metodo, caminho, query, corpo, true);
+            return this.chamar<T>(metodo, caminho, query, corpo, true, cabecalhos);
         }
 
         if (!resposta.ok) {
