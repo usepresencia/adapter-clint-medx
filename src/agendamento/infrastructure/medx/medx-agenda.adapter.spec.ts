@@ -254,6 +254,29 @@ describe('consultarDisponibilidade', () => {
         expect(slots).toEqual([{ inicio: '2026-11-20T09:00:00', fim: '2026-11-20T09:30:00' }]);
     });
 
+    it('divide a disponibilidade em janelas de no máximo 14 dias', async () => {
+        const { client, chamadas } = clientFalso({
+            get: {
+                horarios: [
+                    { inicio: '2026-11-20T09:00:00-03:00', fim: '2026-11-20T09:30:00-03:00' },
+                ],
+            },
+        });
+
+        const slots = await new MedxAgendaAdapter(client).consultarDisponibilidade({
+            idProfissional: -692937676,
+            inicio: '2026-11-16T00:00:00',
+            fim: '2026-12-06T00:00:00',
+            duracaoMinutos: 30,
+        });
+
+        expect(chamadas.map(c => [c.query!.Inicio, c.query!.Fim])).toEqual([
+            ['2026-11-16T00:00:00', '2026-11-30T00:00:00'],
+            ['2026-11-30T00:00:00', '2026-12-06T00:00:00'],
+        ]);
+        expect(slots).toHaveLength(2);
+    });
+
     it('devolve lista vazia quando a resposta não traz horarios', async () => {
         const { client } = clientFalso({ get: {} });
         const slots = await new MedxAgendaAdapter(client).consultarDisponibilidade({

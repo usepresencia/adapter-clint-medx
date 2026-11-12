@@ -141,4 +141,15 @@ describe('MedxHttpClient', () => {
         });
         expect(spy).toHaveBeenCalledTimes(1);
     });
+
+    it('executarOperacao propaga falha do executar como ErroMedx sem gerar nova prévia', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(json({ operationId: 'op-1' }))
+            .mockResolvedValueOnce(json({ title: 'em andamento' }, 409));
+
+        await expect(cliente().client.executarOperacao('/x', {})).rejects.toBeInstanceOf(ErroMedx);
+        expect(spy).toHaveBeenCalledTimes(2);
+        expect(spy.mock.calls.filter(c => String(c[0]).endsWith('/preview'))).toHaveLength(1);
+    });
 });

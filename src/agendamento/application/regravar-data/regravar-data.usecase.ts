@@ -14,6 +14,14 @@ import { FUSO_CLINICA } from '../../domain/agendamento/periodo-consulta';
 import type { ComandoRegravarData } from './regravar-data.comando';
 
 /**
+ * `data_agendamento` arma automações antes (D3, D1) e depois da consulta
+ * (Aguardando Exame: +7 dias às 09:00). Ela só deixa de ser útil quando o
+ * último gatilho que arma já passou.
+ */
+const DIAS_AGUARDANDO_EXAME = 7;
+const HORA_AGUARDANDO_EXAME = 9;
+
+/**
  * Chamado pelas automações da Clint depois de mudarem o `etapa_lembrete` e
  * apagarem o campo de data que arma a próxima automação. Lê o agendamento no
  * MedX (fonte da verdade, então remarcações feitas por fora entram aqui) e
@@ -51,7 +59,11 @@ export class RegravarDataUseCase {
         const { campos, momento } = this.calcular(comando.campo, externo.inicio);
 
         if (DateTime.fromISO(momento, { zone: FUSO_CLINICA }) <= this.agora()) {
-            this.logger.warn({ ...contexto, momento }, 'horário já passou — data não regravada');
+            // A automação já apagou o campo: o negócio fica sem esse gatilho.
+            this.logger.warn(
+                { ...contexto, momento, alerta: true },
+                'horário já passou — data não regravada, negócio ficou sem o campo',
+            );
             return;
         }
 
@@ -68,7 +80,10 @@ export class RegravarDataUseCase {
                     data_agendamento: inicio.slice(0, 10),
                     hora_agendamento: inicio.slice(11, 16),
                 },
-                momento: inicio,
+                momento: DateTime.fromISO(inicio, { zone: FUSO_CLINICA })
+                    .startOf('day')
+                    .plus({ days: DIAS_AGUARDANDO_EXAME, hours: HORA_AGUARDANDO_EXAME })
+                    .toISO()!,
             };
         }
         const valor =

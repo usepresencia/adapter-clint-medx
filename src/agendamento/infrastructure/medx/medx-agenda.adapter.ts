@@ -13,8 +13,9 @@ import type { MedxAgendaDetalhe, MedxDisponibilidadeV1 } from './medx.tipos';
 import { FORMATO_MEDX, FUSO_CLINICA } from '../../domain/agendamento/periodo-consulta';
 
 const BASE_V1 = '/api/integration/v1/agenda/agendamentos';
-/** Limite do MedX para Inicio/Fim em /agendamentos/detalhes (o Fim é exclusivo). */
-const MAX_DIAS_JANELA = 31;
+/** Limites do MedX para Inicio/Fim (sempre com Fim exclusivo). */
+const MAX_DIAS_AGENDAMENTOS = 31;
+const MAX_DIAS_DISPONIBILIDADE = 14;
 
 /** Valor exigido pela API do MedX para marcar um agendamento como confirmado. */
 export const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
@@ -24,6 +25,19 @@ function interpretar(iso: string): DateTime {
     return temOffset
         ? DateTime.fromISO(iso, { setZone: true }).setZone(FUSO_CLINICA)
         : DateTime.fromISO(iso, { zone: FUSO_CLINICA });
+}
+
+/** Divide [inicio, fim) em janelas contíguas de no máximo `maxDias`, no formato local. */
+function janelas(inicio: string, fim: string, maxDias: number): Array<[string, string]> {
+    const resultado: Array<[string, string]> = [];
+    const limite = interpretar(fim);
+    let atual = interpretar(inicio);
+    while (atual < limite) {
+        const fimJanela = DateTime.min(atual.plus({ days: maxDias }), limite);
+        resultado.push([atual.toFormat(FORMATO_MEDX), fimJanela.toFormat(FORMATO_MEDX)]);
+        atual = fimJanela;
+    }
+    return resultado;
 }
 
 /** Horário da API v1 (com offset) para o formato local sem offset usado nos ports. */
@@ -90,34 +104,39 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
         // Na v1 o ProfissionalId é obrigatório (sem ele: 400 invalid_id) e o
         // id negativo funciona — o bug da API antiga (lista vazia com id
         // negativo) não existe mais. Confirmado ao vivo em 2026-11-12.
-        const resposta = await this.client.get<MedxDisponibilidadeV1 | undefined>(
-            '/api/integration/v1/agenda/disponibilidade',
-            {
-                ProfissionalId: consulta.idProfissional,
-                Inicio: consulta.inicio,
-                Fim: consulta.fim,
-                DuracaoMinutos: consulta.duracaoMinutos,
-            },
-        );
-        return (resposta?.horarios ?? []).map(slot => ({
-            inicio: paraHorarioLocal(slot.inicio),
-            fim: paraHorarioLocal(slot.fim),
-        }));
+        const slots: SlotDisponivel[] = [];
+        for (const [inicio, fim] of janelas(
+            consulta.inicio,
+            consulta.fim,
+            MAX_DIAS_DISPONIBILIDADE,
+        )) {
+            const resposta = await this.client.get<MedxDisponibilidadeV1 | undefined>(
+                '/api/integration/v1/agenda/disponibilidade',
+                {
+                    ProfissionalId: consulta.idProfissional,
+                    Inicio: inicio,
+                    Fim: fim,
+                    DuracaoMinutos: consulta.duracaoMinutos,
+                },
+            );
+            for (const slot of resposta?.horarios ?? []) {
+                slots.push({
+                    inicio: paraHorarioLocal(slot.inicio),
+                    fim: paraHorarioLocal(slot.fim),
+                });
+            }
+        }
+        return slots;
     }
 
     async listarPorPeriodo(inicio: string, fim: string): Promise<OcupacaoAgenda[]> {
         const porId = new Map<number, MedxAgendaDetalhe>();
-        const limite = interpretar(fim);
-        let janela = interpretar(inicio);
-
-        while (janela < limite) {
-            const fimJanela = DateTime.min(janela.plus({ days: MAX_DIAS_JANELA }), limite);
+        for (const [ini, fimJanela] of janelas(inicio, fim, MAX_DIAS_AGENDAMENTOS)) {
             const itens = await this.client.listarTodos<MedxAgendaDetalhe>(`${BASE_V1}/detalhes`, {
-                Inicio: janela.toFormat(FORMATO_MEDX),
-                Fim: fimJanela.toFormat(FORMATO_MEDX),
+                Inicio: ini,
+                Fim: fimJanela,
             });
             for (const item of itens) porId.set(item.id, item);
-            janela = fimJanela;
         }
 
         return [...porId.values()].map(item => ({

@@ -81,9 +81,27 @@ describe('RegravarDataUseCase', () => {
         expect(logger.warn).toHaveBeenCalled();
     });
 
-    it('não regrava a data de uma consulta que já começou', async () => {
-        const { executar, crm } = montar('2026-11-12T11:00:00', '2026-11-12T12:00:00');
+    it('regrava a data depois da consulta para armar o Aguardando Exame (+7 dias, 09:00)', async () => {
+        const { executar, crm } = montar('2026-11-12T11:00:00', '2026-11-12T13:00:00');
+        await executar('data_agendamento');
+        expect(crm.gravarCampos).toHaveBeenCalledWith(DEAL, {
+            data_agendamento: '2026-11-12',
+            hora_agendamento: '11:00',
+        });
+    });
+
+    it('não regrava a data quando até o Aguardando Exame (+7 dias, 09:00) já passou', async () => {
+        const { executar, crm } = montar('2026-11-01T11:00:00', '2026-11-08T09:30:00');
         await executar('data_agendamento');
         expect(crm.gravarCampos).not.toHaveBeenCalled();
+    });
+
+    it('alerta quando deixa de gravar um horário que já passou', async () => {
+        const { executar, logger } = montar('2026-11-12T09:00:00', '2026-11-12T12:00:00');
+        await executar('horario_checagem_comparecimento');
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({ alerta: true }),
+            expect.any(String),
+        );
     });
 });
