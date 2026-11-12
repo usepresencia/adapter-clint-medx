@@ -228,7 +228,7 @@ describe('listarPorPeriodo', () => {
 });
 
 describe('consultarDisponibilidade', () => {
-    it('consultarDisponibilidade não envia ProfissionalId e normaliza o offset', async () => {
+    it('consultarDisponibilidade envia ProfissionalId (obrigatório na v1) e normaliza o offset', async () => {
         const { client, chamadas } = clientFalso({
             get: {
                 horarios: [
@@ -246,6 +246,7 @@ describe('consultarDisponibilidade', () => {
 
         expect(chamadas[0]!.caminho).toBe('/api/integration/v1/agenda/disponibilidade');
         expect(chamadas[0]!.query).toEqual({
+            ProfissionalId: -692937676,
             Inicio: '2026-11-20T00:00:00',
             Fim: '2026-11-21T00:00:00',
             DuracaoMinutos: 30,

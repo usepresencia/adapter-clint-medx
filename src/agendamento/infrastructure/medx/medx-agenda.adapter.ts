@@ -87,12 +87,13 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
     }
 
     async consultarDisponibilidade(consulta: ConsultaDisponibilidade): Promise<SlotDisponivel[]> {
-        // `ProfissionalId` NÃO é enviado: esta conta usa só ids negativos para
-        // profissional e o MedX devolvia lista vazia com eles (bug conhecido).
-        // A clínica atende com uma profissional; reavaliar se ganhar outra.
+        // Na v1 o ProfissionalId é obrigatório (sem ele: 400 invalid_id) e o
+        // id negativo funciona — o bug da API antiga (lista vazia com id
+        // negativo) não existe mais. Confirmado ao vivo em 2026-11-12.
         const resposta = await this.client.get<MedxDisponibilidadeV1 | undefined>(
             '/api/integration/v1/agenda/disponibilidade',
             {
+                ProfissionalId: consulta.idProfissional,
                 Inicio: consulta.inicio,
                 Fim: consulta.fim,
                 DuracaoMinutos: consulta.duracaoMinutos,
