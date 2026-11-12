@@ -12,6 +12,7 @@ const schema = z.object({
     CLINT_API_URL: z.string().url().default('https://api.clint.digital'),
     CLINT_API_TOKEN: z.string().min(1),
     CLINT_ORIGEM_RECEPCAO_ID: z.string().uuid().default('c10ccf49-2c9f-41d5-bfa7-c116daa2cc77'),
+    CLINT_ETAPA_CRIACAO_ID: z.string().uuid().default('b088f0ab-75d4-40df-80b5-53117d0f49aa'),
     CLINT_ETAPA_BOAS_VINDAS_ID: z.string().uuid().default('03900fbe-0a12-462c-9599-2f5a3ff05657'),
     CLINT_ETAPA_ENDOVENOSO_ID: z.string().uuid().default('3a031270-0d91-4b81-aff5-55535b82ced6'),
     CLINT_MOTIVO_PERDA_CANCELAMENTO_ID: z.string().uuid().optional(),

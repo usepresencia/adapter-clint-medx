@@ -95,7 +95,10 @@ export class ClintNegocioAdapter implements CrmNegocioPort {
     async criarNegocio(dados: DadosNovoNegocio): Promise<{ id: string; contatoId: string | null }> {
         const corpo: Record<string, unknown> = {
             origin_id: this.config.get<string>('CLINT_ORIGEM_RECEPCAO_ID'),
-            stage_id: this.config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID'),
+            // Nasce em AGENDAMENTO: criar direto em BOAS VINDAS não dispara o
+            // D0 Boas Vindas (confirmado ao vivo); quem dispara é a mudança de
+            // etapa feita por `moverParaBoasVindas`.
+            stage_id: this.config.get<string>('CLINT_ETAPA_CRIACAO_ID'),
         };
         if (dados.contatoId) {
             corpo.contact_id = dados.contatoId;
@@ -111,6 +114,12 @@ export class ClintNegocioAdapter implements CrmNegocioPort {
         const id = resposta?.data?.id;
         if (!id) throw new Error('Clint não devolveu o id do negócio criado');
         return { id, contatoId: resposta.data?.contact?.id ?? null };
+    }
+
+    async moverParaBoasVindas(dealId: string): Promise<void> {
+        await this.client.post(`/v1/deals/${dealId}`, {
+            stage_id: this.config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID'),
+        });
     }
 
     async encerrarComoPerdido(dealId: string): Promise<void> {

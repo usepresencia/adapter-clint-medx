@@ -6,6 +6,7 @@ import { Telefone } from '../../domain/paciente/telefone';
 
 const ORIGEM = 'c10ccf49-2c9f-41d5-bfa7-c116daa2cc77';
 const BOAS_VINDAS = '03900fbe-0a12-462c-9599-2f5a3ff05657';
+const AGENDAMENTO = 'b088f0ab-75d4-40df-80b5-53117d0f49aa';
 
 type Chamada = {
     metodo: string;
@@ -31,6 +32,7 @@ function montar(opcoes: { get?: (c: Chamada) => unknown; falha?: Error; motivo?:
     const valores: Record<string, string | undefined> = {
         CLINT_ORIGEM_RECEPCAO_ID: ORIGEM,
         CLINT_ETAPA_BOAS_VINDAS_ID: BOAS_VINDAS,
+        CLINT_ETAPA_CRIACAO_ID: AGENDAMENTO,
         CLINT_MOTIVO_PERDA_CANCELAMENTO_ID: opcoes.motivo,
     };
     const config = { get: (k: string) => valores[k] } as ConfigService;
@@ -123,7 +125,7 @@ describe('ClintNegocioAdapter', () => {
         expect(achados.map(c => c.id)).toEqual(['py']);
     });
 
-    it('criarNegocio usa contato existente e etapa BOAS VINDAS', async () => {
+    it('criarNegocio usa contato existente e nasce em AGENDAMENTO', async () => {
         const { adapter, chamadas } = montar();
         const id = await adapter.criarNegocio({
             contatoId: 'c1',
@@ -136,7 +138,7 @@ describe('ClintNegocioAdapter', () => {
             caminho: '/v1/deals',
             corpo: {
                 origin_id: ORIGEM,
-                stage_id: BOAS_VINDAS,
+                stage_id: AGENDAMENTO,
                 contact_id: 'c1',
                 fields: { id_agendamento_medx: '-5' },
             },
@@ -152,7 +154,7 @@ describe('ClintNegocioAdapter', () => {
         });
         expect(chamadas[0]!.corpo).toEqual({
             origin_id: ORIGEM,
-            stage_id: BOAS_VINDAS,
+            stage_id: AGENDAMENTO,
             name: 'Maria Silva',
             phone: '5545999197847',
             fields: {},
@@ -174,5 +176,15 @@ describe('ClintNegocioAdapter', () => {
         await expect(adapter.encerrarComoPerdido('d1')).rejects.toThrow(
             /CLINT_MOTIVO_PERDA_CANCELAMENTO_ID/,
         );
+    });
+
+    it('moverParaBoasVindas muda a etapa pelo id (é o que dispara o D0 Boas Vindas)', async () => {
+        const { adapter, chamadas } = montar();
+        await adapter.moverParaBoasVindas('d1');
+        expect(chamadas[0]).toEqual({
+            metodo: 'post',
+            caminho: '/v1/deals/d1',
+            corpo: { stage_id: BOAS_VINDAS },
+        });
     });
 });

@@ -57,8 +57,13 @@ export interface CrmNegocioPort {
     /** Negócios abertos da origem RECEPÇÃO, todas as etapas. */
     listarAbertosRecepcao(): Promise<NegocioRecepcao[]>;
     buscarContatos(filtro: { telefone?: Telefone; nome?: string }): Promise<ContatoClint[]>;
-    /** Cria na RECEPÇÃO / BOAS VINDAS (o canal só cria nessa etapa). */
+    /**
+     * Cria na RECEPÇÃO / AGENDAMENTO. Criar direto em BOAS VINDAS não dispara o
+     * D0 Boas Vindas; depois de gravar os dados, chame `moverParaBoasVindas`.
+     */
     criarNegocio(dados: DadosNovoNegocio): Promise<{ id: string; contatoId: string | null }>;
+    /** Move para BOAS VINDAS — a mudança de etapa dispara o D0 Boas Vindas. */
+    moverParaBoasVindas(dealId: string): Promise<void>;
     /** Fecha como perdido com o motivo de cancelamento configurado. */
     encerrarComoPerdido(dealId: string): Promise<void>;
 }
