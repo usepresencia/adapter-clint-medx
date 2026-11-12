@@ -13,6 +13,7 @@ import { MedxAgendaAdapter } from './infrastructure/medx/medx-agenda.adapter';
 import { ClintWebhookAdapter } from './infrastructure/clint/clint-webhook.adapter';
 import { ClintHttpClient } from './infrastructure/clint/clint-http.client';
 import { ClintContatoAdapter } from './infrastructure/clint/clint-contato.adapter';
+import { ClintNegocioAdapter } from './infrastructure/clint/clint-negocio.adapter';
 import { MetaCapiAdapter } from './infrastructure/meta/meta-capi.adapter';
 import { AdapterProcessor } from './infrastructure/fila/adapter.processor';
 
@@ -25,6 +26,7 @@ import { CADASTRO_PACIENTE_PORT } from './application/ports/cadastro-paciente.po
 import { AGENDA_MEDICA_PORT } from './application/ports/agenda-medica.port';
 import { CRM_PORT } from './application/ports/crm.port';
 import { CRM_CONTATO_PORT } from './application/ports/crm-contato.port';
+import { CRM_NEGOCIO_PORT } from './application/ports/crm-negocio.port';
 import { CONVERSAO_PORT } from './application/ports/conversao.port';
 
 import { AgendarConsultaUseCase } from './application/agendar-consulta/agendar-consulta.usecase';
@@ -52,6 +54,7 @@ import { LeadsController } from './presentation/http/leads.controller';
         { provide: CRM_PORT, useClass: ClintWebhookAdapter },
         ClintHttpClient,
         { provide: CRM_CONTATO_PORT, useClass: ClintContatoAdapter },
+        { provide: CRM_NEGOCIO_PORT, useClass: ClintNegocioAdapter },
         { provide: CONVERSAO_PORT, useClass: MetaCapiAdapter },
         AgendarConsultaUseCase,
         ProcessarRespostaUseCase,
