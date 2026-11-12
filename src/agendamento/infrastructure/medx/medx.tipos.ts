@@ -14,12 +14,12 @@ export interface MedxTipoAgendamento {
     duracaoMinutos: number;
 }
 
-// A doc do MedX documenta `Id`/`Match` (PascalCase), mas a API real observada
-// em produção devolve minúsculo (`id`/`match`) — tratamos a doc como
-// desatualizada e seguimos o comportamento real.
-export interface MedxVinculoResposta {
-    id: string;
-    match: boolean;
+/** `dados` da execução em /api/integration/v1/contatos/operacoes. */
+export interface MedxContatoResultado {
+    pacienteId: number;
+    resultado: string;
+    criterio: string;
+    criado: boolean;
 }
 
 /** Referência `{ id, nome }` usada em toda a API v1. */
