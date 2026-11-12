@@ -29,6 +29,7 @@ import { CRM_CONTATO_PORT } from './application/ports/crm-contato.port';
 import { CRM_NEGOCIO_PORT } from './application/ports/crm-negocio.port';
 import { CONVERSAO_PORT } from './application/ports/conversao.port';
 
+import { RegravarDataUseCase } from './application/regravar-data/regravar-data.usecase';
 import { AgendarConsultaUseCase } from './application/agendar-consulta/agendar-consulta.usecase';
 import { ProcessarRespostaUseCase } from './application/processar-resposta-lembrete/processar-resposta.usecase';
 import { ProcessarLeadOrigemUseCase } from './application/processar-lead-origem/processar-lead-origem.usecase';
@@ -63,6 +64,7 @@ import { LeadsController } from './presentation/http/leads.controller';
         CapturarCliqueUseCase,
         ProcessarVendaGanhaUseCase,
         VerificarComparecimentoUseCase,
+        RegravarDataUseCase,
         AdapterProcessor,
         { provide: REDIS_HEALTH_CLIENT, useClass: RedisHealthClient },
     ],

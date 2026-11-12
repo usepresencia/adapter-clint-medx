@@ -58,6 +58,7 @@ function montar() {
     const processarLeadOrigem = { executar: vi.fn(async () => {}) };
     const processarVendaGanha = { executar: vi.fn(async () => {}) };
     const processarComparecimento = { executar: vi.fn(async () => {}) };
+    const regravarData = { executar: vi.fn(async () => {}) };
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     const processor = new AdapterProcessor(
@@ -67,6 +68,7 @@ function montar() {
         processarLeadOrigem as any,
         processarVendaGanha as any,
         processarComparecimento as any,
+        regravarData as any,
         logger as any,
     );
     // WorkerHost.worker é um getter só-leitura apoiado no campo privado
@@ -81,12 +83,24 @@ function montar() {
         processarLeadOrigem,
         processarVendaGanha,
         processarComparecimento,
+        regravarData,
         logger,
         processor,
     };
 }
 
 describe('AdapterProcessor.process', () => {
+    it('roteia job de regravar-data para o caso de uso certo', async () => {
+        const { eventos, regravarData, processarComparecimento, processor } = montar();
+        const e = await eventos.registrar('/x');
+        await processor.process({
+            data: { tipo: 'regravar-data', eventoId: e.id, comando: {} },
+        } as any);
+
+        expect(regravarData.executar).toHaveBeenCalled();
+        expect(processarComparecimento.executar).not.toHaveBeenCalled();
+    });
+
     it('roteia job de agendamento para o caso de uso certo', async () => {
         const { eventos, agendarConsulta, processarResposta, processor } = montar();
         const e = await eventos.registrar('/x');

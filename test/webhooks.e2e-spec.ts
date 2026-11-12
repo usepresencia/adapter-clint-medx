@@ -20,6 +20,7 @@ import { AGENDA_MEDICA_PORT } from '../src/agendamento/application/ports/agenda-
 import { CADASTRO_PACIENTE_PORT } from '../src/agendamento/application/ports/cadastro-paciente.port';
 import { CRM_PORT } from '../src/agendamento/application/ports/crm.port';
 import { CRM_CONTATO_PORT } from '../src/agendamento/application/ports/crm-contato.port';
+import { CRM_NEGOCIO_PORT } from '../src/agendamento/application/ports/crm-negocio.port';
 import { CONVERSAO_PORT } from '../src/agendamento/application/ports/conversao.port';
 import { FILA_PORT } from '../src/agendamento/application/ports/fila.port';
 import { LOGGER_PORT } from '../src/agendamento/application/ports/logger.port';
@@ -84,6 +85,7 @@ const contatosFalso = {
     buscarIdPorTelefone: vi.fn(async () => 'contato-1'),
     adicionarTag: vi.fn(async () => {}),
 };
+const negocioFalso = { gravarCampos: vi.fn(async () => {}) };
 const conversaoFalso = {
     notificarConversao: vi.fn(async () => {}),
     notificarCompra: vi.fn(async () => {}),
@@ -138,6 +140,8 @@ async function construirApp(overrideFila = false): Promise<INestApplication> {
         .useValue(crmFalso)
         .overrideProvider(CRM_CONTATO_PORT)
         .useValue(contatosFalso)
+        .overrideProvider(CRM_NEGOCIO_PORT)
+        .useValue(negocioFalso)
         .overrideProvider(CONVERSAO_PORT)
         .useValue(conversaoFalso);
 
@@ -239,6 +243,38 @@ describe('webhooks (e2e)', () => {
                 .set('content-type', 'application/json')
                 .send('{isso não é json');
             expect(r.status).toBe(200);
+        });
+    });
+
+    describe('POST /webhooks/clint/regravar-data', () => {
+        it('regravar-data com segredo e payload válidos enfileira job regravar-data', async () => {
+            const dealId = '77777777-7777-4777-8777-777777777777';
+            const r = await request(app.getHttpServer())
+                .post('/webhooks/clint/regravar-data')
+                .set('x-adapter-secret', SEGREDO)
+                .send({
+                    deal_id: dealId,
+                    id_agendamento_medx: '-1084641653',
+                    campo: 'horario_lembrete_chegada',
+                });
+            expect(r.status).toBe(200);
+
+            const evento = await eventoDoDeal(prisma, dealId);
+            expect(['recebido', 'processado']).toContain(evento?.status);
+            expect(evento?.jobId).not.toBeNull();
+        });
+
+        it('campo fora da lista vira evento inválido', async () => {
+            const dealId = '88888888-8888-4888-8888-888888888888';
+            const r = await request(app.getHttpServer())
+                .post('/webhooks/clint/regravar-data')
+                .set('x-adapter-secret', SEGREDO)
+                .send({ deal_id: dealId, id_agendamento_medx: 1, campo: 'etapa_lembrete' });
+            expect(r.status).toBe(200);
+
+            const evento = await eventoDoDeal(prisma, dealId);
+            expect(evento?.status).toBe('invalido');
+            expect(evento?.erro).toContain('campo');
         });
     });
 
