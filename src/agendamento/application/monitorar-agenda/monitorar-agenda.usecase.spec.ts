@@ -285,6 +285,7 @@ describe('MonitorarAgendaUseCase', () => {
             agendamentos: [ag(-3, '2026-11-20T10:00:00')],
             contato: {
                 tipo: 'ambiguo',
+                porTelefone: true,
                 candidatos: [
                     { id: 'k', nome: 'Karmen', telefone: null },
                     { id: 's', nome: 'Silvia', telefone: null },
@@ -326,5 +327,61 @@ describe('MonitorarAgendaUseCase', () => {
         expect(chamadas).toEqual([]);
         expect(resumo).toMatchObject({ criados: 1, cancelados: 1 });
         expect(logger.info).toHaveBeenCalled();
+    });
+
+    it('ambíguo só pelo nome não marca ninguém', async () => {
+        const { usecase, chamadas } = montar({
+            agendamentos: [ag(-3, '2026-11-20T10:00:00')],
+            contato: {
+                tipo: 'ambiguo',
+                porTelefone: false,
+                candidatos: [{ id: 'k', nome: 'Maria Souza', telefone: null }],
+            },
+        });
+        await usecase.executar('agir');
+        expect(chamadas).toEqual([]);
+    });
+
+    it('limite de requisições do MedX encerra a rodada sem marcar o resto como falha', async () => {
+        const { usecase, crm } = montar({
+            agendamentos: [ag(-7, '2026-11-20T10:00:00'), ag(-8, '2026-11-21T10:00:00')],
+            contato: CONTATO,
+        });
+        const limite = Object.assign(new Error('Rate limit do MedX atingido'), {
+            name: 'ErroRateLimit',
+        });
+        crm.criarNegocio.mockRejectedValueOnce(limite);
+        const resumo = await usecase.executar('agir');
+        expect(crm.criarNegocio).toHaveBeenCalledTimes(1);
+        expect(resumo.falhas).toBe(1);
+    });
+
+    it('passa o telefone do agendamento (sms) ao resolver o contato', async () => {
+        const { usecase } = montar({
+            agendamentos: [
+                ag(-7, '2026-11-20T10:00:00', 1, {
+                    bruto: { sms: '45999197847', paciente: { nome: 'MARIA SILVA' } },
+                }),
+            ],
+            contato: CONTATO,
+        });
+        const resolver = (usecase as any).resolvedor.resolver;
+        await usecase.executar('agir');
+        expect(resolver).toHaveBeenCalledWith(
+            { idPaciente: 507, nome: 'MARIA SILVA', telefone: '45999197847' },
+            expect.anything(),
+        );
+    });
+
+    it('com dois negócios abertos sem id, assume o da etapa que combina com o tipo', async () => {
+        const doEndovenoso = negocio('endo', {}, { contatoId: 'c-1', etapaId: ENDOVENOSO });
+        const daConsulta = negocio('consulta', {}, { contatoId: 'c-1', etapaId: BOAS_VINDAS });
+        const { usecase, chamadas } = montar({
+            agendamentos: [ag(-9, '2026-11-20T10:00:00')],
+            negocios: [doEndovenoso, daConsulta],
+            contato: CONTATO,
+        });
+        await usecase.executar('agir');
+        expect(chamadas[0]![1]).toBe('consulta');
     });
 });

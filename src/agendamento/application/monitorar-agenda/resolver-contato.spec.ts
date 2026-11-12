@@ -51,7 +51,7 @@ describe('ResolvedorContato', () => {
             contatosAbertos: [],
             gravar: true,
         });
-        expect(r).toEqual({ tipo: 'ambiguo', candidatos: [KARMEN, SILVIA] });
+        expect(r).toEqual({ tipo: 'ambiguo', candidatos: [KARMEN, SILVIA], porTelefone: true });
     });
 
     it('telefone estrangeiro gravado sem o 5 no MedX acha a paciente pelo nome', async () => {
@@ -94,5 +94,36 @@ describe('ResolvedorContato', () => {
             gravar: false,
         });
         expect(cadastro.enriquecerFicha).not.toHaveBeenCalled();
+    });
+
+    it('usa o telefone do agendamento antes de consultar o cadastro no MedX', async () => {
+        const { resolvedor, cadastro } = montar({ celular: '45000000000', porTelefone: [KARMEN] });
+        const r = await resolvedor.resolver(
+            { idPaciente: 77, nome: 'KARMEN FEY', telefone: '44999365902' },
+            { contatosAbertos: [], gravar: true },
+        );
+        expect(r).toMatchObject({ tipo: 'contato', contato: KARMEN });
+        expect(cadastro.obterCelular).not.toHaveBeenCalled();
+    });
+
+    it('busca só por nome exige duas palavras do contato', async () => {
+        const maria = { id: 'maria', nome: 'Maria', telefone: '+5545999999999' };
+        const { resolvedor } = montar({ celular: null, porNome: [maria] });
+        const r = await resolvedor.resolver(paciente('MARIA APARECIDA SOUZA'), {
+            contatosAbertos: [],
+            gravar: true,
+        });
+        expect(r).toEqual({ tipo: 'novo', telefone: null });
+    });
+
+    it('ambíguo pelo nome não marca candidatos', async () => {
+        const a = { id: 'a', nome: 'Maria Souza', telefone: null };
+        const b = { id: 'b', nome: 'Maria Souza', telefone: null };
+        const { resolvedor } = montar({ celular: null, porNome: [a, b] });
+        const r = await resolvedor.resolver(paciente('MARIA SOUZA'), {
+            contatosAbertos: [],
+            gravar: true,
+        });
+        expect(r).toEqual({ tipo: 'ambiguo', candidatos: [a, b], porTelefone: false });
     });
 });

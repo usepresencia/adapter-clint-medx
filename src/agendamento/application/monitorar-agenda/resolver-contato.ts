@@ -11,13 +11,28 @@ import { nomeCasa } from '../../domain/paciente/casar-nome';
 export type ResultadoContato =
     | { tipo: 'contato'; contato: ContatoClint; telefone: Telefone | null }
     | { tipo: 'novo'; telefone: Telefone | null }
-    | { tipo: 'ambiguo'; candidatos: ContatoClint[] };
+    /** `porTelefone`: o mesmo telefone em vários contatos (único caso que recebe tag). */
+    | { tipo: 'ambiguo'; candidatos: ContatoClint[]; porTelefone: boolean };
 
 export interface ContextoResolucao {
     /** Contatos dos negócios abertos da RECEPÇÃO (comparados por nome sem acento). */
     contatosAbertos: ContatoClint[];
     /** `false` no modo observar: não grava telefone no MedX. */
     gravar: boolean;
+}
+
+/**
+ * Sem telefone para estreitar, um contato de uma palavra só ("Maria") casaria
+ * com qualquer homônima; exige ao menos duas palavras do nome do contato.
+ */
+function nomeCasaSemTelefone(nomeMedx: string, nomeClint: string): boolean {
+    const palavras = nomeClint
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .replace(/[^A-Za-z\s]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+    return palavras.length >= 2 && nomeCasa(nomeMedx, nomeClint);
 }
 
 function telefoneOuNull(bruto: string | null): Telefone | null {
@@ -44,12 +59,16 @@ export class ResolvedorContato {
     ) {}
 
     async resolver(
-        paciente: { idPaciente: number; nome: string },
+        paciente: { idPaciente: number; nome: string; telefone?: string | null },
         contexto: ContextoResolucao,
     ): Promise<ResultadoContato> {
-        const telefone = paciente.idPaciente
-            ? telefoneOuNull(await this.cadastro.obterCelular(paciente.idPaciente))
-            : null;
+        // O telefone do agendamento (`sms`) evita uma chamada ao MedX por
+        // paciente — o limite de requisições estourou numa rodada real.
+        const telefone =
+            telefoneOuNull(paciente.telefone ?? null) ??
+            (paciente.idPaciente
+                ? telefoneOuNull(await this.cadastro.obterCelular(paciente.idPaciente))
+                : null);
 
         if (telefone) {
             const porTelefone = await this.crm.buscarContatos({ telefone });
@@ -60,12 +79,12 @@ export class ResolvedorContato {
                 const peloNome = porTelefone.filter(c => nomeCasa(paciente.nome, c.nome));
                 return peloNome.length === 1
                     ? { tipo: 'contato', contato: peloNome[0]!, telefone }
-                    : { tipo: 'ambiguo', candidatos: porTelefone };
+                    : { tipo: 'ambiguo', candidatos: porTelefone, porTelefone: true };
             }
         }
 
         const porNome = await this.buscarPorNome(paciente.nome, contexto.contatosAbertos);
-        if (porNome.length > 1) return { tipo: 'ambiguo', candidatos: porNome };
+        if (porNome.length > 1) return { tipo: 'ambiguo', candidatos: porNome, porTelefone: false };
         if (porNome.length === 0) return { tipo: 'novo', telefone };
 
         const contato = porNome[0]!;
@@ -86,7 +105,7 @@ export class ResolvedorContato {
         const daApi = primeiro ? await this.crm.buscarContatos({ nome: primeiro }) : [];
         const porId = new Map<string, ContatoClint>();
         for (const c of [...abertos, ...daApi]) {
-            if (nomeCasa(nome, c.nome)) porId.set(c.id, c);
+            if (nomeCasaSemTelefone(nome, c.nome)) porId.set(c.id, c);
         }
         return [...porId.values()];
     }

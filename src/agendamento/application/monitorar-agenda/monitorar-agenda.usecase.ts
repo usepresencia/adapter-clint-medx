@@ -122,12 +122,16 @@ export class MonitorarAgendaUseCase {
         };
 
         const vistos = new Set<string>();
+        let interrompida = false;
         for (const ag of agendamentos) {
             vistos.add(String(ag.id));
-            await this.comProtecao(rodada, ag.id, () => this.processar(rodada, ag));
+            if (!(await this.comProtecao(rodada, ag.id, () => this.processar(rodada, ag)))) {
+                interrompida = true;
+                break;
+            }
         }
 
-        await this.tratarDesaparecidos(rodada, vistos, inicioJanela, fimJanela);
+        if (!interrompida) await this.tratarDesaparecidos(rodada, vistos, inicioJanela, fimJanela);
 
         this.logger.info({ modo, ...rodada.resumo }, 'monitor do MedX: rodada concluída');
         return rodada.resumo;
@@ -152,14 +156,18 @@ export class MonitorarAgendaUseCase {
             return;
         }
 
-        const nome = (ag.bruto as { paciente?: { nome?: string } } | null)?.paciente?.nome ?? '';
+        const bruto = ag.bruto as { paciente?: { nome?: string }; sms?: string | null } | null;
+        const nome = bruto?.paciente?.nome ?? '';
         const resultado = await this.resolvedor.resolver(
-            { idPaciente: ag.idPaciente, nome },
+            { idPaciente: ag.idPaciente, nome, telefone: bruto?.sms ?? null },
             { contatosAbertos: r.contatosAbertos, gravar: r.modo === 'agir' },
         );
 
         if (resultado.tipo === 'ambiguo') {
-            for (const c of resultado.candidatos) {
+            // Só o telefone compartilhado vira tag; ambíguo por nome fica para
+            // a próxima rodada (marcar homônimas seria pior).
+            const candidatos = resultado.porTelefone ? resultado.candidatos : [];
+            for (const c of candidatos) {
                 await this.escrever(
                     r,
                     'tag contato ambíguo',
@@ -172,12 +180,18 @@ export class MonitorarAgendaUseCase {
         }
 
         if (resultado.tipo === 'contato') {
-            const assumivel = r.negocios.find(
+            // Prefere o negócio da etapa que combina com o tipo (endovenoso →
+            // ENDOVENOSO, consulta → BOAS VINDAS); senão, qualquer assumível.
+            const candidatos = r.negocios.filter(
                 n =>
                     n.contatoId === resultado.contato.id &&
                     !n.campos.id_agendamento_medx &&
                     this.etapasAssumiveis().includes(n.etapaId),
             );
+            const etapaDoTipo = this.config.get<string>(
+                ehEndovenoso ? 'CLINT_ETAPA_ENDOVENOSO_ID' : 'CLINT_ETAPA_BOAS_VINDAS_ID',
+            );
+            const assumivel = candidatos.find(n => n.etapaId === etapaDoTipo) ?? candidatos[0];
             if (assumivel) {
                 await this.assumir(r, assumivel, ag, ehEndovenoso);
                 return;
@@ -303,11 +317,12 @@ export class MonitorarAgendaUseCase {
         for (const [id, negocio] of r.porIdAgendamento) {
             const data = negocio.campos.data_agendamento;
             if (vistos.has(id) || !data || data < de || data >= ate) continue;
-            await this.comProtecao(r, Number(id), async () => {
+            const seguir = await this.comProtecao(r, Number(id), async () => {
                 if (!(await this.agenda.existe(Number(id)))) {
                     await this.cancelar(r, negocio, Number(id));
                 }
             });
+            if (!seguir) return;
         }
     }
 
@@ -357,15 +372,28 @@ export class MonitorarAgendaUseCase {
         await fazer();
     }
 
+    /**
+     * Isola a falha de um agendamento. Devolve `false` quando a rodada deve
+     * parar: limite de requisições do MedX (o resto seguiria falhando; a
+     * próxima rodada continua de onde parou).
+     */
     private async comProtecao(
         r: Rodada,
         idAgendamento: number,
         fazer: () => Promise<void>,
-    ): Promise<void> {
+    ): Promise<boolean> {
         try {
             await fazer();
+            return true;
         } catch (erro) {
             r.resumo.falhas++;
+            if (erro instanceof Error && erro.name === 'ErroRateLimit') {
+                this.logger.warn(
+                    { id_agendamento: idAgendamento },
+                    'monitor do MedX: limite de requisições — rodada encerrada, continua na próxima',
+                );
+                return false;
+            }
             this.logger.error(
                 {
                     alerta: true,
@@ -374,6 +402,7 @@ export class MonitorarAgendaUseCase {
                 },
                 'monitor do MedX: falha ao processar agendamento',
             );
+            return true;
         }
     }
 }
