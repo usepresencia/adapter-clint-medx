@@ -57,8 +57,8 @@ export interface CrmNegocioPort {
     /** Negócios abertos da origem RECEPÇÃO, todas as etapas. */
     listarAbertosRecepcao(): Promise<NegocioRecepcao[]>;
     buscarContatos(filtro: { telefone?: Telefone; nome?: string }): Promise<ContatoClint[]>;
-    /** Cria na RECEPÇÃO / BOAS VINDAS (o canal só cria nessa etapa); devolve o id. */
-    criarNegocio(dados: DadosNovoNegocio): Promise<string>;
+    /** Cria na RECEPÇÃO / BOAS VINDAS (o canal só cria nessa etapa). */
+    criarNegocio(dados: DadosNovoNegocio): Promise<{ id: string; contatoId: string | null }>;
     /** Fecha como perdido com o motivo de cancelamento configurado. */
     encerrarComoPerdido(dealId: string): Promise<void>;
 }

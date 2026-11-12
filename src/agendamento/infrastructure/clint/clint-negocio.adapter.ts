@@ -92,7 +92,7 @@ export class ClintNegocioAdapter implements CrmNegocioPort {
             : contatos;
     }
 
-    async criarNegocio(dados: DadosNovoNegocio): Promise<string> {
+    async criarNegocio(dados: DadosNovoNegocio): Promise<{ id: string; contatoId: string | null }> {
         const corpo: Record<string, unknown> = {
             origin_id: this.config.get<string>('CLINT_ORIGEM_RECEPCAO_ID'),
             stage_id: this.config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID'),
@@ -105,13 +105,12 @@ export class ClintNegocioAdapter implements CrmNegocioPort {
         }
         corpo.fields = dados.campos;
 
-        const resposta = await this.client.post<{ data?: { id?: string }; id?: string }>(
-            '/v1/deals',
-            corpo,
-        );
-        const id = resposta?.data?.id ?? resposta?.id;
+        const resposta = await this.client.post<{
+            data?: { id?: string; contact?: { id?: string } };
+        }>('/v1/deals', corpo);
+        const id = resposta?.data?.id;
         if (!id) throw new Error('Clint não devolveu o id do negócio criado');
-        return id;
+        return { id, contatoId: resposta.data?.contact?.id ?? null };
     }
 
     async encerrarComoPerdido(dealId: string): Promise<void> {

@@ -25,7 +25,7 @@ function montar(opcoes: { get?: (c: Chamada) => unknown; falha?: Error; motivo?:
         post: async <T>(caminho: string, corpo: unknown) => {
             if (opcoes.falha) throw opcoes.falha;
             chamadas.push({ metodo: 'post', caminho, corpo });
-            return { status: 201, data: { id: 'novo-deal' } } as T;
+            return { status: 201, data: { id: 'novo-deal', contact: { id: 'c-novo' } } } as T;
         },
     } as unknown as ClintHttpClient;
     const valores: Record<string, string | undefined> = {
@@ -130,7 +130,7 @@ describe('ClintNegocioAdapter', () => {
             nome: 'Maria',
             campos: { id_agendamento_medx: '-5' },
         });
-        expect(id).toBe('novo-deal');
+        expect(id).toEqual({ id: 'novo-deal', contatoId: 'c-novo' });
         expect(chamadas[0]).toEqual({
             metodo: 'post',
             caminho: '/v1/deals',
