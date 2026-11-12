@@ -11,6 +11,16 @@ const base = {
 };
 
 describe('parseEnv', () => {
+    it('MONITOR_MEDX_MODO padrão é desligado e só aceita os três modos', () => {
+        expect(parseEnv(base).MONITOR_MEDX_MODO).toBe('desligado');
+        expect(parseEnv({ ...base, MONITOR_MEDX_MODO: 'observar' }).MONITOR_MEDX_MODO).toBe(
+            'observar',
+        );
+        expect(() => parseEnv({ ...base, MONITOR_MEDX_MODO: 'ligado' })).toThrow(
+            /MONITOR_MEDX_MODO/,
+        );
+    });
+
     it('aplica os valores padrão quando as variáveis opcionais faltam', () => {
         const env = parseEnv(base);
         expect(env.PORT).toBe(3000);

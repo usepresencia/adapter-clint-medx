@@ -24,6 +24,7 @@ const schema = z.object({
     SMTP_URL: z.string().optional(),
     ALERTA_EMAIL_DESTINO: z.string().optional(),
     ALERTA_EMAIL_ORIGEM: z.string().default('adapter@localhost'),
+    MONITOR_MEDX_MODO: z.enum(['desligado', 'observar', 'agir']).default('desligado'),
     BULLBOARD_USUARIO: z.string().optional(),
     BULLBOARD_SENHA: z.string().optional(),
 });

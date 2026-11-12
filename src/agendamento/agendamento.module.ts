@@ -1,4 +1,6 @@
 import { Inject, Module, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { FILA_PORT, type FilaPort } from './application/ports/fila.port';
 import { PersistenceModule } from '../shared/persistence/persistence.module';
 import { ObservabilidadeModule } from '../shared/observabilidade/observabilidade.module';
 import { RedisHealthClient } from '../shared/observabilidade/redis-health.client';
@@ -45,6 +47,10 @@ import { HealthController } from './presentation/http/health.controller';
 import { DisponibilidadeController } from './presentation/http/disponibilidade.controller';
 import { LeadsController } from './presentation/http/leads.controller';
 
+/** Intervalo da rodada do monitor do MedX. */
+const INTERVALO_MONITOR_MS = 5 * 60 * 1000;
+const JOB_MONITOR = 'monitor-medx';
+
 @Module({
     imports: [PersistenceModule, ObservabilidadeModule, FilaModule],
     controllers: [WebhooksController, HealthController, DisponibilidadeController, LeadsController],
@@ -77,6 +83,8 @@ export class AgendamentoModule implements OnModuleInit {
     constructor(
         @Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
+        @Inject(FILA_PORT) private readonly fila: FilaPort,
+        private readonly config: ConfigService,
     ) {}
 
     async onModuleInit(): Promise<void> {
@@ -90,6 +98,18 @@ export class AgendamentoModule implements OnModuleInit {
                 { alerta: true, erro: erro instanceof Error ? erro.message : String(erro) },
                 'catálogo do MedX indisponível no boot — será carregado sob demanda',
             );
+        }
+
+        const modo = this.config.get<'desligado' | 'observar' | 'agir'>('MONITOR_MEDX_MODO');
+        if (modo === 'observar' || modo === 'agir') {
+            await this.fila.agendarRepetitivo(
+                JOB_MONITOR,
+                { tipo: 'monitor-medx', eventoId: 0, comando: { modo } },
+                INTERVALO_MONITOR_MS,
+            );
+            this.logger.info({ modo }, 'monitor do MedX agendado a cada 5 minutos');
+        } else {
+            await this.fila.removerRepetitivo(JOB_MONITOR);
         }
     }
 }
