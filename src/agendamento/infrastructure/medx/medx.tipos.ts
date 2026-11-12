@@ -47,24 +47,37 @@ export interface MedxVinculoResposta {
     match: boolean;
 }
 
-// A doc documenta PascalCase (Data/De/Ate), mas a API real devolve minúsculo
-// — confirmado ao vivo em produção, mesmo padrão de todo outro endpoint desta
-// conta. Além disso, `de`/`ate` SEMPRE trazem a mesma data-base (não o dia do
-// slot) — só a hora deles é significativa; `data` é quem informa o dia real.
-/**
- * Item de GET /agenda/agendamentos?inicio=&fim= (confirmado ao vivo). Os nomes
- * diferem do GET por id: id_Usuario, fim e id_Agendamento. Só os campos de
- * ocupação são modelados — o resto traz dados de paciente que não usamos.
- */
-export interface MedxAgendamentoPeriodo {
-    id_Usuario: number;
-    inicio: string;
-    fim: string;
-    status: number;
+/** Referência `{ id, nome }` usada em toda a API v1. */
+export interface MedxReferencia {
+    id: number;
+    nome: string;
 }
 
-export interface MedxDisponibilidade {
-    data: string;
-    de: string;
-    ate: string;
+/**
+ * Item de GET /api/integration/v1/agenda/agendamentos/detalhes, /{id}/detalhes
+ * e /paciente/{id} (confirmado ao vivo em 2026-11-12). Horários vêm com offset
+ * (`-03:00`); `paciente`/`tipo` vêm nulos em anotações sem paciente.
+ */
+export interface MedxAgendaDetalhe {
+    id: number;
+    inicio: string;
+    fim: string;
+    profissional: MedxReferencia | null;
+    paciente: MedxReferencia | null;
+    tipo: MedxReferencia | null;
+    procedimentoId: number | null;
+    status: MedxReferencia;
+    descricao: string | null;
+    confirmacao: string | null;
+    sms: string | null;
+    chegada: string | null;
+    atendidoEm: string | null;
+    saiuEm: string | null;
+    atualizadoEm: string | null;
+    /** Exigida sem alteração para atualizar o agendamento. */
+    versao: string;
+}
+
+export interface MedxDisponibilidadeV1 {
+    horarios?: Array<{ inicio: string; fim: string }>;
 }

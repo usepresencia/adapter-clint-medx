@@ -1,43 +1,59 @@
 import { describe, it, expect } from 'vitest';
-import { MedxAgendaAdapter, CONFIRMACAO_LITERAL } from './medx-agenda.adapter';
+import { MedxAgendaAdapter } from './medx-agenda.adapter';
 import type { MedxHttpClient } from './medx-http.client';
-import type { MedxAgendamento } from './medx.tipos';
+import type { MedxAgendaDetalhe } from './medx.tipos';
 
-// A doc do MedX documenta PascalCase (Id_do_Agendamento, Vinculado_a...), mas
-// a API real observada em produção devolve snake_case minúsculo — tratamos a
-// doc como desatualizada e seguimos o comportamento real (confirmado via
-// GET /agenda/agendamentos/paciente/{id} ao vivo).
-const CRU: MedxAgendamento & { CampoQueNaoModelamos: string } = {
-    id_do_Agendamento: 1275002478,
-    id_do_Usuario: 43013640,
-    inicio: '2026-07-10T14:00:00',
-    final: '2026-07-10T14:30:00',
-    descricao: 'Consulta de Rotina — Maria Silva',
-    status: 0,
-    vinculado_a: 30094605,
-    id_do_Diagnostico_QP: 111,
+const DETALHE: MedxAgendaDetalhe = {
+    id: -1646861682,
+    inicio: '2026-11-12T10:10:00-03:00',
+    fim: '2026-11-12T10:20:00-03:00',
+    profissional: { id: -692937676, nome: 'Leize' },
+    paciente: { id: 30094605, nome: 'Maria Silva' },
+    tipo: { id: 111, nome: 'Consulta' },
+    procedimentoId: null,
+    status: { id: 2, nome: 'Confirmado' },
+    descricao: 'Consulta — Maria Silva',
     confirmacao: '',
-    lastEditDate: '2026-07-09T10:00:00',
-    CampoQueNaoModelamos: 'precisa sobreviver ao PUT',
+    sms: '44999999999',
+    chegada: null,
+    atendidoEm: null,
+    saiuEm: null,
+    atualizadoEm: '2026-11-11T10:12:00-03:00',
+    versao: 'v-abc',
 };
 
-function clientFalso(resposta: unknown) {
-    const enviados: Array<{ caminho: string; corpo?: unknown; query?: unknown }> = [];
+type Chamada = {
+    metodo: string;
+    caminho: string;
+    corpo?: unknown;
+    query?: Record<string, unknown>;
+};
+
+function clientFalso(opcoes: {
+    get?: unknown;
+    paginas?: (q: Record<string, unknown>) => unknown[];
+    post?: unknown;
+}) {
+    const chamadas: Chamada[] = [];
     const client = {
-        get: async <T>(caminho: string, query?: unknown) => {
-            enviados.push({ caminho, query });
-            return resposta as T;
+        get: async <T>(caminho: string, query?: Record<string, unknown>) => {
+            chamadas.push({ metodo: 'get', caminho, query });
+            return opcoes.get as T;
+        },
+        listarTodos: async <T>(caminho: string, query?: Record<string, unknown>) => {
+            chamadas.push({ metodo: 'listarTodos', caminho, query });
+            return (opcoes.paginas?.(query ?? {}) ?? []) as T[];
         },
         post: async <T>(caminho: string, corpo: unknown) => {
-            enviados.push({ caminho, corpo });
-            return resposta as T;
+            chamadas.push({ metodo: 'post', caminho, corpo });
+            return opcoes.post as T;
         },
-        put: async <T>(caminho: string, corpo: unknown) => {
-            enviados.push({ caminho, corpo });
-            return 'Agendamento atualizado com sucesso.' as T;
+        executarOperacao: async <T>(caminho: string, corpo: unknown) => {
+            chamadas.push({ metodo: 'executarOperacao', caminho, corpo });
+            return opcoes.post as T;
         },
     } as unknown as MedxHttpClient;
-    return { client, enviados };
+    return { client, chamadas };
 }
 
 const CRIACAO = {
@@ -49,14 +65,26 @@ const CRIACAO = {
     idTipoConsulta: 111,
 };
 
+// Falso da assinatura antiga, usado só pelos testes de criar até a migração da escrita.
+function clientFalsoLegado(resposta: unknown) {
+    const enviados: Array<{ caminho: string; corpo?: unknown }> = [];
+    const client = {
+        post: async <T>(caminho: string, corpo: unknown) => {
+            enviados.push({ caminho, corpo });
+            return resposta as T;
+        },
+    } as unknown as MedxHttpClient;
+    return { client, enviados };
+}
+
 describe('criar', () => {
     it('devolve o inteiro que o MedX retorna', async () => {
-        const { client } = clientFalso(1275002478);
+        const { client } = clientFalsoLegado(1275002478);
         expect(await new MedxAgendaAdapter(client).criar(CRIACAO, 0)).toBe(1275002478);
     });
 
     it('mapeia para os nomes exatos da API e nasce com o índice de "Agendado" recebido', async () => {
-        const { client, enviados } = clientFalso(1);
+        const { client, enviados } = clientFalsoLegado(1);
         await new MedxAgendaAdapter(client).criar(CRIACAO, 0);
 
         expect(enviados[0]).toEqual({
@@ -74,7 +102,7 @@ describe('criar', () => {
     });
 
     it('usa o índice de "Agendado" recebido, nunca um valor fixo', async () => {
-        const { client, enviados } = clientFalso(1);
+        const { client, enviados } = clientFalsoLegado(1);
         await new MedxAgendaAdapter(client).criar(CRIACAO, 3);
 
         const corpo = enviados[0]!.corpo as Record<string, unknown>;
@@ -82,7 +110,7 @@ describe('criar', () => {
     });
 
     it('rejeita retorno que não é um id válido, sem serializar a resposta na mensagem', async () => {
-        const { client } = clientFalso({ Descricao: 'contém nome da paciente' });
+        const { client } = clientFalsoLegado({ Descricao: 'contém nome da paciente' });
         await expect(new MedxAgendaAdapter(client).criar(CRIACAO, 0)).rejects.toThrow(/id/i);
         await expect(new MedxAgendaAdapter(client).criar(CRIACAO, 0)).rejects.not.toThrow(
             /nome da paciente/,
@@ -90,201 +118,145 @@ describe('criar', () => {
     });
 
     it('aceita id negativo — confirmado ao vivo que esta conta usa ids negativos', async () => {
-        const { client } = clientFalso(-1452025979);
+        const { client } = clientFalsoLegado(-1452025979);
         expect(await new MedxAgendaAdapter(client).criar(CRIACAO, 0)).toBe(-1452025979);
     });
 
     it('rejeita zero como id (provável sentinela de falha)', async () => {
-        const { client } = clientFalso(0);
+        const { client } = clientFalsoLegado(0);
         await expect(new MedxAgendaAdapter(client).criar(CRIACAO, 0)).rejects.toThrow(/id/i);
     });
 });
 
 describe('obter', () => {
-    it('desembrulha o array que a API devolve e traduz para o port', async () => {
-        const { client } = clientFalso([CRU]);
-        const externo = await new MedxAgendaAdapter(client).obter(1275002478);
+    it('obter traduz o detalhe v1 e guarda o bruto com versao', async () => {
+        const { client, chamadas } = clientFalso({ get: DETALHE });
+        const externo = await new MedxAgendaAdapter(client).obter(-1646861682);
 
-        expect(externo.id).toBe(1275002478);
-        expect(externo.idProfissional).toBe(43013640);
-        expect(externo.idPaciente).toBe(30094605);
-        expect(externo.inicio).toBe('2026-07-10T14:00:00');
-        expect(externo.ultimaEdicao).toBe('2026-07-09T10:00:00');
+        expect(chamadas[0]!.caminho).toBe(
+            '/api/integration/v1/agenda/agendamentos/-1646861682/detalhes',
+        );
+        expect(externo).toMatchObject({
+            id: -1646861682,
+            idProfissional: -692937676,
+            idPaciente: 30094605,
+            inicio: '2026-11-12T10:10:00',
+            fim: '2026-11-12T10:20:00',
+            status: 2,
+            idTipoConsulta: 111,
+            ultimaEdicao: '2026-11-11T10:12:00-03:00',
+        });
+        expect((externo.bruto as MedxAgendaDetalhe).versao).toBe('v-abc');
     });
 
-    it('guarda o payload cru inteiro em bruto', async () => {
-        const { client } = clientFalso([CRU]);
-        const externo = await new MedxAgendaAdapter(client).obter(1275002478);
-        expect((externo.bruto as any).CampoQueNaoModelamos).toBe('precisa sobreviver ao PUT');
+    it('obter aceita paciente e tipo nulos', async () => {
+        const { client } = clientFalso({ get: { ...DETALHE, paciente: null, tipo: null } });
+        const externo = await new MedxAgendaAdapter(client).obter(1);
+        expect(externo.idPaciente).toBe(0);
+        expect(externo.idTipoConsulta).toBe(0);
     });
 
     it('erra quando o agendamento não existe', async () => {
-        const { client } = clientFalso([]);
-        await expect(new MedxAgendaAdapter(client).obter(999)).rejects.toThrow(/999/);
-    });
-});
-
-describe('confirmar', () => {
-    it('envia a string literal exigida e o índice recebido', async () => {
-        const { client, enviados } = clientFalso([CRU]);
-        const agenda = new MedxAgendaAdapter(client);
-        const externo = await agenda.obter(1275002478);
-        enviados.length = 0;
-
-        await agenda.confirmar(externo, 1);
-
-        const corpo = enviados[0]!.corpo as Record<string, unknown>;
-        expect(enviados[0]!.caminho).toBe('/api/integration/agenda/agendamentos');
-        expect(corpo.status).toBe(1);
-        expect(corpo.confirmacao).toBe(CONFIRMACAO_LITERAL);
-        expect(corpo.confirmacao).toBe('Mensagem Salva com Sucesso');
-    });
-
-    it('preserva os campos que o port não modela', async () => {
-        const { client, enviados } = clientFalso([CRU]);
-        const agenda = new MedxAgendaAdapter(client);
-        const externo = await agenda.obter(1275002478);
-        enviados.length = 0;
-
-        await agenda.confirmar(externo, 1);
-
-        expect((enviados[0]!.corpo as any).CampoQueNaoModelamos).toBe('precisa sobreviver ao PUT');
-    });
-
-    it('envia o objeto completo que o PUT exige', async () => {
-        const { client, enviados } = clientFalso([CRU]);
-        const agenda = new MedxAgendaAdapter(client);
-        const externo = await agenda.obter(1275002478);
-        enviados.length = 0;
-
-        await agenda.confirmar(externo, 1);
-
-        const corpo = enviados[0]!.corpo as Record<string, unknown>;
-        for (const campo of [
-            'id_do_Agendamento',
-            'id_do_Usuario',
-            'inicio',
-            'final',
-            'descricao',
-            'status',
-            'vinculado_a',
-            'id_do_Diagnostico_QP',
-        ]) {
-            expect(corpo).toHaveProperty(campo);
-        }
-    });
-});
-
-describe('consultarDisponibilidade', () => {
-    it('combina o dia real (campo data) com a hora de de/ate, ignorando a data-base bugada delas', async () => {
-        // Confirmado ao vivo: `de`/`ate` sempre trazem a MESMA data-base (não o
-        // dia do slot) — só a hora deles é significativa. Quem informa o dia
-        // real é o campo `data`. Exemplo real observado em produção:
-        const { client, enviados } = clientFalso([
-            {
-                data: '2026-09-22T00:00:00',
-                de: '2026-09-21T08:00:00+00:00',
-                ate: '2026-09-21T09:00:00+00:00',
-            },
-            {
-                data: '2026-09-23T00:00:00',
-                de: '2026-09-21T08:00:00+00:00',
-                ate: '2026-09-21T09:00:00+00:00',
-            },
-        ]);
-
-        const slots = await new MedxAgendaAdapter(client).consultarDisponibilidade({
-            idProfissional: 43013640,
-            inicio: '2026-09-22T00:00:00',
-            fim: '2026-09-28T23:59:59',
-            duracaoMinutos: 60,
-        });
-
-        // proId NÃO é enviado: confirmado ao vivo que qualquer id negativo
-        // (o único tipo que esta conta usa para profissional) zera a resposta
-        // — é um bug do MedX, não algo que dá pra contornar do nosso lado.
-        expect(enviados[0]!.caminho).toBe('/api/integration/agenda/disponibilidade');
-        expect(enviados[0]!.query).toEqual({
-            inicio: '2026-09-22T00:00:00',
-            fim: '2026-09-28T23:59:59',
-            intervalo: 60,
-        });
-        expect(slots).toEqual([
-            { inicio: '2026-09-22T08:00:00', fim: '2026-09-22T09:00:00' },
-            { inicio: '2026-09-23T08:00:00', fim: '2026-09-23T09:00:00' },
-        ]);
-    });
-
-    it('devolve lista vazia quando a API não retorna array', async () => {
-        const { client } = clientFalso(null);
-        expect(
-            await new MedxAgendaAdapter(client).consultarDisponibilidade({
-                idProfissional: 1,
-                inicio: '2026-07-10T00:00:00',
-                fim: '2026-07-10T23:59:59',
-                duracaoMinutos: 30,
-            }),
-        ).toEqual([]);
-    });
-});
-
-describe('listarPorPeriodo', () => {
-    it('consulta a janela e traduz só os campos de ocupação (nomes diferentes do GET por id)', async () => {
-        // Formato confirmado ao vivo: a listagem por período usa id_Usuario/fim/
-        // id_Agendamento, não id_do_Usuario/final/id_do_Agendamento do GET por id.
-        const { client, enviados } = clientFalso([
-            {
-                id_Usuario: -692937676,
-                inicio: '2026-10-07T13:30:00',
-                fim: '2026-10-07T13:40:00',
-                descricao: 'nome da paciente',
-                status: 2,
-                id_Paciente: 1523,
-                id_Agendamento: -516518988,
-            },
-        ]);
-
-        const ocupacoes = await new MedxAgendaAdapter(client).listarPorPeriodo(
-            '2026-10-07T00:00:00',
-            '2026-10-07T23:59:59',
-        );
-
-        expect(enviados[0]!.caminho).toBe('/api/integration/agenda/agendamentos');
-        expect(enviados[0]!.query).toEqual({
-            inicio: '2026-10-07T00:00:00',
-            fim: '2026-10-07T23:59:59',
-        });
-        expect(ocupacoes).toEqual([
-            {
-                idProfissional: -692937676,
-                inicio: '2026-10-07T13:30:00',
-                fim: '2026-10-07T13:40:00',
-                status: 2,
-            },
-        ]);
-    });
-
-    it('devolve lista vazia quando a API não retorna array', async () => {
-        const { client } = clientFalso(null);
-        expect(
-            await new MedxAgendaAdapter(client).listarPorPeriodo(
-                '2026-10-07T00:00:00',
-                '2026-10-07T23:59:59',
-            ),
-        ).toEqual([]);
+        const { client } = clientFalso({ get: undefined });
+        await expect(new MedxAgendaAdapter(client).obter(1)).rejects.toThrow(/não encontrado/);
     });
 });
 
 describe('listarPorPaciente', () => {
-    it('traduz cada item para o port', async () => {
-        const { client } = clientFalso([CRU]);
+    it('usa a rota v1 paginada e traduz cada item', async () => {
+        const { client, chamadas } = clientFalso({ paginas: () => [DETALHE] });
         const lista = await new MedxAgendaAdapter(client).listarPorPaciente(30094605);
-        expect(lista).toHaveLength(1);
-        expect(lista[0]!.id).toBe(1275002478);
+        expect(chamadas[0]).toMatchObject({
+            metodo: 'listarTodos',
+            caminho: '/api/integration/v1/agenda/agendamentos/paciente/30094605',
+        });
+        expect(lista[0]!.inicio).toBe('2026-11-12T10:10:00');
+    });
+});
+
+describe('listarPorPeriodo', () => {
+    it('listarPorPeriodo divide 45 dias em duas janelas de no máximo 31 dias sem duplicar', async () => {
+        const fronteira = {
+            ...DETALHE,
+            id: 9,
+            inicio: '2026-12-02T09:00:00-03:00',
+            fim: '2026-12-02T09:10:00-03:00',
+        };
+        const { client, chamadas } = clientFalso({ paginas: () => [fronteira] });
+
+        const ocupacao = await new MedxAgendaAdapter(client).listarPorPeriodo(
+            '2026-11-01T00:00:00',
+            '2026-12-16T00:00:00',
+        );
+
+        expect(chamadas).toHaveLength(2);
+        expect(chamadas[0]!.caminho).toBe('/api/integration/v1/agenda/agendamentos/detalhes');
+        expect(chamadas[0]!.query).toEqual({
+            Inicio: '2026-11-01T00:00:00',
+            Fim: '2026-12-02T00:00:00',
+        });
+        expect(chamadas[1]!.query).toEqual({
+            Inicio: '2026-12-02T00:00:00',
+            Fim: '2026-12-16T00:00:00',
+        });
+        expect(ocupacao).toEqual([
+            {
+                idProfissional: -692937676,
+                inicio: '2026-12-02T09:00:00',
+                fim: '2026-12-02T09:10:00',
+                status: 2,
+            },
+        ]);
     });
 
-    it('devolve lista vazia quando a API não retorna array', async () => {
-        const { client } = clientFalso(null);
-        expect(await new MedxAgendaAdapter(client).listarPorPaciente(1)).toEqual([]);
+    it('uma janela curta faz uma chamada só', async () => {
+        const { client, chamadas } = clientFalso({ paginas: () => [] });
+        await new MedxAgendaAdapter(client).listarPorPeriodo(
+            '2026-11-12T00:00:00',
+            '2026-11-12T23:59:59',
+        );
+        expect(chamadas).toHaveLength(1);
+        expect(chamadas[0]!.query).toEqual({
+            Inicio: '2026-11-12T00:00:00',
+            Fim: '2026-11-12T23:59:59',
+        });
+    });
+});
+
+describe('consultarDisponibilidade', () => {
+    it('consultarDisponibilidade não envia ProfissionalId e normaliza o offset', async () => {
+        const { client, chamadas } = clientFalso({
+            get: {
+                horarios: [
+                    { inicio: '2026-11-20T09:00:00-03:00', fim: '2026-11-20T09:30:00-03:00' },
+                ],
+            },
+        });
+
+        const slots = await new MedxAgendaAdapter(client).consultarDisponibilidade({
+            idProfissional: -692937676,
+            inicio: '2026-11-20T00:00:00',
+            fim: '2026-11-21T00:00:00',
+            duracaoMinutos: 30,
+        });
+
+        expect(chamadas[0]!.caminho).toBe('/api/integration/v1/agenda/disponibilidade');
+        expect(chamadas[0]!.query).toEqual({
+            Inicio: '2026-11-20T00:00:00',
+            Fim: '2026-11-21T00:00:00',
+            DuracaoMinutos: 30,
+        });
+        expect(slots).toEqual([{ inicio: '2026-11-20T09:00:00', fim: '2026-11-20T09:30:00' }]);
+    });
+
+    it('devolve lista vazia quando a resposta não traz horarios', async () => {
+        const { client } = clientFalso({ get: {} });
+        const slots = await new MedxAgendaAdapter(client).consultarDisponibilidade({
+            idProfissional: 1,
+            inicio: '2026-11-20T00:00:00',
+            fim: '2026-11-21T00:00:00',
+            duracaoMinutos: 30,
+        });
+        expect(slots).toEqual([]);
     });
 });
