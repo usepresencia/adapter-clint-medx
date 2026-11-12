@@ -5,54 +5,57 @@ import type {
     DadosVinculo,
 } from '../../application/ports/cadastro-paciente.port';
 import { MedxHttpClient } from './medx-http.client';
-import type { MedxVinculoResposta } from './medx.tipos';
+import type { MedxContatoResultado } from './medx.tipos';
+
+const PREFIXO = '/api/integration/v1/contatos/operacoes';
 
 @Injectable()
 export class MedxCadastroPacienteAdapter implements CadastroPacientePort {
     constructor(private readonly client: MedxHttpClient) {}
 
+    /**
+     * Localiza a paciente ou a cadastra se não houver correspondência. Um 409
+     * (correspondência ambígua) sobe como ErroMedx: exige escolha humana.
+     */
     async vincular(dados: DadosVinculo) {
-        const corpo: Record<string, string> = {
-            Name: dados.nome,
-            Phone: dados.telefone.nacional,
-            DateOfBirth: dados.dataNascimento,
+        const vinculo: Record<string, string> = {
+            nome: dados.nome,
+            telefone: dados.telefone.nacional,
+            nascimento: dados.dataNascimento,
         };
-        if (dados.email) corpo.Email = dados.email;
-        if (dados.sexo) corpo.Gender = dados.sexo;
+        if (dados.email) vinculo.email = dados.email;
+        if (dados.sexo) vinculo.sexo = dados.sexo;
 
-        const resposta = await this.client.post<MedxVinculoResposta>(
-            '/api/integration/contatos/vinculo',
-            corpo,
+        const resposta = await this.client.executarOperacao<{ dados?: MedxContatoResultado }>(
+            PREFIXO,
+            { acao: 'vincular', vinculo },
         );
 
-        const idPaciente = Number(resposta?.id);
-        // Ids negativos são válidos nesta conta (confirmado ao vivo em outras
-        // entidades do MedX — ver medx-agenda.adapter.ts). Só 0/NaN indicam falha.
+        const idPaciente = Number(resposta?.dados?.pacienteId);
+        // Ids negativos são válidos nesta conta; só 0/NaN indicam falha.
         if (!Number.isInteger(idPaciente) || idPaciente === 0) {
             throw new Error(
-                `Vínculo devolveu Id inesperado do MedX: ${JSON.stringify(resposta?.id)}`,
+                `Vínculo do MedX devolveu pacienteId inesperado: ${JSON.stringify(resposta?.dados?.pacienteId)}`,
             );
         }
 
-        return { idPaciente, matchConfiavel: Boolean(resposta.match) };
+        // Paciente já existente é o equivalente ao antigo `match: true`.
+        return { idPaciente, matchConfiavel: resposta.dados?.criado === false };
     }
 
+    /** Atualização parcial: na v1 os campos omitidos são preservados. */
     async enriquecerFicha(idPaciente: number, dados: DadosEnriquecimento): Promise<void> {
-        // `vincular()` manda o telefone em `Phone`, mas esse campo não é persistido
-        // no cadastro do paciente (confirmado no painel do MedX). A API é
-        // case-sensitive pro binding do PUT: confirmado ao vivo via
-        // GET /contatos/{id} que a grafia real é com a primeira letra minúscula
-        // (id_do_Cliente, celular, cpF_CGC, cidade_Residencial,
-        // endereco_Residencial, cep_Residencial) — a doc documenta tudo com a
-        // primeira letra maiúscula, o que faz esses campos serem ignorados
-        // silenciosamente (foi assim que cidade/endereço/cep nunca salvavam).
-        const corpo: Record<string, string | number> = { id_do_Cliente: idPaciente };
-        if (dados.cpf) corpo.cpF_CGC = dados.cpf.digitos;
-        if (dados.telefone) corpo.celular = dados.telefone.nacional;
-        if (dados.cidade) corpo.cidade_Residencial = dados.cidade;
-        if (dados.endereco) corpo.endereco_Residencial = dados.endereco;
-        if (dados.cep) corpo.cep_Residencial = dados.cep;
+        const campos: Record<string, string> = {};
+        if (dados.cpf) campos.cpfCnpj = dados.cpf.digitos;
+        if (dados.telefone) campos.celular = dados.telefone.nacional;
+        if (dados.cidade) campos.cidadeResidencial = dados.cidade;
+        if (dados.endereco) campos.enderecoResidencial = dados.endereco;
+        if (dados.cep) campos.cepResidencial = dados.cep;
 
-        await this.client.put('/api/integration/contatos', corpo);
+        await this.client.executarOperacao(PREFIXO, {
+            acao: 'atualizar',
+            pacienteId: idPaciente,
+            dados: campos,
+        });
     }
 }

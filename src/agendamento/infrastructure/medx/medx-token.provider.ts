@@ -35,10 +35,10 @@ export class MedxTokenProvider {
         const host = this.config.get<string>('MEDX_HOST');
         const integrationToken = this.config.get<string>('MEDX_INTEGRATION_TOKEN');
 
-        const resposta = await fetch(`${host}/api/integration/token`, {
+        const resposta = await fetch(`${host}/api/integration/v1/token`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ IntegrationToken: integrationToken }),
+            body: JSON.stringify({ integrationToken }),
         });
 
         if (!resposta.ok) {

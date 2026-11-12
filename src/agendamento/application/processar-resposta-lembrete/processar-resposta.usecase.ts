@@ -78,15 +78,15 @@ export class ProcessarRespostaUseCase {
 
         const avaliacao = agendamento.avaliarConfirmacao(
             { status: externo.status, inicio: externo.inicio },
-            this.catalogo.indiceStatusAgendado(),
-            this.catalogo.indiceStatusConfirmado(),
+            await this.catalogo.indiceStatusAgendado(),
+            await this.catalogo.indiceStatusConfirmado(),
         );
 
         if (!avaliacao.permitido) {
             return recusar(avaliacao.motivo);
         }
 
-        await this.agenda.confirmar(externo, this.catalogo.indiceStatusConfirmado());
+        await this.agenda.confirmar(externo, await this.catalogo.indiceStatusConfirmado());
 
         agendamento.confirmar(externo.ultimaEdicao);
         await this.agendamentos.salvar(agendamento);

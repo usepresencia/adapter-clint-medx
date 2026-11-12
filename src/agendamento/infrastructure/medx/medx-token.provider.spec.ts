@@ -31,13 +31,13 @@ describe('MedxTokenProvider', () => {
         expect(spy).toHaveBeenCalledTimes(1);
     });
 
-    it('posta o IntegrationToken no corpo, no endpoint certo', async () => {
+    it('posta integrationToken no endpoint v1', async () => {
         const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(respostaOk('jwt-1'));
         const provider = new MedxTokenProvider(configFalso());
         await provider.obterToken();
 
-        expect(String(spy.mock.calls[0]![0])).toBe('https://medx.test/api/integration/token');
-        expect(JSON.parse(String(spy.mock.calls[0]![1]!.body))).toEqual({ IntegrationToken: 'tk' });
+        expect(String(spy.mock.calls[0]![0])).toBe('https://medx.test/api/integration/v1/token');
+        expect(JSON.parse(String(spy.mock.calls[0]![1]!.body))).toEqual({ integrationToken: 'tk' });
     });
 
     it('reaproveita o token dentro da validade', async () => {

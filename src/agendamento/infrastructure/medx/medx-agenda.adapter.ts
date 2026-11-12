@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { DateTime } from 'luxon';
 import type {
     AgendaMedicaPort,
     AgendamentoExterno,
@@ -8,37 +9,54 @@ import type {
     SlotDisponivel,
 } from '../../application/ports/agenda-medica.port';
 import { MedxHttpClient } from './medx-http.client';
-import type { MedxAgendamento, MedxAgendamentoPeriodo, MedxDisponibilidade } from './medx.tipos';
+import type { MedxAgendaDetalhe, MedxDisponibilidadeV1 } from './medx.tipos';
+import { FORMATO_MEDX, interpretarHorarioClinica } from '../../domain/agendamento/periodo-consulta';
 
-const BASE = '/api/integration/agenda/agendamentos';
+const BASE_V1 = '/api/integration/v1/agenda/agendamentos';
+/** Limites do MedX para Inicio/Fim (sempre com Fim exclusivo). */
+const MAX_DIAS_AGENDAMENTOS = 31;
+const MAX_DIAS_DISPONIBILIDADE = 14;
 
 /** Valor exigido pela API do MedX para marcar um agendamento como confirmado. */
 export const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
 
-/**
- * `slot.data` traz o dia real (`yyyy-LL-ddT00:00:00`); `slot.de`/`slot.ate`
- * trazem uma data-base fixa e sem sentido, com o valor útil só na parte de
- * hora (`...THH:mm:ss+00:00`) — confirmado ao vivo. Combina os dois.
- */
-function combinarDiaComHora(data: string, horaCompleta: string): string {
-    const dia = data.split('T')[0];
-    const hora = horaCompleta.split('T')[1]?.replace(/[+-]\d{2}:?\d{2}$/, '');
-    return `${dia}T${hora}`;
+function interpretar(iso: string): DateTime {
+    const dt = interpretarHorarioClinica(iso);
+    if (!dt) throw new Error(`Horário inválido recebido do MedX: ${iso}`);
+    return dt;
 }
 
-function traduzir(cru: MedxAgendamento): AgendamentoExterno {
+/** Divide [inicio, fim) em janelas contíguas de no máximo `maxDias`, no formato local. */
+function janelas(inicio: string, fim: string, maxDias: number): Array<[string, string]> {
+    const resultado: Array<[string, string]> = [];
+    const limite = interpretar(fim);
+    let atual = interpretar(inicio);
+    while (atual < limite) {
+        const fimJanela = DateTime.min(atual.plus({ days: maxDias }), limite);
+        resultado.push([atual.toFormat(FORMATO_MEDX), fimJanela.toFormat(FORMATO_MEDX)]);
+        atual = fimJanela;
+    }
+    return resultado;
+}
+
+/** Horário da API v1 (com offset) para o formato local sem offset usado nos ports. */
+export function paraHorarioLocal(iso: string): string {
+    return interpretar(iso).toFormat(FORMATO_MEDX);
+}
+
+function traduzir(detalhe: MedxAgendaDetalhe): AgendamentoExterno {
     return {
-        id: cru.id_do_Agendamento,
-        idProfissional: cru.id_do_Usuario,
-        idPaciente: cru.vinculado_a,
-        inicio: cru.inicio,
-        fim: cru.final,
-        descricao: cru.descricao,
-        status: cru.status,
-        idTipoConsulta: cru.id_do_Diagnostico_QP,
-        confirmacao: cru.confirmacao ?? '',
-        ultimaEdicao: cru.lastEditDate ?? '',
-        bruto: cru,
+        id: detalhe.id,
+        idProfissional: detalhe.profissional?.id ?? 0,
+        idPaciente: detalhe.paciente?.id ?? 0,
+        inicio: paraHorarioLocal(detalhe.inicio),
+        fim: paraHorarioLocal(detalhe.fim),
+        descricao: detalhe.descricao ?? '',
+        status: detalhe.status.id,
+        idTipoConsulta: detalhe.tipo?.id ?? 0,
+        confirmacao: detalhe.confirmacao ?? '',
+        ultimaEdicao: detalhe.atualizadoEm ?? '',
+        bruto: detalhe,
     };
 }
 
@@ -46,101 +64,130 @@ function traduzir(cru: MedxAgendamento): AgendamentoExterno {
 export class MedxAgendaAdapter implements AgendaMedicaPort {
     constructor(private readonly client: MedxHttpClient) {}
 
-    async criar(dados: DadosCriacaoAgendamento, indiceStatusAgendado: number): Promise<number> {
-        const resposta = await this.client.post<unknown>(BASE, {
-            Id_do_Usuario: dados.idProfissional,
-            Inicio: dados.inicio,
-            Final: dados.fim,
-            Descricao: dados.descricao,
-            Status: indiceStatusAgendado,
-            Vinculado_a: dados.idPaciente,
-            Id_do_TipoConsulta: dados.idTipoConsulta,
-        });
+    async criar(dados: DadosCriacaoAgendamento): Promise<number> {
+        // `cadastros/criar_agendamento` (e não `operacoes/criar`) porque só ele
+        // aceita a descrição que a recepção lê na agenda. Sem `status`: o
+        // padrão do MedX é 1, "Agendado" nesta conta.
+        const resposta = await this.client.executarOperacao<{ dados?: { id?: number } }>(
+            '/api/integration/v1/agenda/cadastros',
+            {
+                acao: 'criar_agendamento',
+                agendamento: {
+                    profissionalId: dados.idProfissional,
+                    pacienteId: dados.idPaciente,
+                    tipoId: dados.idTipoConsulta,
+                    inicio: dados.inicio,
+                    fim: dados.fim,
+                    descricao: dados.descricao,
+                },
+            },
+        );
 
-        const id = Number(resposta);
-        // Ids negativos são válidos nesta conta (confirmado ao vivo — o MedX usa
-        // esse esquema também para ids de profissional). Só 0/NaN indicam falha.
+        const id = Number(resposta?.dados?.id);
+        // Ids negativos são válidos nesta conta; só 0/NaN indicam falha. Não
+        // serializar a resposta: ela pode trazer o nome da paciente.
         if (!Number.isInteger(id) || id === 0) {
-            // Não serializar o corpo da resposta aqui: se o MedX ecoar a Descricao
-            // enviada (que contém o nome da paciente), o conteúdo vaza em log/e-mail
-            // de alerta sem passar pela redação de PII do pino.
-            throw new Error(
-                `MedX não devolveu um id de agendamento válido (tipo recebido: ${typeof resposta})`,
-            );
+            throw new Error('MedX não devolveu um id de agendamento válido');
         }
         return id;
     }
 
     async obter(id: number): Promise<AgendamentoExterno> {
-        const resposta = await this.client.get<MedxAgendamento[] | MedxAgendamento>(
-            `${BASE}/${id}`,
+        const detalhe = await this.client.get<MedxAgendaDetalhe | undefined>(
+            `${BASE_V1}/${id}/detalhes`,
         );
-        const cru = Array.isArray(resposta) ? resposta[0] : resposta;
-
-        if (!cru) {
+        if (!detalhe?.id) {
             throw new Error(`Agendamento ${id} não encontrado no MedX`);
         }
-        return traduzir(cru);
+        return traduzir(detalhe);
     }
 
     async consultarDisponibilidade(consulta: ConsultaDisponibilidade): Promise<SlotDisponivel[]> {
-        // `proId` NÃO é enviado: confirmado ao vivo que essa conta usa só ids
-        // negativos para profissional, e qualquer proId negativo devolve lista
-        // vazia (bug do MedX, não um nome de parâmetro errado — testado com
-        // ids reais de dois profissionais diferentes). Como a clínica atende
-        // com uma única profissional, a disponibilidade sem filtro já reflete
-        // a agenda dela. Reavaliar se a conta ganhar um segundo profissional.
-        const resposta = await this.client.get<MedxDisponibilidade[]>(
-            '/api/integration/agenda/disponibilidade',
-            {
-                inicio: consulta.inicio,
-                fim: consulta.fim,
-                intervalo: consulta.duracaoMinutos,
-            },
-        );
-
-        if (!Array.isArray(resposta)) return [];
-        return resposta.map(slot => ({
-            inicio: combinarDiaComHora(slot.data, slot.de),
-            fim: combinarDiaComHora(slot.data, slot.ate),
-        }));
+        // Na v1 o ProfissionalId é obrigatório (sem ele: 400 invalid_id) e o
+        // id negativo funciona — o bug da API antiga (lista vazia com id
+        // negativo) não existe mais. Confirmado ao vivo em 2026-11-12.
+        const slots: SlotDisponivel[] = [];
+        for (const [inicio, fim] of janelas(
+            consulta.inicio,
+            consulta.fim,
+            MAX_DIAS_DISPONIBILIDADE,
+        )) {
+            const resposta = await this.client.get<MedxDisponibilidadeV1 | undefined>(
+                '/api/integration/v1/agenda/disponibilidade',
+                {
+                    ProfissionalId: consulta.idProfissional,
+                    Inicio: inicio,
+                    Fim: fim,
+                    DuracaoMinutos: consulta.duracaoMinutos,
+                },
+            );
+            for (const slot of resposta?.horarios ?? []) {
+                slots.push({
+                    inicio: paraHorarioLocal(slot.inicio),
+                    fim: paraHorarioLocal(slot.fim),
+                });
+            }
+        }
+        return slots;
     }
 
     async listarPorPeriodo(inicio: string, fim: string): Promise<OcupacaoAgenda[]> {
-        const resposta = await this.client.get<MedxAgendamentoPeriodo[]>(BASE, { inicio, fim });
-        if (!Array.isArray(resposta)) return [];
-        return resposta.map(cru => ({
-            idProfissional: cru.id_Usuario,
-            inicio: cru.inicio,
-            fim: cru.fim,
-            status: cru.status,
+        const porId = new Map<number, MedxAgendaDetalhe>();
+        for (const [ini, fimJanela] of janelas(inicio, fim, MAX_DIAS_AGENDAMENTOS)) {
+            const itens = await this.client.listarTodos<MedxAgendaDetalhe>(`${BASE_V1}/detalhes`, {
+                Inicio: ini,
+                Fim: fimJanela,
+            });
+            for (const item of itens) porId.set(item.id, item);
+        }
+
+        return [...porId.values()].map(item => ({
+            idProfissional: item.profissional?.id ?? 0,
+            inicio: paraHorarioLocal(item.inicio),
+            fim: paraHorarioLocal(item.fim),
+            status: item.status.id,
         }));
     }
 
     async listarPorPaciente(idPaciente: number): Promise<AgendamentoExterno[]> {
-        const resposta = await this.client.get<MedxAgendamento[]>(`${BASE}/paciente/${idPaciente}`);
-        return Array.isArray(resposta) ? resposta.map(traduzir) : [];
+        const itens = await this.client.listarTodos<MedxAgendaDetalhe>(
+            `${BASE_V1}/paciente/${idPaciente}`,
+        );
+        return itens.map(traduzir);
     }
 
     async confirmar(
         agendamento: AgendamentoExterno,
         indiceStatusConfirmado: number,
     ): Promise<void> {
-        // O PUT não é um PATCH: partimos do payload original para não apagar
-        // campos que este port não modela. Spread do bruto PRIMEIRO, overrides
-        // DEPOIS — a ordem inversa sobrescreveria status/confirmacao com o valor
-        // antigo, deixando a consulta silenciosamente não confirmada.
-        //
-        // Os nomes de campo aqui (snake_case) batem com o que o GET devolve de
-        // verdade, mas o PUT em si ainda não foi testado ao vivo nesta conta —
-        // só a criação (POST) foi confirmada. Validar no primeiro teste real.
-        const cru = agendamento.bruto as MedxAgendamento;
-
-        await this.client.put(BASE, {
-            ...cru,
-            id_do_Agendamento: agendamento.id,
-            status: indiceStatusConfirmado,
-            confirmacao: CONFIRMACAO_LITERAL,
+        // Atualização completa: o MedX apaga o que não for reenviado, então
+        // tudo sai do detalhe lido (com a `versao` intacta) e só status e
+        // confirmação mudam.
+        const d = agendamento.bruto as MedxAgendaDetalhe;
+        if (!d.profissional || !d.paciente) {
+            throw new Error(
+                `Agendamento ${d.id} do MedX sem profissional ou paciente — não dá para confirmar`,
+            );
+        }
+        await this.client.executarOperacao('/api/integration/v1/agenda/cadastros', {
+            acao: 'atualizar_agendamento',
+            agendamento: {
+                id: d.id,
+                profissionalId: d.profissional.id,
+                pacienteId: d.paciente.id,
+                tipoId: d.tipo?.id ?? null,
+                procedimentoId: d.procedimentoId,
+                inicio: d.inicio,
+                fim: d.fim,
+                status: indiceStatusConfirmado,
+                descricao: d.descricao,
+                confirmacao: CONFIRMACAO_LITERAL,
+                sms: d.sms,
+                chegada: d.chegada,
+                atendidoEm: d.atendidoEm,
+                saiuEm: d.saiuEm,
+                versao: d.versao,
+            },
         });
     }
 }

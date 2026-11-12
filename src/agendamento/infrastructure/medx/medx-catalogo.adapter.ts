@@ -4,7 +4,7 @@ import type {
     TipoConsultaResolvido,
 } from '../../application/ports/catalogo-clinico.port';
 import { MedxHttpClient } from './medx-http.client';
-import type { MedxProfissional, MedxTipoAgendamento } from './medx.tipos';
+import type { MedxProfissional, MedxReferencia, MedxTipoAgendamento } from './medx.tipos';
 
 const TTL_PADRAO_MS = 6 * 60 * 60 * 1000;
 const STATUS_QUE_LIBERAM_HORARIO = ['desmarcado', 'cancelou', 'faltou'];
@@ -17,10 +17,10 @@ function chave(texto: string): string {
         .replace(/\p{Diacritic}/gu, '');
 }
 
-function encontrarIndiceStatus(rotulos: string[], alvo: string): number {
+function encontrarIdStatus(status: MedxReferencia[], alvo: string): number {
     // Igualdade exata pós-normalização — NUNCA startsWith (colidiria com um
     // rótulo customizado como "Confirmação Pendente").
-    return rotulos.findIndex(rotulo => chave(rotulo) === alvo);
+    return status.find(s => chave(s.nome) === alvo)?.id ?? -1;
 }
 
 /** Uma string só de dígitos é tratada como id direto, sem consulta ao catálogo. */
@@ -28,120 +28,125 @@ function ehInteiroPuro(texto: string): boolean {
     return /^\d+$/.test(texto.trim());
 }
 
+interface Carregado {
+    profissionais: MedxProfissional[];
+    tipos: MedxTipoAgendamento[];
+    agendado: number;
+    confirmado: number;
+    finalizado: number;
+    liberam: number[];
+}
+
+/**
+ * Catálogo da conta no MedX (API v1). Carrega sob demanda e revalida a cada
+ * TTL; uma falha de carga não fica em cache, a próxima consulta tenta de novo.
+ * Os "índices" de status são os ids da lista `status` de /agenda/catalogos.
+ */
 @Injectable()
 export class MedxCatalogoAdapter implements CatalogoClinicoPort {
     ttlMs = TTL_PADRAO_MS;
     agora: () => number = Date.now;
 
-    private profissionais: MedxProfissional[] = [];
-    private tipos: MedxTipoAgendamento[] = [];
-    private indiceAgendado = -1;
-    private indiceConfirmado = -1;
-    private indiceFinalizado = -1;
-    private indicesLiberam: number[] | null = null;
+    private dados: Carregado | null = null;
     private carregadoEm = -Infinity;
+    private emVoo: Promise<void> | null = null;
 
     constructor(private readonly client: MedxHttpClient) {}
 
     async carregar(): Promise<void> {
-        const [p, t, s] = await Promise.all([
-            this.client.get<MedxProfissional[]>('/api/integration/financas/profissionais'),
-            this.client.get<MedxTipoAgendamento[]>('/api/integration/agenda/tipos'),
-            this.client.get<string[]>('/api/integration/agenda/status'),
+        const [catalogos, tipos, profissionais] = await Promise.all([
+            this.client.get<{ status: MedxReferencia[] }>('/api/integration/v1/agenda/catalogos'),
+            this.client.listarTodos<MedxTipoAgendamento>('/api/integration/v1/agenda/tipos'),
+            this.client.listarTodos<MedxProfissional>(
+                '/api/integration/v1/financas/profissionais',
+                undefined,
+                'profissionais',
+            ),
         ]);
+        const status = catalogos?.status ?? [];
 
-        this.profissionais = p;
-        this.tipos = t;
-
-        this.indiceAgendado = encontrarIndiceStatus(s, 'agendado');
-        if (this.indiceAgendado < 0) {
+        const agendado = encontrarIdStatus(status, 'agendado');
+        if (agendado < 0) {
             throw new Error(
-                `Nenhum rótulo de status corresponde a "Agendado" nesta conta do MedX. ` +
-                    `Rótulos recebidos: ${JSON.stringify(s)}`,
+                `Nenhum status corresponde a "Agendado" nesta conta do MedX. ` +
+                    `Status recebidos: ${JSON.stringify(status.map(s => s.nome))}`,
+            );
+        }
+        const confirmado = encontrarIdStatus(status, 'confirmado');
+        if (confirmado < 0) {
+            throw new Error(
+                `Nenhum status corresponde a "Confirmado" nesta conta do MedX. ` +
+                    `Status recebidos: ${JSON.stringify(status.map(s => s.nome))}`,
             );
         }
 
-        this.indiceConfirmado = encontrarIndiceStatus(s, 'confirmado');
-        if (this.indiceConfirmado < 0) {
-            throw new Error(
-                `Nenhum rótulo de status corresponde a "Confirmado" nesta conta do MedX. ` +
-                    `Rótulos recebidos: ${JSON.stringify(s)}`,
-            );
-        }
-
-        this.indicesLiberam = STATUS_QUE_LIBERAM_HORARIO.map(alvo =>
-            encontrarIndiceStatus(s, alvo),
-        ).filter(indice => indice >= 0);
-
-        this.indiceFinalizado = encontrarIndiceStatus(s, 'finalizado atendimento');
-
+        this.dados = {
+            profissionais,
+            tipos,
+            agendado,
+            confirmado,
+            finalizado: encontrarIdStatus(status, 'finalizado atendimento'),
+            liberam: STATUS_QUE_LIBERAM_HORARIO.map(alvo => encontrarIdStatus(status, alvo)).filter(
+                id => id >= 0,
+            ),
+        };
         this.carregadoEm = this.agora();
     }
 
-    private async garantirCache(): Promise<void> {
-        if (this.agora() - this.carregadoEm >= this.ttlMs) await this.carregar();
+    private async garantir(): Promise<Carregado> {
+        if (!this.dados || this.agora() - this.carregadoEm >= this.ttlMs) {
+            // Chamadas simultâneas compartilham a mesma carga em voo.
+            this.emVoo ??= this.carregar().finally(() => {
+                this.emVoo = null;
+            });
+            await this.emVoo;
+        }
+        return this.dados!;
     }
 
     async resolverProfissional(valor: string | number): Promise<number> {
         if (typeof valor === 'number') return valor;
         if (ehInteiroPuro(valor)) return Number(valor.trim());
 
-        await this.garantirCache();
+        const { profissionais } = await this.garantir();
         const alvo = chave(valor);
-        const achado = this.profissionais.find(
-            p => chave(p.nomeCompleto) === alvo || chave(p.usuarioNome) === alvo,
+        const achado = profissionais.find(
+            p =>
+                chave(p.nome) === alvo ||
+                (p.nomeCompleto !== null && chave(p.nomeCompleto) === alvo),
         );
-
         if (!achado) {
             throw new Error(`Profissional não encontrado no MedX: "${valor}"`);
         }
-        return achado.idDoUsuario;
+        return achado.id;
     }
 
     async resolverTipoConsulta(valor: string | number): Promise<TipoConsultaResolvido> {
-        await this.garantirCache();
-
+        const { tipos } = await this.garantir();
         const ehNumero = typeof valor === 'number' || ehInteiroPuro(String(valor));
         const achado = ehNumero
-            ? this.tipos.find(t => t.iddoDiagnosticoQP === Number(valor))
-            : this.tipos.find(t => chave(t.diagnosticoQP) === chave(String(valor)));
+            ? tipos.find(t => t.id === Number(valor))
+            : tipos.find(t => chave(t.nome) === chave(String(valor)));
 
         if (!achado) {
             throw new Error(`Tipo de consulta não encontrado no MedX: "${valor}"`);
         }
-
-        return {
-            id: achado.iddoDiagnosticoQP,
-            nome: achado.diagnosticoQP,
-            duracaoMinutos: achado.tempo,
-        };
+        return { id: achado.id, nome: achado.nome, duracaoMinutos: achado.duracaoMinutos };
     }
 
-    indiceStatusAgendado(): number {
-        if (this.indiceAgendado < 0) {
-            throw new Error('Catálogo do MedX não foi inicializado — chame carregar() antes');
-        }
-        return this.indiceAgendado;
+    async indiceStatusAgendado(): Promise<number> {
+        return (await this.garantir()).agendado;
     }
 
-    indiceStatusConfirmado(): number {
-        if (this.indiceConfirmado < 0) {
-            throw new Error('Catálogo do MedX não foi inicializado — chame carregar() antes');
-        }
-        return this.indiceConfirmado;
+    async indiceStatusConfirmado(): Promise<number> {
+        return (await this.garantir()).confirmado;
     }
 
-    indiceStatusFinalizado(): number {
-        if (this.carregadoEm === -Infinity) {
-            throw new Error('Catálogo do MedX não foi inicializado — chame carregar() antes');
-        }
-        return this.indiceFinalizado;
+    async indiceStatusFinalizado(): Promise<number> {
+        return (await this.garantir()).finalizado;
     }
 
-    indicesStatusQueLiberamHorario(): number[] {
-        if (!this.indicesLiberam) {
-            throw new Error('Catálogo do MedX não foi inicializado — chame carregar() antes');
-        }
-        return this.indicesLiberam;
+    async indicesStatusQueLiberamHorario(): Promise<number[]> {
+        return (await this.garantir()).liberam;
     }
 }

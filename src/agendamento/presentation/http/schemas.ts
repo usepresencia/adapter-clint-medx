@@ -73,6 +73,16 @@ export const schemaComparecimento = z.object({
     telefone: z.string().min(1),
 });
 
+export const schemaRegravarData = z.object({
+    deal_id: z.string().uuid(),
+    id_agendamento_medx: idAgendamentoMedx,
+    campo: z.enum([
+        'data_agendamento',
+        'horario_lembrete_chegada',
+        'horario_checagem_comparecimento',
+    ]),
+});
+
 export const schemaDisponibilidade = z.object({
     profissional: z.string().min(1),
     data_inicio: z

@@ -95,4 +95,77 @@ describe('MedxHttpClient', () => {
             'Agendamento atualizado com sucesso.',
         );
     });
+
+    it('listarTodos segue o cursor até hasMore=false', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(json({ items: [1], page: { hasMore: true, nextCursor: 'c2' } }))
+            .mockResolvedValueOnce(
+                json({ items: [2], page: { hasMore: false, nextCursor: null } }),
+            );
+
+        const itens = await cliente().client.listarTodos<number>('/x', { Inicio: 'a' });
+
+        expect(itens).toEqual([1, 2]);
+        expect(String(spy.mock.calls[0]![0])).toBe('https://medx.test/x?Inicio=a');
+        expect(String(spy.mock.calls[1]![0])).toBe('https://medx.test/x?Inicio=a&Cursor=c2');
+    });
+
+    it('executarOperacao faz preview e executar com Idempotency-Key', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(json({ operationId: 'op-1' }))
+            .mockResolvedValueOnce(json({ agendamento: { id: -7 } }));
+
+        const resultado = await cliente().client.executarOperacao<{ agendamento: { id: number } }>(
+            '/x',
+            { acao: 'criar' },
+        );
+
+        expect(resultado).toEqual({ agendamento: { id: -7 } });
+        expect(String(spy.mock.calls[0]![0])).toBe('https://medx.test/x/preview');
+        expect(JSON.parse(String(spy.mock.calls[0]![1]!.body))).toEqual({ acao: 'criar' });
+        expect(String(spy.mock.calls[1]![0])).toBe('https://medx.test/x/executar');
+        expect(JSON.parse(String(spy.mock.calls[1]![1]!.body))).toEqual({ operationId: 'op-1' });
+        const headers = spy.mock.calls[1]![1]!.headers as Record<string, string>;
+        expect(headers['idempotency-key']).toBe('op-1');
+    });
+
+    it('executarOperacao propaga 409 da prévia como ErroMedx sem chamar executar', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue(json({ title: 'conflito' }, 409));
+
+        await expect(cliente().client.executarOperacao('/x', {})).rejects.toMatchObject({
+            status: 409,
+        });
+        expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('executarOperacao propaga falha do executar como ErroMedx sem gerar nova prévia', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(json({ operationId: 'op-1' }))
+            .mockResolvedValueOnce(json({ title: 'em andamento' }, 409));
+
+        await expect(cliente().client.executarOperacao('/x', {})).rejects.toBeInstanceOf(ErroMedx);
+        expect(spy).toHaveBeenCalledTimes(2);
+        expect(spy.mock.calls.filter(c => String(c[0]).endsWith('/preview'))).toHaveLength(1);
+    });
+
+    it('listarTodos para com erro quando o MedX repete o cursor', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+            json({ items: [1], page: { hasMore: true, nextCursor: 'mesmo' } }),
+        );
+        await expect(cliente().client.listarTodos('/x')).rejects.toThrow(/cursor/);
+    });
+
+    it('listarTodos lê a lista de outra chave quando informada', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+            json({ profissionais: [{ id: 1 }], page: { hasMore: false } }),
+        );
+        expect(await cliente().client.listarTodos('/x', undefined, 'profissionais')).toEqual([
+            { id: 1 },
+        ]);
+    });
 });

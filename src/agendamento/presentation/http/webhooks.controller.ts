@@ -10,6 +10,7 @@ import {
     schemaLeadOrigem,
     schemaVendaGanha,
     schemaComparecimento,
+    schemaRegravarData,
 } from './schemas';
 import { WebhookAlwaysOkFilter } from './webhook-always-ok.filter';
 
@@ -195,6 +196,40 @@ export class WebhooksController {
                         dealId: p.deal_id,
                         idAgendamentoMedx: p.id_agendamento_medx,
                         telefone: p.telefone,
+                    },
+                },
+            };
+        });
+    }
+
+    /**
+     * Chamado pelas automações da Clint depois de gravarem o `etapa_lembrete`
+     * e apagarem o campo de data que arma a próxima automação.
+     */
+    @Post('regravar-data')
+    @HttpCode(200)
+    async regravarData(
+        @Headers('x-adapter-secret') segredo: string | undefined,
+        @Body() body: unknown,
+    ): Promise<{ ok: true }> {
+        return this.receber(body, segredo, '/webhooks/clint/regravar-data', payload => {
+            const validado = schemaRegravarData.safeParse(payload);
+            if (!validado.success) {
+                return {
+                    ok: false,
+                    motivo: validado.error.issues.map(i => i.path.join('.')).join(', '),
+                };
+            }
+            const p = validado.data;
+            return {
+                ok: true,
+                job: {
+                    tipo: 'regravar-data',
+                    eventoId: 0,
+                    comando: {
+                        dealId: p.deal_id,
+                        idAgendamentoMedx: p.id_agendamento_medx,
+                        campo: p.campo,
                     },
                 },
             };

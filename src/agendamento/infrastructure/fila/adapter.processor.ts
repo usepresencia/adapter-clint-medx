@@ -9,6 +9,7 @@ import { ProcessarRespostaUseCase } from '../../application/processar-resposta-l
 import { ProcessarLeadOrigemUseCase } from '../../application/processar-lead-origem/processar-lead-origem.usecase';
 import { ProcessarVendaGanhaUseCase } from '../../application/processar-venda-ganha/processar-venda-ganha.usecase';
 import { VerificarComparecimentoUseCase } from '../../application/verificar-comparecimento/verificar-comparecimento.usecase';
+import { RegravarDataUseCase } from '../../application/regravar-data/regravar-data.usecase';
 import { EVENTO_REPOSITORIO } from '../../../shared/persistence/persistence.module';
 import { ErroRateLimit } from '../medx/medx.erros';
 import { LIMITER, NOME_FILA } from './fila.constants';
@@ -22,6 +23,7 @@ export class AdapterProcessor extends WorkerHost {
         private readonly processarLeadOrigem: ProcessarLeadOrigemUseCase,
         private readonly processarVendaGanha: ProcessarVendaGanhaUseCase,
         private readonly verificarComparecimento: VerificarComparecimentoUseCase,
+        private readonly regravarData: RegravarDataUseCase,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
     ) {
         super();
@@ -40,8 +42,10 @@ export class AdapterProcessor extends WorkerHost {
                 await this.processarLeadOrigem.executar(dados.comando);
             } else if (dados.tipo === 'venda-ganha') {
                 await this.processarVendaGanha.executar(dados.comando);
-            } else {
+            } else if (dados.tipo === 'comparecimento') {
                 await this.verificarComparecimento.executar(dados.comando);
+            } else {
+                await this.regravarData.executar(dados.comando);
             }
 
             evento.marcarProcessado();
