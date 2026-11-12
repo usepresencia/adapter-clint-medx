@@ -131,7 +131,7 @@ export class AgendarConsultaUseCase {
                         descricao: `${tipo.nome} — ${comando.nome}`,
                         idTipoConsulta: tipo.id,
                     },
-                    this.catalogo.indiceStatusAgendado(),
+                    await this.catalogo.indiceStatusAgendado(),
                 );
                 agendamento.registrarCriacao(idCriado);
             } catch (erro) {

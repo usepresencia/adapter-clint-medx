@@ -24,7 +24,7 @@ export class VerificarComparecimentoUseCase {
     async executar(comando: ComandoVerificarComparecimento): Promise<void> {
         const telefone = Telefone.criar(comando.telefone);
         const externo = await this.agenda.obter(comando.idAgendamentoMedx);
-        const compareceu = externo.status === this.catalogo.indiceStatusFinalizado();
+        const compareceu = externo.status === (await this.catalogo.indiceStatusFinalizado());
 
         if (compareceu) {
             await this.crm.notificarComparecimento(comando.dealId, telefone);

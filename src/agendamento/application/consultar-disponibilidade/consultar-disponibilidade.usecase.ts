@@ -52,7 +52,7 @@ export class ConsultarDisponibilidadeUseCase {
             this.agenda.listarPorPeriodo(inicio, fim),
         ]);
 
-        const liberam = new Set(this.catalogo.indicesStatusQueLiberamHorario());
+        const liberam = new Set(await this.catalogo.indicesStatusQueLiberamHorario());
         const ocupados = agendamentos.filter(
             a => a.idProfissional === idProfissional && !liberam.has(a.status),
         );

@@ -28,3 +28,20 @@ describe('escolherNotificador', () => {
         expect(typeof n.alertar).toBe('function');
     });
 });
+
+describe('AgendamentoModule.onModuleInit', () => {
+    it('onModuleInit não lança quando o MedX falha', async () => {
+        const { AgendamentoModule } = await import('./agendamento.module');
+        const avisos: unknown[] = [];
+        const modulo = new AgendamentoModule(
+            { carregar: async () => Promise.reject(new Error('HTTP 404')) } as never,
+            {
+                warn: (...args: unknown[]) => avisos.push(args),
+                info: () => {},
+                error: () => {},
+            } as never,
+        );
+        await expect(modulo.onModuleInit()).resolves.toBeUndefined();
+        expect(avisos).toHaveLength(1);
+    });
+});

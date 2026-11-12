@@ -8,20 +8,20 @@ export interface TipoConsultaResolvido {
 
 export interface CatalogoClinicoPort {
     /**
-     * Carrega as tabelas de apoio. Falha se os rótulos de "Agendado" ou
-     * "Confirmado" não existirem na conta — os índices variam por conta e
-     * NUNCA devem ser fixados em código.
+     * Carrega as tabelas de apoio. Falha se os status "Agendado" ou
+     * "Confirmado" não existirem na conta — os ids variam por conta e NUNCA
+     * devem ser fixados em código. As consultas abaixo carregam sob demanda.
      */
     carregar(): Promise<void>;
     resolverProfissional(valor: string | number): Promise<number>;
     resolverTipoConsulta(valor: string | number): Promise<TipoConsultaResolvido>;
-    indiceStatusAgendado(): number;
-    indiceStatusConfirmado(): number;
+    indiceStatusAgendado(): Promise<number>;
+    indiceStatusConfirmado(): Promise<number>;
     /** -1 quando a conta não tem o rótulo "Finalizado Atendimento". */
-    indiceStatusFinalizado(): number;
+    indiceStatusFinalizado(): Promise<number>;
     /**
      * Índices dos status que deixam o horário livre na agenda (Desmarcado,
      * Cancelou, Faltou). Rótulo ausente na conta é só ignorado.
      */
-    indicesStatusQueLiberamHorario(): number[];
+    indicesStatusQueLiberamHorario(): Promise<number[]>;
 }

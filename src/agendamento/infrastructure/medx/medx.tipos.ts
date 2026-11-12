@@ -1,19 +1,17 @@
-// A doc do MedX documenta PascalCase, mas a API real observada em produção
-// devolve camelCase — tratamos a doc como desatualizada e seguimos o
-// comportamento real.
+/** Item de `profissionais` em GET /api/integration/v1/financas/profissionais. */
 export interface MedxProfissional {
-    idDoUsuario: number;
-    nomeCompleto: string;
-    usuarioNome: string;
+    id: number;
+    nome: string;
+    nomeCompleto: string | null;
     ativo: boolean;
-    agenda: boolean;
-    linkAgendamentoOnline: string;
+    agendavel: boolean;
 }
 
+/** Item de GET /api/integration/v1/agenda/tipos. */
 export interface MedxTipoAgendamento {
-    iddoDiagnosticoQP: number;
-    diagnosticoQP: string;
-    tempo: number;
+    id: number;
+    nome: string;
+    duracaoMinutos: number;
 }
 
 // A doc do MedX documenta PascalCase (Id_do_Agendamento, Vinculado_a...), mas

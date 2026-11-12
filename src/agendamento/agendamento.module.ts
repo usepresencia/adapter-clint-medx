@@ -20,6 +20,7 @@ import {
     CATALOGO_CLINICO_PORT,
     type CatalogoClinicoPort,
 } from './application/ports/catalogo-clinico.port';
+import { LOGGER_PORT, type LoggerMinimo } from './application/ports/logger.port';
 import { CADASTRO_PACIENTE_PORT } from './application/ports/cadastro-paciente.port';
 import { AGENDA_MEDICA_PORT } from './application/ports/agenda-medica.port';
 import { CRM_PORT } from './application/ports/crm.port';
@@ -64,11 +65,22 @@ import { LeadsController } from './presentation/http/leads.controller';
     ],
 })
 export class AgendamentoModule implements OnModuleInit {
-    constructor(@Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort) {}
+    constructor(
+        @Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort,
+        @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
+    ) {}
 
     async onModuleInit(): Promise<void> {
-        // Falha cedo e alto se o rótulo de confirmação não existir nesta conta —
-        // deliberadamente sem try/catch.
-        await this.catalogo.carregar();
+        // Aquece o catálogo, mas o adapter sobe mesmo com o MedX fora: os
+        // webhooks são gravados e enfileirados, e o catálogo recarrega sob
+        // demanda no primeiro job.
+        try {
+            await this.catalogo.carregar();
+        } catch (erro) {
+            this.logger.warn(
+                { alerta: true, erro: erro instanceof Error ? erro.message : String(erro) },
+                'catálogo do MedX indisponível no boot — será carregado sob demanda',
+            );
+        }
     }
 }

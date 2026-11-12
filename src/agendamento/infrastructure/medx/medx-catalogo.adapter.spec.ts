@@ -2,193 +2,109 @@ import { describe, it, expect } from 'vitest';
 import { MedxCatalogoAdapter } from './medx-catalogo.adapter';
 import type { MedxHttpClient } from './medx-http.client';
 
-// A doc do MedX documenta PascalCase (IdDoUsuario, NomeCompleto...), mas a API
-// real observada em produção devolve camelCase — tratamos a doc como
-// desatualizada e seguimos o comportamento real.
 const PROFISSIONAIS = [
     {
-        idDoUsuario: 43013640,
-        nomeCompleto: 'Leize Ferreira',
-        usuarioNome: 'leize',
+        id: -692937676,
+        nome: 'Leize',
+        nomeCompleto: 'Leize Nachiesca Schiavini',
         ativo: true,
-        agenda: true,
-        linkAgendamentoOnline: '',
+        agendavel: true,
     },
 ];
-const TIPOS = [{ iddoDiagnosticoQP: 111, diagnosticoQP: 'Consulta de Rotina', tempo: 30 }];
-const STATUS = ['Agendado', 'Confirmado', 'Chegou', 'Cancelado'];
+const TIPOS = [{ id: 111, nome: 'Consulta de Rotina', duracaoMinutos: 30 }];
+const STATUS = [
+    { id: 0, nome: 'Desmarcado' },
+    { id: 1, nome: 'Agendado' },
+    { id: 2, nome: 'Confirmado' },
+    { id: 3, nome: 'Faltou' },
+    { id: 5, nome: 'Cancelou' },
+    { id: 11, nome: 'Finalizado Atendimento' },
+];
 
-function clientFalso(status: string[] = STATUS) {
+function clientFalso(
+    opcoes: { status?: Array<{ id: number; nome: string }>; falhas?: number } = {},
+) {
     const chamadas: string[] = [];
+    let falhasRestantes = opcoes.falhas ?? 0;
     const client = {
         async get<T>(caminho: string): Promise<T> {
             chamadas.push(caminho);
-            if (caminho.endsWith('/status')) return status as T;
-            if (caminho.endsWith('/tipos')) return TIPOS as T;
-            if (caminho.endsWith('/profissionais')) return PROFISSIONAIS as T;
+            if (falhasRestantes > 0) {
+                falhasRestantes--;
+                throw new Error('MedX fora do ar');
+            }
+            if (caminho === '/api/integration/v1/agenda/catalogos') {
+                return {
+                    status: opcoes.status ?? STATUS,
+                    profissionais: [],
+                    tipos: [],
+                    setores: [],
+                } as T;
+            }
+            if (caminho === '/api/integration/v1/financas/profissionais') {
+                return { profissionais: PROFISSIONAIS, page: { hasMore: false } } as T;
+            }
             throw new Error(`caminho inesperado: ${caminho}`);
         },
-        post: async <T>() => ({}) as T,
-        put: async <T>() => ({}) as T,
+        async listarTodos<T>(caminho: string): Promise<T[]> {
+            chamadas.push(caminho);
+            if (caminho === '/api/integration/v1/agenda/tipos') return TIPOS as T[];
+            throw new Error(`caminho inesperado: ${caminho}`);
+        },
     } as unknown as MedxHttpClient;
     return { client, chamadas };
 }
 
-describe('índice de status', () => {
-    it('confirmado é descoberto, não codificado', async () => {
+describe('status pelo catálogo v1', () => {
+    it('resolve status pelo nome no catálogo v1', async () => {
         const c = new MedxCatalogoAdapter(clientFalso().client);
-        await c.carregar();
-        expect(c.indiceStatusConfirmado()).toBe(1);
+        expect(await c.indiceStatusAgendado()).toBe(1);
+        expect(await c.indiceStatusConfirmado()).toBe(2);
+        expect(await c.indiceStatusFinalizado()).toBe(11);
+        expect(await c.indicesStatusQueLiberamHorario()).toEqual([0, 5, 3]);
     });
 
-    it('agendado também é descoberto, não codificado', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso().client);
-        await c.carregar();
-        expect(c.indiceStatusAgendado()).toBe(0);
-    });
-
-    it('acompanha a reordenação dos rótulos da conta (agendado e confirmado)', async () => {
+    it('ignora acento e caixa e não confunde "Confirmação Pendente" com "Confirmado"', async () => {
         const c = new MedxCatalogoAdapter(
-            clientFalso(['Chegou', 'Cancelado', 'Confirmado', 'Agendado']).client,
+            clientFalso({
+                status: [
+                    { id: 7, nome: 'Confirmação Pendente' },
+                    { id: 1, nome: 'AGENDADO' },
+                    { id: 9, nome: 'confirmado' },
+                ],
+            }).client,
         );
-        await c.carregar();
-        expect(c.indiceStatusAgendado()).toBe(3);
-        expect(c.indiceStatusConfirmado()).toBe(2);
+        expect(await c.indiceStatusConfirmado()).toBe(9);
     });
 
-    it('ignora acento e caixa ao procurar o rótulo', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso(['agendado', 'CONFIRMADO']).client);
-        await c.carregar();
-        expect(c.indiceStatusAgendado()).toBe(0);
-        expect(c.indiceStatusConfirmado()).toBe(1);
-    });
-
-    it('não confunde "Confirmação Pendente" com "Confirmado"', async () => {
+    it('falha quando não existe rótulo de confirmação', async () => {
         const c = new MedxCatalogoAdapter(
-            clientFalso(['Agendado', 'Confirmação Pendente', 'Confirmado', 'Cancelado']).client,
+            clientFalso({ status: [{ id: 1, nome: 'Agendado' }] }).client,
         );
-        await c.carregar();
-        expect(c.indiceStatusConfirmado()).toBe(2);
+        await expect(c.indiceStatusConfirmado()).rejects.toThrow(/Confirmado/);
     });
 
-    it('falha no carregamento quando não existe rótulo de confirmação', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso(['Agendado', 'Chegou', 'Cancelado']).client);
-        await expect(c.carregar()).rejects.toThrow(/Confirmado/);
-    });
-
-    it('falha no carregamento quando não existe rótulo de agendado', async () => {
+    it('devolve -1 quando a conta não tem Finalizado Atendimento', async () => {
         const c = new MedxCatalogoAdapter(
-            clientFalso(['Desmarcado', 'Confirmado', 'Cancelado']).client,
+            clientFalso({ status: STATUS.filter(s => s.id !== 11) }).client,
         );
-        await expect(c.carregar()).rejects.toThrow(/Agendado/);
-    });
-
-    it('erra com mensagem clara se consultado antes de carregar', () => {
-        expect(() =>
-            new MedxCatalogoAdapter(clientFalso().client).indiceStatusConfirmado(),
-        ).toThrow(/carregar/);
-        expect(() => new MedxCatalogoAdapter(clientFalso().client).indiceStatusAgendado()).toThrow(
-            /carregar/,
-        );
+        expect(await c.indiceStatusFinalizado()).toBe(-1);
     });
 });
 
-describe('índice de status finalizado', () => {
-    const STATUS_COM_FINALIZADO = [
-        'Desmarcado',
-        'Agendado',
-        'Confirmado',
-        'Faltou',
-        'Cancelou',
-        'Finalizado Atendimento',
-    ];
-
-    it('descobre pelo nome o índice de Finalizado Atendimento', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso(STATUS_COM_FINALIZADO).client);
-        await c.carregar();
-        expect(c.indiceStatusFinalizado()).toBe(5);
-    });
-
-    it('devolve -1 quando a conta não tem o rótulo Finalizado Atendimento, sem falhar o carregamento', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso(STATUS).client);
-        await c.carregar();
-        expect(c.indiceStatusFinalizado()).toBe(-1);
-    });
-
-    it('erra com mensagem clara se consultado antes de carregar', () => {
-        expect(() =>
-            new MedxCatalogoAdapter(clientFalso().client).indiceStatusFinalizado(),
-        ).toThrow(/carregar/);
-    });
-});
-
-describe('status que liberam o horário', () => {
-    // Rótulos reais desta conta, na ordem em que o MedX devolve.
-    const STATUS_REAIS = [
-        'Desmarcado',
-        'Agendado',
-        'Confirmado',
-        'Faltou',
-        'Laser',
-        'Cancelou',
-        'Intramuscular/tzp',
-    ];
-
-    it('descobre pelo nome os índices de Desmarcado, Cancelou e Faltou', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso(STATUS_REAIS).client);
-        await c.carregar();
-        expect([...c.indicesStatusQueLiberamHorario()].sort()).toEqual([0, 3, 5]);
-    });
-
-    it('não falha quando a conta não tem algum desses rótulos — só não o considera', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso(STATUS).client);
-        await c.carregar();
-        expect(c.indicesStatusQueLiberamHorario()).toEqual([]);
-    });
-
-    it('erra com mensagem clara se consultado antes de carregar', () => {
-        expect(() =>
-            new MedxCatalogoAdapter(clientFalso().client).indicesStatusQueLiberamHorario(),
-        ).toThrow(/carregar/);
-    });
-});
-
-describe('resolução de profissional e tipo', () => {
-    it('resolve profissional por nome completo', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso().client);
-        await c.carregar();
-        expect(await c.resolverProfissional('Leize Ferreira')).toBe(43013640);
-    });
-
-    it('resolve ignorando caixa, acento e espaços', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso().client);
-        await c.carregar();
-        expect(await c.resolverProfissional('  leize ferreira ')).toBe(43013640);
-    });
-
-    it('aceita o id numérico direto sem nova consulta', async () => {
+describe('carregamento sob demanda', () => {
+    it('carrega sob demanda na primeira consulta, sem carregar() prévio', async () => {
         const { client, chamadas } = clientFalso();
         const c = new MedxCatalogoAdapter(client);
-        await c.carregar();
-        chamadas.length = 0;
-        expect(await c.resolverProfissional(43013640)).toBe(43013640);
         expect(chamadas).toHaveLength(0);
+        await c.indiceStatusAgendado();
+        expect(chamadas).toContain('/api/integration/v1/agenda/catalogos');
     });
 
-    it('resolve tipo devolvendo id, nome e duração', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso().client);
-        await c.carregar();
-        expect(await c.resolverTipoConsulta('Consulta de Rotina')).toEqual({
-            id: 111,
-            nome: 'Consulta de Rotina',
-            duracaoMinutos: 30,
-        });
-    });
-
-    it('erra com mensagem útil quando o profissional não existe', async () => {
-        const c = new MedxCatalogoAdapter(clientFalso().client);
-        await c.carregar();
-        await expect(c.resolverProfissional('Fulano')).rejects.toThrow(/Fulano/);
+    it('falha de carga não fica em cache: próxima chamada tenta de novo', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso({ falhas: 1 }).client);
+        await expect(c.indiceStatusAgendado()).rejects.toThrow(/fora do ar/);
+        expect(await c.indiceStatusAgendado()).toBe(1);
     });
 
     it('revalida o cache depois do TTL', async () => {
@@ -200,7 +116,35 @@ describe('resolução de profissional e tipo', () => {
         await c.carregar();
         const antes = chamadas.length;
         agora = 2000;
-        await c.resolverProfissional('Leize Ferreira');
+        await c.resolverProfissional('Leize');
         expect(chamadas.length).toBeGreaterThan(antes);
+    });
+});
+
+describe('resolução de profissional e tipo', () => {
+    it('resolve profissional por nome ou nome completo, ignorando caixa e acento', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso().client);
+        expect(await c.resolverProfissional('leize')).toBe(-692937676);
+        expect(await c.resolverProfissional('  LEIZE nachiesca schiavini ')).toBe(-692937676);
+    });
+
+    it('aceita o id numérico direto sem consultar o catálogo', async () => {
+        const { client, chamadas } = clientFalso();
+        expect(await new MedxCatalogoAdapter(client).resolverProfissional('123')).toBe(123);
+        expect(chamadas).toHaveLength(0);
+    });
+
+    it('resolve tipo devolvendo id, nome e duração', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso().client);
+        expect(await c.resolverTipoConsulta('consulta de rotina')).toEqual({
+            id: 111,
+            nome: 'Consulta de Rotina',
+            duracaoMinutos: 30,
+        });
+    });
+
+    it('erra com mensagem útil quando o profissional não existe', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso().client);
+        await expect(c.resolverProfissional('Fulano')).rejects.toThrow(/Fulano/);
     });
 });
