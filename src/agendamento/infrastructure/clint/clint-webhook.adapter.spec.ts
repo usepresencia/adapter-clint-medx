@@ -46,7 +46,7 @@ describe('gravarIdAgendamento', () => {
         });
     });
 
-    it('usa a véspera às 18h no lembrete de chegada quando 2h antes cairia antes das 8h', async () => {
+    it('usa as 06h do próprio dia no lembrete de chegada quando 2h antes cairia antes das 8h', async () => {
         const spy = espiar();
         await new ClintWebhookAdapter(configFalso()).gravarIdAgendamento(
             'deal-1',
@@ -56,7 +56,7 @@ describe('gravarIdAgendamento', () => {
         );
 
         expect(corpoDe(spy.mock.calls[0] as [any, any])).toMatchObject({
-            horario_lembrete_chegada: '2026-07-09T18:00:00',
+            horario_lembrete_chegada: '2026-07-10T06:00:00',
         });
     });
 
