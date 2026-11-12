@@ -171,6 +171,25 @@ describe('obter', () => {
     });
 });
 
+describe('confirmar sem profissional ou paciente', () => {
+    it('rejeita antes de chamar o MedX quando o detalhe não tem profissional ou paciente', async () => {
+        for (const faltando of [{ profissional: null }, { paciente: null }]) {
+            const { client, chamadas } = clientFalso({
+                get: { ...DETALHE, ...faltando },
+                post: {},
+            });
+            const agenda = new MedxAgendaAdapter(client);
+            const externo = await agenda.obter(-1646861682);
+            chamadas.length = 0;
+
+            await expect(agenda.confirmar(externo, 2)).rejects.toThrow(
+                /sem profissional ou paciente/,
+            );
+            expect(chamadas).toHaveLength(0);
+        }
+    });
+});
+
 describe('listarPorPaciente', () => {
     it('usa a rota v1 paginada e traduz cada item', async () => {
         const { client, chamadas } = clientFalso({ paginas: () => [DETALHE] });

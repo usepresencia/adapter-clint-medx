@@ -165,12 +165,17 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
         // tudo sai do detalhe lido (com a `versao` intacta) e só status e
         // confirmação mudam.
         const d = agendamento.bruto as MedxAgendaDetalhe;
+        if (!d.profissional || !d.paciente) {
+            throw new Error(
+                `Agendamento ${d.id} do MedX sem profissional ou paciente — não dá para confirmar`,
+            );
+        }
         await this.client.executarOperacao('/api/integration/v1/agenda/cadastros', {
             acao: 'atualizar_agendamento',
             agendamento: {
                 id: d.id,
-                profissionalId: d.profissional?.id ?? null,
-                pacienteId: d.paciente?.id ?? null,
+                profissionalId: d.profissional.id,
+                pacienteId: d.paciente.id,
                 tipoId: d.tipo?.id ?? null,
                 procedimentoId: d.procedimentoId,
                 inicio: d.inicio,
