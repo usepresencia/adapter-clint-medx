@@ -33,9 +33,10 @@ export class ConsultarDisponibilidadeUseCase {
     ) {}
 
     /**
-     * A disponibilidade do MedX é só a grade de atendimento — confirmado ao
-     * vivo que ela NÃO desconta os agendamentos existentes. Por isso a agenda
-     * do período é buscada à parte e descontada aqui.
+     * Na API antiga a disponibilidade do MedX era só a grade e NÃO descontava
+     * os agendamentos. A v1 diz que desconta; a agenda do período continua
+     * sendo buscada e descontada aqui como segunda proteção (descontar de novo
+     * não tem efeito colateral).
      */
     async executar(comando: ComandoDisponibilidade): Promise<SlotDisponivel[]> {
         const idProfissional = await this.catalogo.resolverProfissional(comando.profissional);
