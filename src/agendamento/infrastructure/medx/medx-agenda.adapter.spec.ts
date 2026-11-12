@@ -335,14 +335,16 @@ describe('leituras para o monitor', () => {
         });
     });
 
-    it('existe devolve false só no 404', async () => {
+    it('obterSeExistir devolve null só no 404', async () => {
         const com = (erro: Error) =>
             ({ get: async () => Promise.reject(erro) }) as unknown as MedxHttpClient;
-        expect(await new MedxAgendaAdapter(com(new ErroMedx(404, 'x'))).existe(1)).toBe(false);
+        expect(
+            await new MedxAgendaAdapter(com(new ErroMedx(404, 'x'))).obterSeExistir(1),
+        ).toBeNull();
         await expect(
-            new MedxAgendaAdapter(com(new ErroMedx(500, 'x'))).existe(1),
+            new MedxAgendaAdapter(com(new ErroMedx(500, 'x'))).obterSeExistir(1),
         ).rejects.toThrow();
         const { client } = clientFalso({ get: DETALHE });
-        expect(await new MedxAgendaAdapter(client).existe(1)).toBe(true);
+        expect((await new MedxAgendaAdapter(client).obterSeExistir(1))?.id).toBe(-1646861682);
     });
 });

@@ -152,7 +152,17 @@ export class MonitorarAgendaUseCase {
 
         const ehEndovenoso = ag.status === r.endovenoso;
         if (negocio) {
+            if (this.criacaoFicouPelaMetade(negocio)) {
+                await this.concluirCriacao(r, negocio.id, ag);
+                return;
+            }
             await this.remarcarSeMudou(r, negocio, ag);
+            return;
+        }
+
+        // Sem negócio e a consulta de hoje já começou: não cabe boas-vindas.
+        if (DateTime.fromISO(ag.inicio, { zone: FUSO_CLINICA }) <= r.agora) {
+            r.resumo.ignorados++;
             return;
         }
 
@@ -180,6 +190,18 @@ export class MonitorarAgendaUseCase {
         }
 
         if (resultado.tipo === 'contato') {
+            // Negócio que a Clint acabou de criar e ainda espera o id pelo
+            // webhook de entrada: fica para a próxima rodada (evita duplicar).
+            const pendente = r.negocios.some(
+                n =>
+                    n.contatoId === resultado.contato.id &&
+                    !n.campos.id_agendamento_medx &&
+                    n.etapaId === this.config.get<string>('CLINT_ETAPA_CRIACAO_ID'),
+            );
+            if (pendente) {
+                r.resumo.ignorados++;
+                return;
+            }
             // Prefere o negócio da etapa que combina com o tipo (endovenoso →
             // ENDOVENOSO, consulta → BOAS VINDAS); senão, qualquer assumível.
             const candidatos = r.negocios.filter(
@@ -192,7 +214,9 @@ export class MonitorarAgendaUseCase {
                 ehEndovenoso ? 'CLINT_ETAPA_ENDOVENOSO_ID' : 'CLINT_ETAPA_BOAS_VINDAS_ID',
             );
             const assumivel = candidatos.find(n => n.etapaId === etapaDoTipo) ?? candidatos[0];
-            if (assumivel) {
+            // Telefone de um contato só, com outro nome (ex.: mãe e filha): usa o
+            // contato, mas não assume o negócio dele.
+            if (assumivel && resultado.nomeConfere) {
                 await this.assumir(r, assumivel, ag, ehEndovenoso);
                 return;
             }
@@ -226,15 +250,15 @@ export class MonitorarAgendaUseCase {
                 telefone: quem.telefone,
                 campos,
             });
-            await this.gravarSeHouver(criado.id, this.camposDeData(r, ag));
-            await this.crm.moverParaBoasVindas(criado.id);
-            await this.crm.gravarCampos(criado.id, {
-                proximo_lembrete: calcularProximoLembrete(ag.inicio, r.agora),
-            });
+            await this.concluirCriacao(r, criado.id, ag, false);
             if (quem.semTelefone && criado.contatoId) {
                 await this.contatos.adicionarTag(criado.contatoId, TAG_SEM_TELEFONE);
             }
+            this.registrar(r, { id: criado.id, contatoId: criado.contatoId ?? '' }, ag, campos);
         });
+        if (r.modo === 'observar' && quem.contatoId) {
+            this.registrar(r, { id: `observar:${ag.id}`, contatoId: quem.contatoId }, ag, campos);
+        }
         r.resumo.criados++;
     }
 
@@ -258,6 +282,10 @@ export class MonitorarAgendaUseCase {
                 }
             },
         );
+        // Marca na rodada (inclusive em observar) para outro agendamento do
+        // mesmo contato não assumir o mesmo negócio.
+        negocio.campos.id_agendamento_medx = String(ag.id);
+        r.porIdAgendamento.set(String(ag.id), negocio);
         r.resumo.assumidos++;
     }
 
@@ -275,10 +303,12 @@ export class MonitorarAgendaUseCase {
             'remarcar',
             { id_agendamento: ag.id, deal_id: negocio.id },
             async () => {
-                await this.gravarSeHouver(negocio.id, this.camposDeData(r, ag));
+                // O salto vem antes das datas: elas são o marcador de que a
+                // remarcação terminou (se o salto falhar, a próxima rodada refaz).
                 if (etapaFoiUltrapassada(negocio.campos.etapa_lembrete || null, proximo)) {
                     await this.crm.gravarCampos(negocio.id, { proximo_lembrete: proximo });
                 }
+                await this.gravarSeHouver(negocio.id, this.camposDeData(r, ag));
             },
         );
         r.resumo.remarcados++;
@@ -303,8 +333,8 @@ export class MonitorarAgendaUseCase {
 
     /**
      * Negócio vinculado cuja consulta está na janela mas não veio na listagem:
-     * só é cancelamento se o MedX também não o achar pelo id (um remarcado
-     * para além da janela continua existindo).
+     * consulta pelo id; não existe ou foi cancelado → cancela; existe (foi
+     * remarcado para além da janela) → regrava as datas.
      */
     private async tratarDesaparecidos(
         r: Rodada,
@@ -318,12 +348,71 @@ export class MonitorarAgendaUseCase {
             const data = negocio.campos.data_agendamento;
             if (vistos.has(id) || !data || data < de || data >= ate) continue;
             const seguir = await this.comProtecao(r, Number(id), async () => {
-                if (!(await this.agenda.existe(Number(id)))) {
+                const externo = await this.agenda.obterSeExistir(Number(id));
+                if (!externo || r.cancelamento.includes(externo.status)) {
                     await this.cancelar(r, negocio, Number(id));
+                } else {
+                    await this.remarcarSeMudou(r, negocio, externo);
                 }
             });
             if (!seguir) return;
         }
+    }
+
+    /**
+     * Negócio criado pelo monitor que parou antes de entrar em BOAS VINDAS
+     * (falha entre a criação e o `proximo_lembrete`).
+     */
+    private criacaoFicouPelaMetade(negocio: NegocioRecepcao): boolean {
+        const criadoPeloMonitor =
+            negocio.campos.etapa_lembrete === 'd0_boas_vindas' ||
+            negocio.campos.tipo_consulta === 'endovenoso';
+        return (
+            negocio.etapaId === this.config.get<string>('CLINT_ETAPA_CRIACAO_ID') &&
+            criadoPeloMonitor &&
+            !negocio.campos.proximo_lembrete
+        );
+    }
+
+    /** Entra em BOAS VINDAS (dispara a cadeia), grava as datas e o `proximo_lembrete`. */
+    private async concluirCriacao(
+        r: Rodada,
+        dealId: string,
+        ag: AgendamentoExterno,
+        protegido = true,
+    ): Promise<void> {
+        const passos = async () => {
+            await this.crm.moverParaBoasVindas(dealId);
+            await this.gravarSeHouver(dealId, this.camposDeData(r, ag));
+            await this.crm.gravarCampos(dealId, {
+                proximo_lembrete: calcularProximoLembrete(ag.inicio, r.agora),
+            });
+        };
+        if (!protegido) return passos();
+        await this.escrever(
+            r,
+            'concluir criação',
+            { id_agendamento: ag.id, deal_id: dealId },
+            passos,
+        );
+    }
+
+    private registrar(
+        r: Rodada,
+        criado: { id: string; contatoId: string },
+        ag: AgendamentoExterno,
+        campos: CamposNegocio,
+    ): void {
+        const novo: NegocioRecepcao = {
+            id: criado.id,
+            contatoId: criado.contatoId,
+            nomeContato: '',
+            telefone: null,
+            etapaId: this.config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID')!,
+            campos: { ...(campos as Record<string, string>), id_agendamento_medx: String(ag.id) },
+        };
+        r.negocios.push(novo);
+        r.porIdAgendamento.set(String(ag.id), novo);
     }
 
     private camposBase(ag: AgendamentoExterno, ehEndovenoso: boolean): CamposNegocio {

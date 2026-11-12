@@ -9,7 +9,8 @@ import { Telefone } from '../../domain/paciente/telefone';
 import { nomeCasa } from '../../domain/paciente/casar-nome';
 
 export type ResultadoContato =
-    | { tipo: 'contato'; contato: ContatoClint; telefone: Telefone | null }
+    /** `nomeConfere`: falso quando o telefone achou um contato só, de outro nome. */
+    | { tipo: 'contato'; contato: ContatoClint; telefone: Telefone | null; nomeConfere: boolean }
     | { tipo: 'novo'; telefone: Telefone | null }
     /** `porTelefone`: o mesmo telefone em vários contatos (único caso que recebe tag). */
     | { tipo: 'ambiguo'; candidatos: ContatoClint[]; porTelefone: boolean };
@@ -71,14 +72,20 @@ export class ResolvedorContato {
                 : null);
 
         if (telefone) {
-            const porTelefone = await this.crm.buscarContatos({ telefone });
+            const porTelefone = await this.buscarPorTelefone(telefone);
             if (porTelefone.length === 1) {
-                return { tipo: 'contato', contato: porTelefone[0]!, telefone };
+                const contato = porTelefone[0]!;
+                return {
+                    tipo: 'contato',
+                    contato,
+                    telefone,
+                    nomeConfere: nomeCasa(paciente.nome, contato.nome),
+                };
             }
             if (porTelefone.length > 1) {
                 const peloNome = porTelefone.filter(c => nomeCasa(paciente.nome, c.nome));
                 return peloNome.length === 1
-                    ? { tipo: 'contato', contato: peloNome[0]!, telefone }
+                    ? { tipo: 'contato', contato: peloNome[0]!, telefone, nomeConfere: true }
                     : { tipo: 'ambiguo', candidatos: porTelefone, porTelefone: true };
             }
         }
@@ -92,7 +99,20 @@ export class ResolvedorContato {
         if (!telefone && doContato && contexto.gravar) {
             await this.cadastro.enriquecerFicha(paciente.idPaciente, { telefone: doContato });
         }
-        return { tipo: 'contato', contato, telefone: doContato ?? telefone };
+        return { tipo: 'contato', contato, telefone: doContato ?? telefone, nomeConfere: true };
+    }
+
+    /**
+     * Número paraguaio gravado no MedX sem o 5 inicial (`95982663052`) parece
+     * um celular brasileiro de DDD 95; sem resultado, tenta também com 595.
+     */
+    private async buscarPorTelefone(telefone: Telefone): Promise<ContatoClint[]> {
+        const achados = await this.crm.buscarContatos({ telefone });
+        if (achados.length > 0 || telefone.estrangeiro || !telefone.nacional.startsWith('95')) {
+            return achados;
+        }
+        const paraguaio = telefoneOuNull(`5${telefone.nacional}`);
+        return paraguaio?.estrangeiro ? this.crm.buscarContatos({ telefone: paraguaio }) : achados;
     }
 
     /**

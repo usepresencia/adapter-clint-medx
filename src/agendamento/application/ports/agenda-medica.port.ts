@@ -64,6 +64,6 @@ export interface AgendaMedicaPort {
     listarPorPeriodo(inicio: string, fim: string): Promise<OcupacaoAgenda[]>;
     /** Agendamentos completos do período (com paciente e status), para o monitor. */
     listarDetalhadosPorPeriodo(inicio: string, fim: string): Promise<AgendamentoExterno[]>;
-    /** `false` só quando o MedX responde que o agendamento não existe (404). */
-    existe(id: number): Promise<boolean>;
+    /** `null` só quando o MedX responde que o agendamento não existe (404). */
+    obterSeExistir(id: number): Promise<AgendamentoExterno | null>;
 }

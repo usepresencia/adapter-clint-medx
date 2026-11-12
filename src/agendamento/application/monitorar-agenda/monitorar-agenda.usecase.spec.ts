@@ -53,12 +53,15 @@ function montar(opcoes: {
     negocios?: NegocioRecepcao[];
     contato?: ResultadoContato;
     existe?: boolean;
+    foraDaJanela?: AgendamentoExterno[];
     falharGravacaoEm?: string;
 }) {
     const chamadas: Array<[string, ...unknown[]]> = [];
     const agenda = {
         listarDetalhadosPorPeriodo: vi.fn(async () => opcoes.agendamentos),
-        existe: vi.fn(async () => opcoes.existe ?? true),
+        obterSeExistir: vi.fn(async (id: number) =>
+            opcoes.existe === false ? null : (opcoes.foraDaJanela?.find(a => a.id === id) ?? null),
+        ),
     };
     const catalogo = {
         indiceStatusAgendado: async () => 1,
@@ -94,7 +97,11 @@ function montar(opcoes: {
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const config = {
         get: (k: string) =>
-            ({ CLINT_ETAPA_BOAS_VINDAS_ID: BOAS_VINDAS, CLINT_ETAPA_ENDOVENOSO_ID: ENDOVENOSO })[k],
+            ({
+                CLINT_ETAPA_BOAS_VINDAS_ID: BOAS_VINDAS,
+                CLINT_ETAPA_ENDOVENOSO_ID: ENDOVENOSO,
+                CLINT_ETAPA_CRIACAO_ID: 'b088f0ab-75d4-40df-80b5-53117d0f49aa',
+            })[k],
     };
     const usecase = new MonitorarAgendaUseCase(
         agenda as any,
@@ -113,6 +120,7 @@ const CONTATO: ResultadoContato = {
     tipo: 'contato',
     contato: { id: 'c-1', nome: 'Maria', telefone: '+5545999197847' },
     telefone: null,
+    nomeConfere: true,
 };
 const vinculado = (id: number, data: string, hora: string, etapa = 'd3_preparacao_consulta') =>
     negocio(`deal${Math.abs(id)}`, {
@@ -150,8 +158,8 @@ describe('MonitorarAgendaUseCase', () => {
         const resumo = await usecase.executar('agir');
         expect(chamadas.map(c => c[0])).toEqual([
             'criarNegocio',
-            'gravarCampos',
             'moverParaBoasVindas',
+            'gravarCampos',
             'gravarCampos',
         ]);
         expect(chamadas[0]![1]).toEqual({
@@ -163,7 +171,7 @@ describe('MonitorarAgendaUseCase', () => {
                 etapa_lembrete: 'd0_boas_vindas',
             },
         });
-        expect(chamadas[1]![2]).toEqual({
+        expect(chamadas[2]![2]).toEqual({
             data_agendamento: '2026-11-20',
             hora_agendamento: '10:00',
             horario_lembrete_chegada: '2026-11-20T08:00:00',
@@ -243,7 +251,8 @@ describe('MonitorarAgendaUseCase', () => {
             negocios: [vinculado(-1, '2026-11-20', '10:00', 'd3_preparacao_consulta')],
         });
         await usecase.executar('agir');
-        expect(chamadas.at(-1)).toEqual(['gravarCampos', 'deal1', { proximo_lembrete: 'd1' }]);
+        expect(chamadas[0]).toEqual(['gravarCampos', 'deal1', { proximo_lembrete: 'd1' }]);
+        expect(chamadas.at(-1)![2]).toMatchObject({ data_agendamento: '2026-11-13' });
     });
 
     it('cancelado fecha como perdido e marca etapa cancelado', async () => {
@@ -259,15 +268,20 @@ describe('MonitorarAgendaUseCase', () => {
         expect(resumo.cancelados).toBe(1);
     });
 
-    it('some da listagem mas existe no MedX não cancela', async () => {
+    it('some da listagem porque foi remarcado para depois da janela: regrava as datas', async () => {
         const { usecase, chamadas, agenda } = montar({
             agendamentos: [],
             negocios: [vinculado(-1, '2026-11-20', '10:00')],
-            existe: true,
+            foraDaJanela: [ag(-1, '2026-12-20T10:00:00')],
         });
         await usecase.executar('agir');
-        expect(agenda.existe).toHaveBeenCalledWith(-1);
-        expect(chamadas).toEqual([]);
+        expect(agenda.obterSeExistir).toHaveBeenCalledWith(-1);
+        expect(chamadas[0]).toEqual([
+            'gravarCampos',
+            'deal1',
+            expect.objectContaining({ data_agendamento: '2026-12-20' }),
+        ]);
+        expect(chamadas.some(c => c[0] === 'encerrarComoPerdido')).toBe(false);
     });
 
     it('some e não existe mais cancela', async () => {
@@ -383,5 +397,74 @@ describe('MonitorarAgendaUseCase', () => {
         });
         await usecase.executar('agir');
         expect(chamadas[0]![1]).toBe('consulta');
+    });
+
+    it('dois agendamentos do mesmo contato na mesma rodada não assumem o mesmo negócio', async () => {
+        const aberto = negocio('aberto', {}, { contatoId: 'c-1' });
+        const { usecase, crm } = montar({
+            agendamentos: [ag(-9, '2026-11-20T10:00:00'), ag(-10, '2026-11-27T10:00:00')],
+            negocios: [aberto],
+            contato: CONTATO,
+        });
+        const resumo = await usecase.executar('agir');
+        expect(resumo.assumidos).toBe(1);
+        expect(crm.criarNegocio).toHaveBeenCalledTimes(1);
+    });
+
+    it('agendamento de hoje que já passou e sem negócio é ignorado', async () => {
+        const { usecase, crm } = montar({
+            agendamentos: [ag(-11, '2026-11-12T09:00:00')],
+            contato: CONTATO,
+        });
+        const resumo = await usecase.executar('agir');
+        expect(crm.criarNegocio).not.toHaveBeenCalled();
+        expect(resumo.ignorados).toBe(1);
+    });
+
+    it('termina a criação de um negócio que ficou parado em AGENDAMENTO', async () => {
+        const parado = negocio(
+            'parado',
+            { id_agendamento_medx: '-12', etapa_lembrete: 'd0_boas_vindas' },
+            { etapaId: 'b088f0ab-75d4-40df-80b5-53117d0f49aa' },
+        );
+        const { usecase, chamadas } = montar({
+            agendamentos: [ag(-12, '2026-11-20T10:00:00')],
+            negocios: [parado],
+        });
+        await usecase.executar('agir');
+        expect(chamadas.map(c => c[0])).toEqual([
+            'moverParaBoasVindas',
+            'gravarCampos',
+            'gravarCampos',
+        ]);
+        expect(chamadas.at(-1)).toEqual(['gravarCampos', 'parado', { proximo_lembrete: 'd3' }]);
+    });
+
+    it('contato com negócio novo ainda sem id em AGENDAMENTO fica para a próxima rodada', async () => {
+        const pendente = negocio(
+            'pendente',
+            {},
+            { contatoId: 'c-1', etapaId: 'b088f0ab-75d4-40df-80b5-53117d0f49aa' },
+        );
+        const { usecase, crm } = montar({
+            agendamentos: [ag(-13, '2026-11-20T10:00:00')],
+            negocios: [pendente],
+            contato: CONTATO,
+        });
+        await usecase.executar('agir');
+        expect(crm.criarNegocio).not.toHaveBeenCalled();
+    });
+
+    it('telefone de um contato só, com nome diferente, cria negócio novo em vez de assumir o dele', async () => {
+        const daMae = negocio('mae', {}, { contatoId: 'c-1' });
+        const { usecase, crm } = montar({
+            agendamentos: [ag(-14, '2026-11-20T10:00:00')],
+            negocios: [daMae],
+            contato: { ...CONTATO, nomeConfere: false } as ResultadoContato,
+        });
+        await usecase.executar('agir');
+        expect(crm.criarNegocio).toHaveBeenCalledWith(
+            expect.objectContaining({ contatoId: 'c-1' }),
+        );
     });
 });

@@ -146,12 +146,11 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
         return (await this.listarDetalhes(inicio, fim)).map(traduzir);
     }
 
-    async existe(id: number): Promise<boolean> {
+    async obterSeExistir(id: number): Promise<AgendamentoExterno | null> {
         try {
-            await this.obter(id);
-            return true;
+            return await this.obter(id);
         } catch (erro) {
-            if (erro instanceof ErroMedx && erro.status === 404) return false;
+            if (erro instanceof ErroMedx && erro.status === 404) return null;
             throw erro;
         }
     }

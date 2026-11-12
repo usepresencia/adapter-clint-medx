@@ -126,4 +126,25 @@ describe('ResolvedorContato', () => {
         });
         expect(r).toEqual({ tipo: 'ambiguo', candidatos: [a, b], porTelefone: false });
     });
+
+    it('número paraguaio sem o 5 inicial tenta também com 595', async () => {
+        const { resolvedor, crm } = montar({ celular: '95982663052', porNome: [] });
+        crm.buscarContatos.mockImplementation(async (f: { telefone?: { e164: string } }) =>
+            f.telefone?.e164 === '+595982663052' ? [JULIANE] : [],
+        );
+        const r = await resolvedor.resolver(paciente('JULIANE LUISA SCHUH RAFAELI'), {
+            contatosAbertos: [],
+            gravar: true,
+        });
+        expect(r).toMatchObject({ tipo: 'contato', contato: JULIANE });
+    });
+
+    it('telefone de um contato só informa se o nome confere', async () => {
+        const { resolvedor } = montar({ celular: '44999365902', porTelefone: [KARMEN] });
+        const r = await resolvedor.resolver(paciente('SILVIA FEY'), {
+            contatosAbertos: [],
+            gravar: true,
+        });
+        expect(r).toMatchObject({ tipo: 'contato', contato: KARMEN, nomeConfere: false });
+    });
 });
