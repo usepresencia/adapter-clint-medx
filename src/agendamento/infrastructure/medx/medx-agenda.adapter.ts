@@ -10,7 +10,7 @@ import type {
 } from '../../application/ports/agenda-medica.port';
 import { MedxHttpClient } from './medx-http.client';
 import type { MedxAgendaDetalhe, MedxDisponibilidadeV1 } from './medx.tipos';
-import { FORMATO_MEDX, FUSO_CLINICA } from '../../domain/agendamento/periodo-consulta';
+import { FORMATO_MEDX, interpretarHorarioClinica } from '../../domain/agendamento/periodo-consulta';
 
 const BASE_V1 = '/api/integration/v1/agenda/agendamentos';
 /** Limites do MedX para Inicio/Fim (sempre com Fim exclusivo). */
@@ -21,10 +21,9 @@ const MAX_DIAS_DISPONIBILIDADE = 14;
 export const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
 
 function interpretar(iso: string): DateTime {
-    const temOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(iso);
-    return temOffset
-        ? DateTime.fromISO(iso, { setZone: true }).setZone(FUSO_CLINICA)
-        : DateTime.fromISO(iso, { zone: FUSO_CLINICA });
+    const dt = interpretarHorarioClinica(iso);
+    if (!dt) throw new Error(`Horário inválido recebido do MedX: ${iso}`);
+    return dt;
 }
 
 /** Divide [inicio, fim) em janelas contíguas de no máximo `maxDias`, no formato local. */

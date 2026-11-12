@@ -165,6 +165,11 @@ describe('obter', () => {
         expect(externo.idTipoConsulta).toBe(0);
     });
 
+    it('erra com horário inválido vindo do MedX em vez de devolver "Invalid DateTime"', async () => {
+        const { client } = clientFalso({ get: { ...DETALHE, inicio: 'lixo' } });
+        await expect(new MedxAgendaAdapter(client).obter(1)).rejects.toThrow(/inválid/);
+    });
+
     it('erra quando o agendamento não existe', async () => {
         const { client } = clientFalso({ get: undefined });
         await expect(new MedxAgendaAdapter(client).obter(1)).rejects.toThrow(/não encontrado/);

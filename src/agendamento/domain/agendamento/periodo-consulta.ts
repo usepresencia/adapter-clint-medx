@@ -4,7 +4,11 @@ import { ErroDeDominio } from '../shared/erros';
 export const FUSO_CLINICA = 'America/Sao_Paulo';
 export const FORMATO_MEDX = "yyyy-LL-dd'T'HH:mm:ss";
 
-function interpretar(valor: string): DateTime | null {
+/**
+ * Interpreta um horário com offset (convertido para o fuso da clínica) ou sem
+ * offset (assumido no fuso da clínica). `null` quando inválido.
+ */
+export function interpretarHorarioClinica(valor: string): DateTime | null {
     const temOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(valor);
     const dt = temOffset
         ? DateTime.fromISO(valor, { setZone: true }).setZone(FUSO_CLINICA)
@@ -27,7 +31,7 @@ export class PeriodoConsulta {
             );
         }
 
-        const dt = interpretar(inicioIso);
+        const dt = interpretarHorarioClinica(inicioIso);
         if (!dt) {
             throw new ErroDeDominio(`Início da consulta é uma data inválida: ${inicioIso}`);
         }
@@ -40,7 +44,7 @@ export class PeriodoConsulta {
     }
 
     comecaEm(outroInicioIso: string): boolean {
-        const outro = interpretar(outroInicioIso);
+        const outro = interpretarHorarioClinica(outroInicioIso);
         return outro !== null && outro.toFormat(FORMATO_MEDX) === this.inicio;
     }
 }
