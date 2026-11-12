@@ -49,6 +49,7 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
 
     private dados: Carregado | null = null;
     private carregadoEm = -Infinity;
+    private emVoo: Promise<void> | null = null;
 
     constructor(private readonly client: MedxHttpClient) {}
 
@@ -93,7 +94,13 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
     }
 
     private async garantir(): Promise<Carregado> {
-        if (!this.dados || this.agora() - this.carregadoEm >= this.ttlMs) await this.carregar();
+        if (!this.dados || this.agora() - this.carregadoEm >= this.ttlMs) {
+            // Chamadas simultâneas compartilham a mesma carga em voo.
+            this.emVoo ??= this.carregar().finally(() => {
+                this.emVoo = null;
+            });
+            await this.emVoo;
+        }
         return this.dados!;
     }
 

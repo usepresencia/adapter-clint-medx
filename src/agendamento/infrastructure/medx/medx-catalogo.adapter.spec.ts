@@ -100,6 +100,17 @@ describe('carregamento sob demanda', () => {
         expect(chamadas).toContain('/api/integration/v1/agenda/catalogos');
     });
 
+    it('consultas simultâneas compartilham uma única carga', async () => {
+        const { client, chamadas } = clientFalso();
+        const c = new MedxCatalogoAdapter(client);
+        await Promise.all([
+            c.indiceStatusAgendado(),
+            c.indiceStatusConfirmado(),
+            c.resolverProfissional('Leize'),
+        ]);
+        expect(chamadas.filter(x => x === '/api/integration/v1/agenda/catalogos')).toHaveLength(1);
+    });
+
     it('falha de carga não fica em cache: próxima chamada tenta de novo', async () => {
         const c = new MedxCatalogoAdapter(clientFalso({ falhas: 1 }).client);
         await expect(c.indiceStatusAgendado()).rejects.toThrow(/fora do ar/);
