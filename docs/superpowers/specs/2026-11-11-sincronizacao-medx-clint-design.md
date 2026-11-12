@@ -89,6 +89,7 @@ A primeira rodada só grava o retrato, sem criar negócios nem alterar datas.
 - [RECEPCAO] Não Compareceu continua INATIVA (reativar depois dos testes).
 
 ## Em aberto
+- **Configurar a jornada de trabalho no MedX (depois do deploy do código).** Em 2026-11-12 as agendas "Leize" e "Administrador" estavam sem jornada; a API v1 devolve 0 horários em `/agenda/disponibilidade` e só cria agendamento dentro da jornada. Até isso ser configurado, a disponibilidade da landing page e a criação de consulta a partir da Clint não funcionam (lembretes, checagem e regravação de datas não dependem disso).
 - Reenviar ou não notificações já enviadas (ex.: lembrete D0) quando a data muda.
 - O que fazer com cancelamento e com status Faltou no MedX.
 - Endovenoso: se a etapa ENDOVENOSO participa da checagem de comparecimento (a condição atual da Checagem exige a etapa BOAS VINDAS, então negócios em ENDOVENOSO não seriam checados).
