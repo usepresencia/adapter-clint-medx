@@ -41,14 +41,13 @@ function clientFalso(
                     setores: [],
                 } as T;
             }
-            if (caminho === '/api/integration/v1/financas/profissionais') {
-                return { profissionais: PROFISSIONAIS, page: { hasMore: false } } as T;
-            }
             throw new Error(`caminho inesperado: ${caminho}`);
         },
         async listarTodos<T>(caminho: string): Promise<T[]> {
             chamadas.push(caminho);
             if (caminho === '/api/integration/v1/agenda/tipos') return TIPOS as T[];
+            if (caminho === '/api/integration/v1/financas/profissionais')
+                return PROFISSIONAIS as T[];
             throw new Error(`caminho inesperado: ${caminho}`);
         },
     } as unknown as MedxHttpClient;

@@ -5,8 +5,9 @@ import { ErroMedx, ErroRateLimit } from './medx.erros';
 
 export type Query = Record<string, string | number | undefined>;
 
-interface PaginaMedx<T> {
-    items: T[];
+const MAX_PAGINAS = 100;
+
+interface PaginaMedx {
     page?: { hasMore?: boolean; nextCursor?: string | null };
 }
 
@@ -52,14 +53,31 @@ export class MedxHttpClient {
         return this.chamar<T>('PUT', caminho, undefined, corpo);
     }
 
-    /** Lista paginada da API v1: segue `page.nextCursor` enquanto `page.hasMore`. */
-    async listarTodos<T>(caminho: string, query?: Query): Promise<T[]> {
+    /**
+     * Lista paginada da API v1: segue `page.nextCursor` enquanto `page.hasMore`.
+     * `chaveItens` cobre rotas que não usam `items` (ex.: `profissionais`).
+     * Para com erro se o MedX repetir o cursor ou passar de MAX_PAGINAS.
+     */
+    async listarTodos<T>(caminho: string, query?: Query, chaveItens = 'items'): Promise<T[]> {
         const itens: T[] = [];
+        const vistos = new Set<string>();
         let cursor: string | undefined;
         do {
-            const pagina = await this.get<PaginaMedx<T>>(caminho, { ...query, Cursor: cursor });
-            itens.push(...(pagina?.items ?? []));
+            if (vistos.size >= MAX_PAGINAS) {
+                throw new Error(`MedX passou de ${MAX_PAGINAS} páginas em ${caminho}`);
+            }
+            const pagina = await this.get<Record<string, unknown> & PaginaMedx>(caminho, {
+                ...query,
+                Cursor: cursor,
+            });
+            itens.push(...((pagina?.[chaveItens] as T[] | undefined) ?? []));
             cursor = pagina?.page?.hasMore ? (pagina.page.nextCursor ?? undefined) : undefined;
+            if (cursor !== undefined) {
+                if (vistos.has(cursor)) {
+                    throw new Error(`MedX repetiu o cursor de paginação em ${caminho}`);
+                }
+                vistos.add(cursor);
+            }
         } while (cursor);
         return itens;
     }

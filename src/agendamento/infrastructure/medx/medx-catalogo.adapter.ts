@@ -56,7 +56,11 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
         const [catalogos, tipos, profissionais] = await Promise.all([
             this.client.get<{ status: MedxReferencia[] }>('/api/integration/v1/agenda/catalogos'),
             this.client.listarTodos<MedxTipoAgendamento>('/api/integration/v1/agenda/tipos'),
-            this.listarProfissionais(),
+            this.client.listarTodos<MedxProfissional>(
+                '/api/integration/v1/financas/profissionais',
+                undefined,
+                'profissionais',
+            ),
         ]);
         const status = catalogos?.status ?? [];
 
@@ -86,20 +90,6 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
             ),
         };
         this.carregadoEm = this.agora();
-    }
-
-    private async listarProfissionais(): Promise<MedxProfissional[]> {
-        const todos: MedxProfissional[] = [];
-        let cursor: string | undefined;
-        do {
-            const pagina = await this.client.get<{
-                profissionais?: MedxProfissional[];
-                page?: { hasMore?: boolean; nextCursor?: string | null };
-            }>('/api/integration/v1/financas/profissionais', { Cursor: cursor });
-            todos.push(...(pagina?.profissionais ?? []));
-            cursor = pagina?.page?.hasMore ? (pagina.page.nextCursor ?? undefined) : undefined;
-        } while (cursor);
-        return todos;
     }
 
     private async garantir(): Promise<Carregado> {

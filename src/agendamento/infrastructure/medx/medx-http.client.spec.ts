@@ -152,4 +152,20 @@ describe('MedxHttpClient', () => {
         expect(spy).toHaveBeenCalledTimes(2);
         expect(spy.mock.calls.filter(c => String(c[0]).endsWith('/preview'))).toHaveLength(1);
     });
+
+    it('listarTodos para com erro quando o MedX repete o cursor', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+            json({ items: [1], page: { hasMore: true, nextCursor: 'mesmo' } }),
+        );
+        await expect(cliente().client.listarTodos('/x')).rejects.toThrow(/cursor/);
+    });
+
+    it('listarTodos lê a lista de outra chave quando informada', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+            json({ profissionais: [{ id: 1 }], page: { hasMore: false } }),
+        );
+        expect(await cliente().client.listarTodos('/x', undefined, 'profissionais')).toEqual([
+            { id: 1 },
+        ]);
+    });
 });
