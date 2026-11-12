@@ -76,6 +76,9 @@ function montar(opcoes: {
             chamadas.push(['criarNegocio', dados]);
             return { id: 'novo', contatoId: 'c-novo' };
         }),
+        moverParaBoasVindas: vi.fn(async (dealId: string) => {
+            chamadas.push(['moverParaBoasVindas', dealId]);
+        }),
         encerrarComoPerdido: vi.fn(async (dealId: string) => {
             chamadas.push(['encerrarComoPerdido', dealId]);
         }),
@@ -145,7 +148,12 @@ describe('MonitorarAgendaUseCase', () => {
             contato: CONTATO,
         });
         const resumo = await usecase.executar('agir');
-        expect(chamadas.map(c => c[0])).toEqual(['criarNegocio', 'gravarCampos', 'gravarCampos']);
+        expect(chamadas.map(c => c[0])).toEqual([
+            'criarNegocio',
+            'gravarCampos',
+            'moverParaBoasVindas',
+            'gravarCampos',
+        ]);
         expect(chamadas[0]![1]).toEqual({
             contatoId: 'c-1',
             nome: 'MARIA SILVA',
@@ -161,7 +169,7 @@ describe('MonitorarAgendaUseCase', () => {
             horario_lembrete_chegada: '2026-11-20T08:00:00',
             horario_checagem_comparecimento: '2026-11-20T12:00:00',
         });
-        expect(chamadas[2]![2]).toEqual({ proximo_lembrete: 'd3' });
+        expect(chamadas[3]![2]).toEqual({ proximo_lembrete: 'd3' });
         expect(resumo.criados).toBe(1);
     });
 
@@ -176,7 +184,7 @@ describe('MonitorarAgendaUseCase', () => {
             duracao_consulta: '10',
             tipo_consulta: 'endovenoso',
         });
-        expect(chamadas[2]![2]).toEqual({ proximo_lembrete: 'd1' });
+        expect(chamadas[3]![2]).toEqual({ proximo_lembrete: 'd1' });
     });
 
     it('assume negócio aberto sem id em vez de criar', async () => {
