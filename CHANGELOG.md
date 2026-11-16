@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.11.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.11.0...v1.11.1) (2026-11-16)
+
+### Bug Fixes
+
+- tsbuildinfo fora do repositório e da imagem ([effa6be](https://github.com/usepresencia/adapter-clint-medx/commit/effa6be7f31c3fb64d0d67f7964dfe016dbbe3e4))
+
 ## [1.11.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.10.0...v1.11.0) (2026-11-16)
 
 ### Features
