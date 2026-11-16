@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { RELOGIO_PORT, type Relogio } from '../../application/ports/relogio.port';
 import { RelogioSistema } from '../relogio/relogio-sistema';
 import { fetchComTimeout } from '../../../shared/http/http';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 
 const MARGEM_RENOVACAO_MS = 120_000;
 
@@ -13,7 +14,7 @@ export class MedxTokenProvider {
     private emVoo: Promise<string> | null = null;
 
     constructor(
-        private readonly config: ConfigService,
+        private readonly config: ConfigService<Env, true>,
         @Inject(RELOGIO_PORT) private readonly relogio: Relogio = new RelogioSistema(),
     ) {}
 
@@ -35,8 +36,8 @@ export class MedxTokenProvider {
     }
 
     private async buscar(): Promise<string> {
-        const host = this.config.get<string>('MEDX_HOST');
-        const integrationToken = this.config.get<string>('MEDX_INTEGRATION_TOKEN');
+        const host = this.config.get('MEDX_HOST', { infer: true });
+        const integrationToken = this.config.get('MEDX_INTEGRATION_TOKEN', { infer: true });
 
         const resposta = await fetchComTimeout(`${host}/api/integration/v1/token`, {
             method: 'POST',

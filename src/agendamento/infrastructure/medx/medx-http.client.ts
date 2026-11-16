@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { MedxTokenProvider } from './medx-token.provider';
 import { ErroMedx, ErroRateLimit } from './medx.erros';
 import { fetchComTimeout, lerCorpo, montarUrl, type Query } from '../../../shared/http/http';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 
 export type { Query };
 
@@ -15,7 +16,7 @@ interface PaginaMedx {
 @Injectable()
 export class MedxHttpClient {
     constructor(
-        private readonly config: ConfigService,
+        private readonly config: ConfigService<Env, true>,
         private readonly tokens: MedxTokenProvider,
     ) {}
 
@@ -86,10 +87,10 @@ export class MedxHttpClient {
         jaRenovou = false,
         cabecalhos?: Record<string, string>,
     ): Promise<T> {
-        const host = this.config.get<string>('MEDX_HOST');
+        const host = this.config.get('MEDX_HOST', { infer: true });
         const token = await this.tokens.obterToken();
 
-        const resposta = await fetchComTimeout(montarUrl(host!, caminho, query), {
+        const resposta = await fetchComTimeout(montarUrl(host, caminho, query), {
             method: metodo,
             headers: {
                 authorization: `Bearer ${token}`,

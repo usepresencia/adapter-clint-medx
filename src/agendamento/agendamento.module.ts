@@ -49,6 +49,7 @@ import { WebhooksController } from './presentation/http/webhooks.controller';
 import { HealthController } from './presentation/http/health.controller';
 import { DisponibilidadeController } from './presentation/http/disponibilidade.controller';
 import { LeadsController } from './presentation/http/leads.controller';
+import type { Env } from '../config/env.schema';
 
 /** Intervalo da rodada do monitor do MedX. */
 const INTERVALO_MONITOR_MS = 5 * 60 * 1000;
@@ -71,10 +72,10 @@ const JOB_MONITOR = 'monitor-medx';
         { provide: RELOGIO_PORT, useClass: RelogioSistema },
         {
             provide: ETAPAS_RECEPCAO,
-            useFactory: (config: ConfigService) => ({
-                criacao: config.get<string>('CLINT_ETAPA_CRIACAO_ID')!,
-                boasVindas: config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID')!,
-                endovenoso: config.get<string>('CLINT_ETAPA_ENDOVENOSO_ID')!,
+            useFactory: (config: ConfigService<Env, true>) => ({
+                criacao: config.get('CLINT_ETAPA_CRIACAO_ID', { infer: true }),
+                boasVindas: config.get('CLINT_ETAPA_BOAS_VINDAS_ID', { infer: true }),
+                endovenoso: config.get('CLINT_ETAPA_ENDOVENOSO_ID', { infer: true }),
             }),
             inject: [ConfigService],
         },
@@ -97,7 +98,7 @@ export class AgendamentoModule implements OnModuleInit {
         @Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
         @Inject(FILA_PORT) private readonly fila: FilaPort,
-        private readonly config: ConfigService,
+        private readonly config: ConfigService<Env, true>,
     ) {}
 
     async onModuleInit(): Promise<void> {
@@ -113,7 +114,7 @@ export class AgendamentoModule implements OnModuleInit {
             );
         }
 
-        const modo = this.config.get<'desligado' | 'observar' | 'agir'>('MONITOR_MEDX_MODO');
+        const modo = this.config.get('MONITOR_MEDX_MODO', { infer: true });
         if (modo === 'observar' || modo === 'agir') {
             await this.fila.agendarRepetitivo(
                 JOB_MONITOR,

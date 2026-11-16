@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { fetchComTimeout } from '../../../shared/http/http';
 import { createHash } from 'node:crypto';
 import type { ConversaoPort } from '../../application/ports/conversao.port';
 import type { Telefone } from '../../domain/paciente/telefone';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 
 const VERSAO_API = 'v19.0';
 const MOEDA_PADRAO = 'BRL';
@@ -20,7 +21,7 @@ function hashTelefone(telefone: Telefone): string {
 
 @Injectable()
 export class MetaCapiAdapter implements ConversaoPort {
-    constructor(private readonly config: ConfigService) {}
+    constructor(private readonly config: ConfigService<Env, true>) {}
 
     async notificarConversao(telefone: Telefone, fbclid: string, capturadoEm: Date): Promise<void> {
         await this.enviarEvento('QualifiedLead', telefone, fbclid, capturadoEm);
@@ -45,8 +46,8 @@ export class MetaCapiAdapter implements ConversaoPort {
         capturadoEm: Date,
         customData?: Record<string, unknown>,
     ): Promise<void> {
-        const pixelId = this.config.get<string>('META_PIXEL_ID');
-        const token = this.config.get<string>('META_CAPI_ACCESS_TOKEN');
+        const pixelId = this.config.get('META_PIXEL_ID', { infer: true });
+        const token = this.config.get('META_CAPI_ACCESS_TOKEN', { infer: true });
 
         if (!pixelId || !token) {
             throw new Error(

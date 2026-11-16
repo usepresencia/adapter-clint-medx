@@ -10,10 +10,11 @@ import {
 import { AlertaLogger, NOTIFICADOR_SILENCIOSO } from './alerta-logger';
 import { criarNotificadorEmail } from './notificador-email';
 import { CAMPOS_REDIGIDOS } from './campos-redigidos';
+import type { Env } from '../../config/env.schema';
 
-function escolherNotificador(config: ConfigService): NotificadorPort {
-    const smtpUrl = config.get<string>('SMTP_URL');
-    const destino = config.get<string>('ALERTA_EMAIL_DESTINO');
+function escolherNotificador(config: ConfigService<Env, true>): NotificadorPort {
+    const smtpUrl = config.get('SMTP_URL', { infer: true });
+    const destino = config.get('ALERTA_EMAIL_DESTINO', { infer: true });
     if (!smtpUrl || !destino) {
         return NOTIFICADOR_SILENCIOSO;
     }
@@ -23,7 +24,7 @@ function escolherNotificador(config: ConfigService): NotificadorPort {
         enviarEmail: async (para, assunto, corpo) => {
             const transporte = nodemailer.createTransport(smtpUrl);
             await transporte.sendMail({
-                from: config.get<string>('ALERTA_EMAIL_ORIGEM'),
+                from: config.get('ALERTA_EMAIL_ORIGEM', { infer: true }),
                 to: para,
                 subject: assunto,
                 text: corpo,
@@ -36,9 +37,9 @@ function escolherNotificador(config: ConfigService): NotificadorPort {
     imports: [
         PinoLoggerModule.forRootAsync({
             imports: [ConfigModule],
-            useFactory: (config: ConfigService) => ({
+            useFactory: (config: ConfigService<Env, true>) => ({
                 pinoHttp: {
-                    level: config.get<string>('LOG_LEVEL'),
+                    level: config.get('LOG_LEVEL', { infer: true }),
                     redact: CAMPOS_REDIGIDOS,
                     base: { servico: 'adapter-clint-medx' },
                     autoLogging: false,

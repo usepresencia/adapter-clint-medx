@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import type {
     CamposNegocio,
     CrmNegocioPort,
@@ -9,6 +8,8 @@ import type {
 import { ClintHttpClient } from './clint-http.client';
 import { listarTodasAsPaginas } from './clint.paginacao';
 import { e164, type ContatoApi } from './clint.tipos';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 
 interface NegocioApi {
     id: string;
@@ -32,7 +33,7 @@ function soTexto(campos: Record<string, unknown> | null): Record<string, string>
 export class ClintNegocioAdapter implements CrmNegocioPort {
     constructor(
         private readonly client: ClintHttpClient,
-        private readonly config: ConfigService,
+        private readonly config: ConfigService<Env, true>,
     ) {}
 
     async gravarCampos(dealId: string, campos: CamposNegocio): Promise<void> {
@@ -41,7 +42,7 @@ export class ClintNegocioAdapter implements CrmNegocioPort {
 
     async listarAbertosRecepcao(): Promise<NegocioRecepcao[]> {
         const negocios = await listarTodasAsPaginas<NegocioApi>(this.client, '/v1/deals', {
-            origin_id: this.config.get<string>('CLINT_ORIGEM_RECEPCAO_ID'),
+            origin_id: this.config.get('CLINT_ORIGEM_RECEPCAO_ID', { infer: true }),
             status: 'OPEN',
         });
         return negocios.map(n => ({
@@ -57,11 +58,11 @@ export class ClintNegocioAdapter implements CrmNegocioPort {
 
     async criarNegocio(dados: DadosNovoNegocio): Promise<{ id: string; contatoId: string | null }> {
         const corpo: Record<string, unknown> = {
-            origin_id: this.config.get<string>('CLINT_ORIGEM_RECEPCAO_ID'),
+            origin_id: this.config.get('CLINT_ORIGEM_RECEPCAO_ID', { infer: true }),
             // Nasce em AGENDAMENTO: criar direto em BOAS VINDAS não dispara o
             // D0 Boas Vindas (confirmado ao vivo); quem dispara é a mudança de
             // etapa feita por `moverParaBoasVindas`.
-            stage_id: this.config.get<string>('CLINT_ETAPA_CRIACAO_ID'),
+            stage_id: this.config.get('CLINT_ETAPA_CRIACAO_ID', { infer: true }),
         };
         if (dados.contatoId) {
             corpo.contact_id = dados.contatoId;
@@ -81,12 +82,12 @@ export class ClintNegocioAdapter implements CrmNegocioPort {
 
     async moverParaBoasVindas(dealId: string): Promise<void> {
         await this.client.post(`/v1/deals/${dealId}`, {
-            stage_id: this.config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID'),
+            stage_id: this.config.get('CLINT_ETAPA_BOAS_VINDAS_ID', { infer: true }),
         });
     }
 
     async encerrarComoPerdido(dealId: string): Promise<void> {
-        const motivo = this.config.get<string>('CLINT_MOTIVO_PERDA_CANCELAMENTO_ID');
+        const motivo = this.config.get('CLINT_MOTIVO_PERDA_CANCELAMENTO_ID', { infer: true });
         if (!motivo) {
             throw new Error(
                 'CLINT_MOTIVO_PERDA_CANCELAMENTO_ID não configurado — não dá para encerrar como perdido',

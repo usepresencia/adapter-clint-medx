@@ -1,6 +1,5 @@
 import type { ZodType, z } from 'zod';
 import { Body, Controller, HttpCode, Headers, Inject, Post, UseFilters } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { FILA_PORT, type FilaPort, type JobWebhook } from '../../application/ports/fila.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../../application/ports/logger.port';
 import type { EventoRepositorio } from '../../domain/evento/evento.repositorio';
@@ -14,6 +13,8 @@ import {
     schemaRegravarData,
 } from './schemas';
 import { WebhookAlwaysOkFilter } from './webhook-always-ok.filter';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 
 /**
  * A Clint manda dia e hora da consulta em campos separados. `dia_da_consulta`
@@ -38,7 +39,7 @@ export class WebhooksController {
         @Inject(FILA_PORT) private readonly fila: FilaPort,
         @Inject(EVENTO_REPOSITORIO) private readonly eventos: EventoRepositorio,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
-        private readonly config: ConfigService,
+        private readonly config: ConfigService<Env, true>,
     ) {}
 
     @Post('agendamento')
@@ -140,7 +141,7 @@ export class WebhooksController {
         const OK = { ok: true as const };
         const endpoint = `/webhooks/clint/${rota}`;
 
-        if (segredo !== this.config.get<string>('ADAPTER_SECRET')) {
+        if (segredo !== this.config.get('ADAPTER_SECRET', { infer: true })) {
             this.logger.warn({ endpoint }, 'webhook recusado por segredo inválido');
             return OK;
         }
