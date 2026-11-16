@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 import { ClintNegocioAdapter } from './clint-negocio.adapter';
 import type { ClintHttpClient } from './clint-http.client';
 import { Telefone } from '../../domain/paciente/telefone';
@@ -35,7 +36,7 @@ function montar(opcoes: { get?: (c: Chamada) => unknown; falha?: Error; motivo?:
         CLINT_ETAPA_CRIACAO_ID: AGENDAMENTO,
         CLINT_MOTIVO_PERDA_CANCELAMENTO_ID: opcoes.motivo,
     };
-    const config = { get: (k: string) => valores[k] } as ConfigService;
+    const config = { get: (k: string) => valores[k] } as unknown as ConfigService<Env, true>;
     return { adapter: new ClintNegocioAdapter(client, config), chamadas };
 }
 

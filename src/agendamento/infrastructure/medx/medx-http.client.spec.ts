@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 import { MedxHttpClient } from './medx-http.client';
 import { MedxTokenProvider } from './medx-token.provider';
 import { ErroRateLimit, ErroMedx } from './medx.erros';
 
 afterEach(() => vi.restoreAllMocks());
 
-function configFalso(): ConfigService {
-    return { get: () => 'https://medx.test' } as ConfigService;
+function configFalso(): ConfigService<Env, true> {
+    return { get: () => 'https://medx.test' } as unknown as ConfigService<Env, true>;
 }
 
 function tokensFalsos(): MedxTokenProvider & { foiInvalidado: () => boolean } {

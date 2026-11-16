@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 import { ClintWebhookAdapter } from './clint-webhook.adapter';
 import { Telefone } from '../../domain/paciente/telefone';
 
@@ -12,8 +13,8 @@ const URLS: Record<string, string> = {
     CLINT_WEBHOOK_NOTIFICACAO_URL: 'https://clint.test/in/notificacao',
 };
 
-function configFalso(): ConfigService {
-    return { get: (chave: string) => URLS[chave] } as ConfigService;
+function configFalso(): ConfigService<Env, true> {
+    return { get: (chave: string) => URLS[chave] } as unknown as ConfigService<Env, true>;
 }
 
 function corpoDe(chamada: [any, any]): Record<string, unknown> {

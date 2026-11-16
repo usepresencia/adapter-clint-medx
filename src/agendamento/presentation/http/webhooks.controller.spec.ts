@@ -11,7 +11,7 @@ function montar() {
         })),
         salvar: vi.fn(async () => {}),
     };
-    const fila = { add: vi.fn(async () => ({ id: 'job-1' })) };
+    const fila = { add: vi.fn(async (_nome: string, _dados: unknown) => ({ id: 'job-1' })) };
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const config = {
         get: (chave: string) => (chave === 'ADAPTER_SECRET' ? 'segredo-certo' : undefined),

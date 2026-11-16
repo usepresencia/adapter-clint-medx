@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ResolvedorContato } from './resolver-contato';
-import type { ContatoClint } from '../ports/crm-negocio.port';
+import type { ContatoClint } from '../ports/crm-contato.port';
 
 const KARMEN: ContatoClint = { id: 'karmen', nome: 'Karmen 💓💓', telefone: '+5544999365902' };
 const SILVIA: ContatoClint = { id: 'silvia', nome: 'Silvia Fey🩷🩷', telefone: '+5544999365902' };
@@ -129,8 +129,8 @@ describe('ResolvedorContato', () => {
 
     it('número paraguaio sem o 5 inicial tenta também com 595', async () => {
         const { resolvedor, crm } = montar({ celular: '95982663052', porNome: [] });
-        crm.buscarContatos.mockImplementation(async (f: { telefone?: { e164: string } }) =>
-            f.telefone?.e164 === '+595982663052' ? [JULIANE] : [],
+        crm.buscarContatos.mockImplementation(async (f: { telefone?: unknown; nome?: string }) =>
+            (f.telefone as { e164: string } | undefined)?.e164 === '+595982663052' ? [JULIANE] : [],
         );
         const r = await resolvedor.resolver(paciente('JULIANE LUISA SCHUH RAFAELI'), {
             contatosAbertos: [],

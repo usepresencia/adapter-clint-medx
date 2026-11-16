@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../config/env.schema';
 import { ObservabilidadeModule } from '../shared/observabilidade/observabilidade.module';
 import { NOTIFICADOR_SILENCIOSO } from '../shared/observabilidade/alerta-logger';
 
-function configFalso(valores: Record<string, string> = {}): ConfigService {
-    return { get: (chave: string) => valores[chave] } as ConfigService;
+function configFalso(valores: Record<string, string> = {}): ConfigService<Env, true> {
+    return { get: (chave: string) => valores[chave] } as unknown as ConfigService<Env, true>;
 }
 
 describe('escolherNotificador', () => {

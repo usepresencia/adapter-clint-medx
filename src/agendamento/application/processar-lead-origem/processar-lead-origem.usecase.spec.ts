@@ -8,6 +8,7 @@ import type {
 
 function contatosFalso(idEncontrado: string | null = 'contato-1'): CrmContatoPort {
     return {
+        buscarContatos: vi.fn(async () => []),
         buscarIdPorTelefone: vi.fn(async () => idEncontrado),
         adicionarTag: vi.fn(async () => {}),
     };

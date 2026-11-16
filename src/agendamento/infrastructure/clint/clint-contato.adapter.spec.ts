@@ -6,7 +6,7 @@ import type { ClintHttpClient } from './clint-http.client';
 const TELEFONE = Telefone.criar('+55 11 99999-8888');
 
 function clientFalso(resposta: unknown) {
-    const get = vi.fn(async () => resposta);
+    const get = vi.fn(async (_caminho: string, _query?: unknown) => resposta);
     const post = vi.fn(async () => undefined);
     return { client: { get, post } as unknown as ClintHttpClient, get, post };
 }

@@ -96,7 +96,9 @@ describe('criar', () => {
         const { client } = clientFalso({
             post: { agendamento: { id: 0, descricao: 'Maria Silva' } },
         });
-        const erro = await new MedxAgendaAdapter(client).criar(CRIACAO).catch(e => e as Error);
+        const erro = (await new MedxAgendaAdapter(client)
+            .criar(CRIACAO)
+            .catch((e: unknown) => e)) as Error;
         expect(erro.message).toMatch(/id de agendamento válido/);
         expect(erro.message).not.toMatch(/Maria/);
     });

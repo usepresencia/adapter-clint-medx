@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
 import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 import { MetaCapiAdapter } from './meta-capi.adapter';
 import { Telefone } from '../../domain/paciente/telefone';
 
@@ -14,8 +15,8 @@ const VARS: Record<string, string> = {
     META_CAPI_ACCESS_TOKEN: 'token-abc',
 };
 
-function configFalso(vars: Record<string, string> = VARS): ConfigService {
-    return { get: (chave: string) => vars[chave] } as ConfigService;
+function configFalso(vars: Record<string, string> = VARS): ConfigService<Env, true> {
+    return { get: (chave: string) => vars[chave] } as unknown as ConfigService<Env, true>;
 }
 
 function corpoDe(chamada: [any, any]): any {
