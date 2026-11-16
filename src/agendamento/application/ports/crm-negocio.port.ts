@@ -30,6 +30,8 @@ export interface NegocioRecepcao {
     /** E.164 (`+` + DDI + número), ou `null` sem telefone. */
     telefone: string | null;
     etapaId: string;
+    /** Criação do negócio (ISO 8601). */
+    criadoEm: string;
     campos: Record<string, string>;
 }
 

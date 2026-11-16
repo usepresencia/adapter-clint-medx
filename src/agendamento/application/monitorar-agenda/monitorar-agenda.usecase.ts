@@ -42,6 +42,16 @@ const DIAS_JANELA = 30;
 const TAG_SEM_TELEFONE = 'sem telefone no MedX';
 const TAG_AMBIGUO = 'conferir agendamento MedX';
 const MINUTOS_ALERTA_BLOQUEIO = 60;
+/** Negócio novo sem id pode estar só esperando o webhook de entrada; depois disso é duplicado. */
+const MINUTOS_CARENCIA_DUPLICADO = 30;
+
+function ehLimiteDeRequisicoes(erro: unknown): boolean {
+    return erro instanceof Error && erro.name === 'ErroRateLimit';
+}
+
+function resumoVazio(): ResumoRodada {
+    return { criados: 0, assumidos: 0, remarcados: 0, cancelados: 0, ignorados: 0, falhas: 0 };
+}
 
 interface Rodada {
     modo: ModoMonitor;
@@ -83,8 +93,9 @@ export class MonitorarAgendaUseCase {
         const inicioJanela = agora.startOf('day');
         const fimJanela = inicioJanela.plus({ days: DIAS_JANELA });
 
-        const [agendamentos, negocios, agendado, confirmado, endovenoso, cancelamento] =
-            await Promise.all([
+        let base;
+        try {
+            base = await Promise.all([
                 this.agenda.listarDetalhadosPorPeriodo(
                     inicioJanela.toFormat(FORMATO_MEDX),
                     fimJanela.toFormat(FORMATO_MEDX),
@@ -95,18 +106,20 @@ export class MonitorarAgendaUseCase {
                 this.catalogo.indiceStatusEndovenoso(),
                 this.catalogo.indicesStatusCancelamento(),
             ]);
+        } catch (erro) {
+            if (!ehLimiteDeRequisicoes(erro)) throw erro;
+            this.logger.warn(
+                {},
+                'monitor do MedX: limite de requisições antes de começar — rodada pulada, tenta na próxima',
+            );
+            return resumoVazio();
+        }
+        const [agendamentos, negocios, agendado, confirmado, endovenoso, cancelamento] = base;
 
         const rodada: Rodada = {
             modo,
             agora,
-            resumo: {
-                criados: 0,
-                assumidos: 0,
-                remarcados: 0,
-                cancelados: 0,
-                ignorados: 0,
-                falhas: 0,
-            },
+            resumo: resumoVazio(),
             porIdAgendamento: new Map(
                 negocios
                     .filter(n => n.campos.id_agendamento_medx)
@@ -126,6 +139,8 @@ export class MonitorarAgendaUseCase {
             endovenoso,
         };
 
+        await this.alertarNegociosDuplicados(rodada);
+
         const vistos = new Set<string>();
         let interrompida = false;
         for (const ag of agendamentos) {
@@ -140,6 +155,37 @@ export class MonitorarAgendaUseCase {
 
         this.logger.info({ modo, ...rodada.resumo }, 'monitor do MedX: rodada concluída');
         return rodada.resumo;
+    }
+
+    /**
+     * A automação de data da Clint roda no negócio aberto mais recente do
+     * contato. Se ele não tem o `id_agendamento_medx` e outro negócio do mesmo
+     * contato tem, os lembretes saem do negócio errado. Só enxerga a RECEPÇÃO:
+     * a API REST da Clint não filtra negócios por contato, então um negócio mais
+     * novo em outro funil não é detectável aqui.
+     */
+    private async alertarNegociosDuplicados(r: Rodada): Promise<void> {
+        const porContato = new Map<string, NegocioRecepcao[]>();
+        for (const n of r.negocios) {
+            porContato.set(n.contatoId, [...(porContato.get(n.contatoId) ?? []), n]);
+        }
+        for (const [contatoId, grupo] of porContato) {
+            if (grupo.length < 2 || !grupo.some(n => n.campos.id_agendamento_medx)) continue;
+            const maisNovo = grupo.reduce((a, b) => (b.criadoEm > a.criadoEm ? b : a));
+            const idade = r.agora.diff(DateTime.fromISO(maisNovo.criadoEm), 'minutes').minutes;
+            if (maisNovo.campos.id_agendamento_medx || idade < MINUTOS_CARENCIA_DUPLICADO) continue;
+
+            this.logger.warn(
+                { alerta: true, contato: contatoId, deal_id: maisNovo.id },
+                'monitor do MedX: negócio mais novo do contato sem id do MedX — os lembretes saem dele',
+            );
+            await this.escrever(
+                r,
+                'tag negócio duplicado',
+                { contato: contatoId, deal_id: maisNovo.id },
+                () => this.contatos.adicionarTag(contatoId, TAG_AMBIGUO),
+            );
+        }
     }
 
     private async processar(r: Rodada, ag: AgendamentoExterno): Promise<void> {
@@ -457,6 +503,7 @@ export class MonitorarAgendaUseCase {
             nomeContato: '',
             telefone: null,
             etapaId: this.config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID')!,
+            criadoEm: r.agora.toISO()!,
             campos: { ...(campos as Record<string, string>), id_agendamento_medx: String(ag.id) },
         };
         r.negocios.push(novo);
@@ -524,7 +571,7 @@ export class MonitorarAgendaUseCase {
             return true;
         } catch (erro) {
             r.resumo.falhas++;
-            if (erro instanceof Error && erro.name === 'ErroRateLimit') {
+            if (ehLimiteDeRequisicoes(erro)) {
                 this.logger.warn(
                     { id_agendamento: idAgendamento },
                     'monitor do MedX: limite de requisições — rodada encerrada, continua na próxima',

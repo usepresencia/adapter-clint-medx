@@ -43,6 +43,7 @@ function negocio(
         nomeContato: 'Maria',
         telefone: '+5545999197847',
         etapaId: BOAS_VINDAS,
+        criadoEm: '2026-11-01T00:00:00Z',
         campos,
         ...extra,
     };
@@ -332,6 +333,84 @@ describe('MonitorarAgendaUseCase', () => {
             expect.any(String),
         );
         expect(chamadas).toEqual([['adicionarTag', 'c-deal7', 'conferir agendamento MedX']]);
+    });
+
+    it('depois do gatilho do passo esperado não alerta nem marca (D1 sai 30 min após a entrada)', async () => {
+        // consulta de 13-nov: o D1 disparou 12-nov 12:45; agora são 13:00
+        const preso = negocio('deal7', {
+            id_agendamento_medx: '-7',
+            etapa_lembrete: 'd0_boas_vindas',
+            proximo_lembrete: 'd1',
+        });
+        const { usecase, chamadas, logger } = montar({
+            agendamentos: [ag(-7, '2026-11-13T10:00:00')],
+            negocios: [preso],
+        });
+        usecase.agora = () =>
+            DateTime.fromISO('2026-11-12T13:00:00', { zone: 'America/Sao_Paulo' });
+        await usecase.executar('agir');
+        expect(logger.warn).not.toHaveBeenCalled();
+        expect(chamadas).toEqual([]);
+    });
+
+    it('limite de requisições no início da rodada encerra sem erro e sem alerta', async () => {
+        const { usecase, agenda, logger, chamadas } = montar({ agendamentos: [] });
+        agenda.listarDetalhadosPorPeriodo.mockRejectedValue(
+            Object.assign(new Error('429'), { name: 'ErroRateLimit' }),
+        );
+        const resumo = await usecase.executar('agir');
+        expect(resumo.falhas).toBe(0);
+        expect(chamadas).toEqual([]);
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.not.objectContaining({ alerta: true }),
+            expect.stringContaining('limite de requisições'),
+        );
+    });
+
+    it('outro erro no início da rodada continua subindo', async () => {
+        const { usecase, agenda } = montar({ agendamentos: [] });
+        agenda.listarDetalhadosPorPeriodo.mockRejectedValue(new Error('MedX 500'));
+        await expect(usecase.executar('agir')).rejects.toThrow('MedX 500');
+    });
+
+    it('contato cujo negócio mais novo não tem o id do MedX alerta e põe a tag', async () => {
+        // a automação de data roda no negócio mais recente: sem id, a checagem manda payload vazio
+        const antigo = negocio(
+            'deal1',
+            { id_agendamento_medx: '-1', etapa_lembrete: 'd3_preparacao_consulta' },
+            { contatoId: 'c-dup', criadoEm: '2026-11-10T10:00:00Z' },
+        );
+        const novo = negocio('deal2', {}, { contatoId: 'c-dup', criadoEm: '2026-11-12T09:00:00Z' });
+        const { usecase, chamadas, logger } = montar({
+            agendamentos: [],
+            negocios: [antigo, novo],
+        });
+        await usecase.executar('agir');
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({ alerta: true, contato: 'c-dup' }),
+            expect.any(String),
+        );
+        expect(chamadas).toEqual([['adicionarTag', 'c-dup', 'conferir agendamento MedX']]);
+    });
+
+    it('contato com dois negócios em que o mais novo já tem o id não alerta', async () => {
+        const antigo = negocio(
+            'deal1',
+            {},
+            { contatoId: 'c-dup', criadoEm: '2026-11-10T10:00:00Z' },
+        );
+        const novo = negocio(
+            'deal2',
+            { id_agendamento_medx: '-2', etapa_lembrete: 'd3_preparacao_consulta' },
+            { contatoId: 'c-dup', criadoEm: '2026-11-12T09:00:00Z' },
+        );
+        const { usecase, chamadas, logger } = montar({
+            agendamentos: [],
+            negocios: [antigo, novo],
+        });
+        await usecase.executar('agir');
+        expect(logger.warn).not.toHaveBeenCalled();
+        expect(chamadas).toEqual([]);
     });
 
     it('cancelado fecha como perdido e marca etapa cancelado', async () => {

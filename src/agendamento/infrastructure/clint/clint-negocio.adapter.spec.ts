@@ -67,6 +67,7 @@ describe('ClintNegocioAdapter', () => {
             id,
             contact: { id: `c-${id}`, name: 'Karmen 💓💓', phone: '44999365902', ddi: '55' },
             stage_id: BOAS_VINDAS,
+            created_at: '2026-11-12T09:00:00Z',
             fields: { id_agendamento_medx: '-1', etapa_lembrete: 'd1_preparando_chegada' },
         });
         const { adapter, chamadas } = montar({
@@ -85,6 +86,7 @@ describe('ClintNegocioAdapter', () => {
             nomeContato: 'Karmen 💓💓',
             telefone: '+5544999365902',
             etapaId: BOAS_VINDAS,
+            criadoEm: '2026-11-12T09:00:00Z',
             campos: { id_agendamento_medx: '-1', etapa_lembrete: 'd1_preparando_chegada' },
         });
         expect(chamadas[0]).toMatchObject({

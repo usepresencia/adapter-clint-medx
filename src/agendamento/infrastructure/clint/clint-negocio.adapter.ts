@@ -24,6 +24,7 @@ interface NegocioApi {
     id: string;
     contact: ContatoApi;
     stage_id: string;
+    created_at: string;
     fields: Record<string, unknown> | null;
 }
 
@@ -71,6 +72,7 @@ export class ClintNegocioAdapter implements CrmNegocioPort {
             nomeContato: n.contact.name ?? '',
             telefone: e164(n.contact),
             etapaId: n.stage_id,
+            criadoEm: n.created_at,
             campos: soTexto(n.fields),
         }));
     }
