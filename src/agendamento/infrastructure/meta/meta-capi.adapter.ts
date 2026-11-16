@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { fetchComTimeout } from '../../../shared/http/http';
 import { createHash } from 'node:crypto';
 import type { ConversaoPort } from '../../application/ports/conversao.port';
 import type { Telefone } from '../../domain/paciente/telefone';
@@ -53,7 +54,7 @@ export class MetaCapiAdapter implements ConversaoPort {
             );
         }
 
-        const resposta = await fetch(
+        const resposta = await fetchComTimeout(
             `https://graph.facebook.com/${VERSAO_API}/${pixelId}/events?access_token=${token}`,
             {
                 method: 'POST',

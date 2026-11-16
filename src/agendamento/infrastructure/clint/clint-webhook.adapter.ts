@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { fetchComTimeout } from '../../../shared/http/http';
 import type { CrmPort } from '../../application/ports/crm.port';
 import type { Telefone } from '../../domain/paciente/telefone';
 import { calcularHorarioLembreteChegada } from '../../domain/agendamento/lembrete-chegada';
 import { calcularHorarioChecagemComparecimento } from '../../domain/agendamento/checagem-comparecimento';
 
 async function postar(url: string, corpo: Record<string, unknown>): Promise<void> {
-    const resposta = await fetch(url, {
+    const resposta = await fetchComTimeout(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(corpo),

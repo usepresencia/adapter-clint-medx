@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { fetchComTimeout } from '../../../shared/http/http';
 
 const MARGEM_RENOVACAO_MS = 120_000;
 
@@ -35,7 +36,7 @@ export class MedxTokenProvider {
         const host = this.config.get<string>('MEDX_HOST');
         const integrationToken = this.config.get<string>('MEDX_INTEGRATION_TOKEN');
 
-        const resposta = await fetch(`${host}/api/integration/v1/token`, {
+        const resposta = await fetchComTimeout(`${host}/api/integration/v1/token`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ integrationToken }),

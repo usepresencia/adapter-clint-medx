@@ -1,25 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { fetchComTimeout, lerCorpo, montarUrl, type Query } from '../../../shared/http/http';
 
-export type Query = Record<string, string | number | undefined>;
-
-function montarUrl(host: string, caminho: string, query?: Query): string {
-    if (!query) return `${host}${caminho}`;
-
-    const partes = Object.entries(query)
-        .filter(([, valor]) => valor !== undefined)
-        .map(
-            ([chave, valor]) => `${encodeURIComponent(chave)}=${encodeURIComponent(String(valor))}`,
-        );
-
-    return partes.length ? `${host}${caminho}?${partes.join('&')}` : `${host}${caminho}`;
-}
-
-async function lerCorpo<T>(resposta: Response): Promise<T> {
-    const texto = await resposta.text();
-    if (texto === '') return undefined as T;
-    return JSON.parse(texto) as T;
-}
+export type { Query };
 
 @Injectable()
 export class ClintHttpClient {
@@ -42,7 +25,7 @@ export class ClintHttpClient {
         const host = this.config.get<string>('CLINT_API_URL');
         const token = this.config.get<string>('CLINT_API_TOKEN');
 
-        const resposta = await fetch(montarUrl(host!, caminho, query), {
+        const resposta = await fetchComTimeout(montarUrl(host!, caminho, query), {
             method: metodo,
             headers: {
                 'api-token': token!,
