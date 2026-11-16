@@ -19,7 +19,7 @@ const MAX_DIAS_AGENDAMENTOS = 31;
 const MAX_DIAS_DISPONIBILIDADE = 14;
 
 /** Valor exigido pela API do MedX para marcar um agendamento como confirmado. */
-export const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
+const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
 
 function interpretar(iso: string): DateTime {
     const dt = interpretarHorarioClinica(iso);
@@ -41,7 +41,7 @@ function janelas(inicio: string, fim: string, maxDias: number): Array<[string, s
 }
 
 /** Horário da API v1 (com offset) para o formato local sem offset usado nos ports. */
-export function paraHorarioLocal(iso: string): string {
+function paraHorarioLocal(iso: string): string {
     return interpretar(iso).toFormat(FORMATO_MEDX);
 }
 
@@ -52,10 +52,7 @@ function traduzir(detalhe: MedxAgendaDetalhe): AgendamentoExterno {
         idPaciente: detalhe.paciente?.id ?? 0,
         inicio: paraHorarioLocal(detalhe.inicio),
         fim: paraHorarioLocal(detalhe.fim),
-        descricao: detalhe.descricao ?? '',
         status: detalhe.status.id,
-        idTipoConsulta: detalhe.tipo?.id ?? 0,
-        confirmacao: detalhe.confirmacao ?? '',
         ultimaEdicao: detalhe.atualizadoEm ?? '',
         bruto: detalhe,
     };

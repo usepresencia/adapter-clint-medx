@@ -18,10 +18,7 @@ const EXTERNO: AgendamentoExterno = {
     idPaciente: 67890,
     inicio: '2026-07-10T14:00:00',
     fim: '2026-07-10T14:30:00',
-    descricao: 'Consulta',
     status: 0,
-    idTipoConsulta: 111,
-    confirmacao: '',
     ultimaEdicao: '2026-07-09T10:00:00',
     bruto: {},
 };

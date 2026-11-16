@@ -91,7 +91,7 @@ describe('MedxHttpClient', () => {
         vi.spyOn(globalThis, 'fetch').mockResolvedValue(
             new Response('Agendamento atualizado com sucesso.', { status: 200 }),
         );
-        await expect(cliente().client.put('/x', {})).resolves.toBe(
+        await expect(cliente().client.get('/x')).resolves.toBe(
             'Agendamento atualizado com sucesso.',
         );
     });

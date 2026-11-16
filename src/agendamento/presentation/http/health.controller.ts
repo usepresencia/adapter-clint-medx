@@ -7,7 +7,7 @@ import {
     type VerificadorRedis,
 } from '../../../shared/observabilidade/redis-health.port';
 
-export interface Saude {
+interface Saude {
     redis: boolean;
     banco: boolean;
     medx: boolean;

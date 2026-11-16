@@ -6,6 +6,7 @@ import {
     type CrmContatoPort,
 } from '../ports/crm-contato.port';
 import { Telefone } from '../../domain/paciente/telefone';
+import { semAcento } from '../../domain/shared/texto';
 import { nomeCasa } from '../../domain/paciente/casar-nome';
 
 export type ResultadoContato =
@@ -15,7 +16,7 @@ export type ResultadoContato =
     /** `porTelefone`: o mesmo telefone em vários contatos (único caso que recebe tag). */
     | { tipo: 'ambiguo'; candidatos: ContatoClint[]; porTelefone: boolean };
 
-export interface ContextoResolucao {
+interface ContextoResolucao {
     /** Contatos dos negócios abertos da RECEPÇÃO (comparados por nome sem acento). */
     contatosAbertos: ContatoClint[];
     /** `false` no modo observar: não grava telefone no MedX. */
@@ -27,9 +28,7 @@ export interface ContextoResolucao {
  * com qualquer homônima; exige ao menos duas palavras do nome do contato.
  */
 function nomeCasaSemTelefone(nomeMedx: string, nomeClint: string): boolean {
-    const palavras = nomeClint
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '')
+    const palavras = semAcento(nomeClint)
         .replace(/[^A-Za-z\s]/g, ' ')
         .split(/\s+/)
         .filter(Boolean);

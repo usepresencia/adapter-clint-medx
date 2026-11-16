@@ -34,8 +34,4 @@ export class Telefone {
             `Telefone sem DDD reconhecível: ${digitos.length} dígitos após normalização`,
         );
     }
-
-    igual(outro: Telefone): boolean {
-        return this.e164 === outro.e164;
-    }
 }

@@ -6,10 +6,7 @@ export interface AgendamentoExterno {
     idPaciente: number;
     inicio: string;
     fim: string;
-    descricao: string;
     status: number;
-    idTipoConsulta: number;
-    confirmacao: string;
     ultimaEdicao: string;
     /**
      * Payload original do sistema externo. O adapter usa isto para reconstruir uma

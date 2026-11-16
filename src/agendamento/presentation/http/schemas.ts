@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CAMPOS_DATA } from '../../domain/agendamento/campos-data';
 import { VALORES_RESPOSTA } from '../../domain/agendamento/resposta-lembrete';
 
 export const schemaAgendamento = z.object({
@@ -67,11 +68,7 @@ export const schemaComparecimento = z.object({
 export const schemaRegravarData = z.object({
     deal_id: z.string().uuid(),
     id_agendamento_medx: idAgendamentoMedx,
-    campo: z.enum([
-        'data_agendamento',
-        'horario_lembrete_chegada',
-        'horario_checagem_comparecimento',
-    ]),
+    campo: z.enum(CAMPOS_DATA),
 });
 
 export const schemaDisponibilidade = z.object({

@@ -13,10 +13,7 @@ function externo(inicio: string, status = 1): AgendamentoExterno {
         idPaciente: 1,
         inicio,
         fim: inicio,
-        descricao: '',
         status,
-        idTipoConsulta: 0,
-        confirmacao: '',
         ultimaEdicao: '',
         bruto: {},
     };

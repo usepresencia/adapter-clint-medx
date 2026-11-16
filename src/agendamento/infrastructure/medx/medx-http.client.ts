@@ -28,10 +28,6 @@ export class MedxHttpClient {
         return this.chamar<T>('POST', caminho, undefined, corpo, false, cabecalhos);
     }
 
-    put<T>(caminho: string, corpo: unknown): Promise<T> {
-        return this.chamar<T>('PUT', caminho, undefined, corpo);
-    }
-
     /**
      * Lista paginada da API v1: segue `page.nextCursor` enquanto `page.hasMore`.
      * `chaveItens` cobre rotas que não usam `items` (ex.: `profissionais`).

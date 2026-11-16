@@ -17,6 +17,13 @@ export function interpretarHorarioClinica(valor: string): DateTime | null {
     return dt.isValid ? dt : null;
 }
 
+/** Início da consulta no fuso da clínica; erro de domínio se a data for inválida. */
+export function lerInicioConsulta(inicioIso: string): DateTime {
+    const dt = interpretarHorarioClinica(inicioIso);
+    if (!dt) throw new ErroDeDominio(`Início da consulta é uma data inválida: ${inicioIso}`);
+    return dt;
+}
+
 export class PeriodoConsulta {
     private constructor(
         readonly inicio: string,
@@ -31,10 +38,7 @@ export class PeriodoConsulta {
             );
         }
 
-        const dt = interpretarHorarioClinica(inicioIso);
-        if (!dt) {
-            throw new ErroDeDominio(`Início da consulta é uma data inválida: ${inicioIso}`);
-        }
+        const dt = lerInicioConsulta(inicioIso);
 
         return new PeriodoConsulta(
             dt.toFormat(FORMATO_MEDX),

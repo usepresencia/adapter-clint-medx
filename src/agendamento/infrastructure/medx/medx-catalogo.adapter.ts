@@ -5,6 +5,7 @@ import type {
 } from '../../application/ports/catalogo-clinico.port';
 import { RELOGIO_PORT, type Relogio } from '../../application/ports/relogio.port';
 import { RelogioSistema } from '../relogio/relogio-sistema';
+import { semAcento } from '../../domain/shared/texto';
 import { MedxHttpClient } from './medx-http.client';
 import type { MedxProfissional, MedxReferencia, MedxTipoAgendamento } from './medx.tipos';
 
@@ -13,11 +14,7 @@ const STATUS_QUE_LIBERAM_HORARIO = ['desmarcado', 'cancelou', 'faltou'];
 const STATUS_DE_CANCELAMENTO = ['desmarcado', 'cancelou'];
 
 function chave(texto: string): string {
-    return texto
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '');
+    return semAcento(texto.trim().toLowerCase());
 }
 
 function encontrarIdStatus(status: MedxReferencia[], alvo: string): number {

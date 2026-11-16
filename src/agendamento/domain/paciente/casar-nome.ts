@@ -1,7 +1,7 @@
+import { semAcento } from '../shared/texto';
+
 function palavras(nome: string): string[] {
-    return nome
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '')
+    return semAcento(nome)
         .toLowerCase()
         .replace(/[^a-z\s]/g, ' ')
         .split(/\s+/)

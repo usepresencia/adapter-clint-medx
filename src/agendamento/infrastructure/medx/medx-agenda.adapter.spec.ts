@@ -153,7 +153,6 @@ describe('obter', () => {
             inicio: '2026-11-12T10:10:00',
             fim: '2026-11-12T10:20:00',
             status: 2,
-            idTipoConsulta: 111,
             ultimaEdicao: '2026-11-11T10:12:00-03:00',
         });
         expect((externo.bruto as MedxAgendaDetalhe).versao).toBe('v-abc');
@@ -163,7 +162,6 @@ describe('obter', () => {
         const { client } = clientFalso({ get: { ...DETALHE, paciente: null, tipo: null } });
         const externo = await new MedxAgendaAdapter(client).obter(1);
         expect(externo.idPaciente).toBe(0);
-        expect(externo.idTipoConsulta).toBe(0);
     });
 
     it('erra com horário inválido vindo do MedX em vez de devolver "Invalid DateTime"', async () => {
