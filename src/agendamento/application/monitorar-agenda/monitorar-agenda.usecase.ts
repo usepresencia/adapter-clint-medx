@@ -9,11 +9,14 @@ import { CATALOGO_CLINICO_PORT, type CatalogoClinicoPort } from '../ports/catalo
 import {
     CRM_NEGOCIO_PORT,
     type CamposNegocio,
-    type ContatoClint,
     type CrmNegocioPort,
     type NegocioRecepcao,
 } from '../ports/crm-negocio.port';
-import { CRM_CONTATO_PORT, type CrmContatoPort } from '../ports/crm-contato.port';
+import {
+    CRM_CONTATO_PORT,
+    type ContatoClint,
+    type CrmContatoPort,
+} from '../ports/crm-contato.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../ports/logger.port';
 import { ETAPAS_RECEPCAO, type EtapasRecepcao } from '../ports/etapas-recepcao.port';
 import { ResolvedorContato } from './resolver-contato';

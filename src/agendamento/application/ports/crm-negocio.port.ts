@@ -35,13 +35,6 @@ export interface NegocioRecepcao {
     campos: Record<string, string>;
 }
 
-export interface ContatoClint {
-    id: string;
-    nome: string;
-    /** E.164, ou `null` sem telefone. */
-    telefone: string | null;
-}
-
 export interface DadosNovoNegocio {
     contatoId?: string;
     nome: string;
@@ -58,7 +51,6 @@ export interface CrmNegocioPort {
     gravarCampos(dealId: string, campos: CamposNegocio): Promise<void>;
     /** Negócios abertos da origem RECEPÇÃO, todas as etapas. */
     listarAbertosRecepcao(): Promise<NegocioRecepcao[]>;
-    buscarContatos(filtro: { telefone?: Telefone; nome?: string }): Promise<ContatoClint[]>;
     /**
      * Cria na RECEPÇÃO / AGENDAMENTO. Criar direto em BOAS VINDAS não dispara o
      * D0 Boas Vindas; depois de gravar os dados, chame `moverParaBoasVindas`.

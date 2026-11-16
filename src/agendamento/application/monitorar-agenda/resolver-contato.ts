@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CADASTRO_PACIENTE_PORT, type CadastroPacientePort } from '../ports/cadastro-paciente.port';
 import {
-    CRM_NEGOCIO_PORT,
+    CRM_CONTATO_PORT,
     type ContatoClint,
-    type CrmNegocioPort,
-} from '../ports/crm-negocio.port';
+    type CrmContatoPort,
+} from '../ports/crm-contato.port';
 import { Telefone } from '../../domain/paciente/telefone';
 import { nomeCasa } from '../../domain/paciente/casar-nome';
 
@@ -56,7 +56,7 @@ function telefoneOuNull(bruto: string | null): Telefone | null {
 export class ResolvedorContato {
     constructor(
         @Inject(CADASTRO_PACIENTE_PORT) private readonly cadastro: CadastroPacientePort,
-        @Inject(CRM_NEGOCIO_PORT) private readonly crm: CrmNegocioPort,
+        @Inject(CRM_CONTATO_PORT) private readonly crm: CrmContatoPort,
     ) {}
 
     async resolver(

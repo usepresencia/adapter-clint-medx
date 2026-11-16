@@ -95,38 +95,6 @@ describe('ClintNegocioAdapter', () => {
         });
     });
 
-    it('busca contatos pelo telefone completo e pelo nome', async () => {
-        const { adapter, chamadas } = montar({
-            get: () => ({
-                data: [{ id: 'c1', name: 'Cris', phone: '983111455', ddi: '595' }],
-                hasNext: false,
-            }),
-        });
-
-        const porTelefone = await adapter.buscarContatos({
-            telefone: Telefone.criar('+595983111455'),
-        });
-        await adapter.buscarContatos({ nome: 'CRISTIANE' });
-
-        expect(porTelefone).toEqual([{ id: 'c1', nome: 'Cris', telefone: '+595983111455' }]);
-        expect(chamadas[0]!.query).toMatchObject({ phone: '595983111455' });
-        expect(chamadas[1]!.query).toMatchObject({ name: 'CRISTIANE' });
-    });
-
-    it('busca telefone do Paraguai e confere o DDI 595', async () => {
-        const { adapter } = montar({
-            get: () => ({
-                data: [
-                    { id: 'py', name: 'Cris', phone: '983111455', ddi: '595' },
-                    { id: 'br', name: 'Outro', phone: '983111455', ddi: '55' },
-                ],
-                hasNext: false,
-            }),
-        });
-        const achados = await adapter.buscarContatos({ telefone: Telefone.criar('+595983111455') });
-        expect(achados.map(c => c.id)).toEqual(['py']);
-    });
-
     it('criarNegocio usa contato existente e nasce em AGENDAMENTO', async () => {
         const { adapter, chamadas } = montar();
         const id = await adapter.criarNegocio({
