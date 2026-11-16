@@ -16,9 +16,9 @@
 - Status levados para a Clint: Agendado, Confirmado e Endovenoso; cancelamento: Desmarcado e Cancelou. Ids sempre do catálogo (por nome), nunca fixos.
 - Todo negócio novo nasce em RECEPÇÃO / BOAS VINDAS (`CLINT_ORIGEM_RECEPCAO_ID` = `c10ccf49-2c9f-41d5-bfa7-c116daa2cc77`, `CLINT_ETAPA_BOAS_VINDAS_ID` = `03900fbe-0a12-462c-9599-2f5a3ff05657`).
 - Negócios que podem ser assumidos: abertos em BOAS VINDAS ou ENDOVENOSO (`3a031270-0d91-4b81-aff5-55535b82ced6`) sem `id_agendamento_medx`.
-- Ordem de gravação na Clint: etapa/`etapa_lembrete` → datas → `proximo_lembrete`, em chamadas separadas.
+- Ordem de gravação na Clint: etapa/`etapa_lembrete` (ou `proximo_lembrete`, que faz a automação gravar a etapa) → **rodada seguinte, com a etapa confirmada** → lembrete e checagem → `data_agendamento` + `hora_agendamento` por último, em chamadas separadas (Task 10).
 - Formatos na Clint: `data_agendamento` `yyyy-LL-dd`; horários `yyyy-LL-dd'T'HH:mm:ss`; `hora_agendamento` `HH:mm`.
-- Gatilhos (constantes num só arquivo): D3 = consulta −3 dias às 09:00; D1 = −1 dia às 12:05; Aguardando Exame = +7 dias às 09:00; D0 Chegada = `calcularHorarioLembreteChegada`.
+- Gatilhos (constantes num só arquivo): D3 = consulta −3 dias às 09:00; D1 = −1 dia às 12:45 (mudou em 2026-11-16; era 12:05); Aguardando Exame = +7 dias às 09:00; D0 Chegada = `calcularHorarioLembreteChegada`.
 - `proximo_lembrete` ∈ `d3 | d1 | d0_chegada | nenhum`; `etapa_lembrete` de cancelamento = `cancelado`.
 - Tags: `sem telefone no MedX` (sem telefone nos dois sistemas) e `conferir agendamento MedX` (contato ambíguo).
 - Janela: hoje 00:00 → +30 dias; intervalo 5 min. `MONITOR_MEDX_MODO` = `desligado` (padrão) | `observar` | `agir`.
@@ -33,6 +33,7 @@
 4. Consulta antecipada que deixa a etapa atual para trás → grava `proximo_lembrete` diferente do atual; sem salto quando a etapa atual ainda é alcançável (teste na Task 2 e Task 7).
 5. Telefone estrangeiro (Paraguai, +595) — gravado completo ou sem o 5 inicial no MedX (`95982663052`) → acha o contato certo, sem criar duplicado (testes nas Tasks 5 e 6).
 6. Falha da Clint ou do MedX no meio da rodada → os outros agendamentos continuam; a rodada seguinte corrige (teste na Task 7).
+7. Nenhuma data é gravada enquanto a `etapa_lembrete` não está confirmada; `data_agendamento` é sempre a última chamada (testes na Task 10).
 
 ---
 
@@ -181,6 +182,30 @@ Negócio de teste `521e2bf6-1ce0-4cf0-91d9-ea2dc7627eb1`. Registrar cada resulta
 - [ ] **Step 1: Testes que falham:** `'roteia monitor-medx sem tocar em eventos'`; `'modo desligado remove o agendador'`; `'modo observar agenda a cada 5 minutos'`; env: `'MONITOR_MEDX_MODO padrão é desligado'`.
 - [ ] **Step 2:** FAIL. **Step 3:** implementar. **Step 4:** suíte inteira + tsc + lint.
 - [ ] **Step 5:** `git commit -m "feat: agenda o monitor do MedX na fila com modo de operação"`
+
+### Task 10: Etapa antes da data (duas fases) — revisão de 2026-11-16
+
+Roda **antes** da Task 9. Spec: seção "Revisão de 2026-11-16" do desenho.
+
+**Files:** Modify `src/agendamento/domain/agendamento/janela-lembrete.ts`, `src/agendamento/domain/agendamento/gatilhos-lembrete.ts`, `src/agendamento/application/monitorar-agenda/monitorar-agenda.usecase.ts`; Tests `janela-lembrete.spec.ts`, `gatilhos-lembrete.spec.ts` (ou o spec existente), `monitorar-agenda.usecase.spec.ts`.
+
+**Interfaces:**
+- Domínio: `datasLiberadas(etapaLembrete: string | null, proximo: ProximoLembrete): boolean` — `nenhum` → `true`; etapa vazia ou `d0_boas_vindas` → `false`; `etapaFoiUltrapassada(etapa, proximo)` → `false`; senão `true`.
+- Domínio: `horarioGatilhoD1` passa a 12:45.
+- Use case: um único caminho "sincronizar datas" para negócio vinculado com datas divergentes (substitui `remarcarSeMudou`, `concluirCriacao` e a gravação de datas em `assumir`/`criar`):
+  1. `proximo = calcularProximoLembrete(inicio, agora)`.
+  2. Se `etapaFoiUltrapassada` e `campos.proximo_lembrete !== proximo` → grava `proximo_lembrete`.
+  3. Se `!datasLiberadas(etapa, proximo)` → não grava data; se faltar < 60 min para o gatilho do passo esperado → `logger.warn({ alerta: true, ... })` e tag `conferir agendamento MedX` no contato.
+  4. Senão → `gravarSeHouver(lembrete + checagem futuros)` e, numa chamada separada e por último, `data_agendamento` + `hora_agendamento` (se o gatilho ainda vale, regra atual de `calcularCampoData`).
+- Criação e assunção passam a gravar só etapa/vínculo/`proximo_lembrete`; as datas ficam para o caminho acima numa rodada seguinte.
+- `criacaoFicouPelaMetade` continua cobrindo a falha entre criar e mover para BOAS VINDAS.
+
+- [ ] **Step 1: Testes que falham:**
+  - domínio: `'nenhum libera as datas'`; `'etapa vazia bloqueia'`; `'d0_boas_vindas bloqueia'`; `'etapa ultrapassada bloqueia'`; `'etapa alcançável libera'`; `'D1 dispara às 12:45 da véspera'`
+  - use case: `'consulta nova grava etapa e proximo_lembrete sem nenhuma data'`; `'rodada seguinte com a etapa gravada pela automação grava as datas'`; `'data_agendamento é a última chamada'` (ordem das chamadas); `'remarcação com etapa ultrapassada grava só proximo_lembrete'`; `'remarcação com etapa alcançável regrava as datas na mesma rodada'`; `'data apagada pela automação com etapa à frente é regravada sem proximo_lembrete'`; `'bloqueio a menos de 60 min do gatilho alerta e põe tag'`; `'modo observar continua sem escrever'`
+- [ ] **Step 2:** `npx vitest run src/agendamento` — FAIL. **Step 3:** implementar. **Step 4:** PASS + suíte inteira + tsc + lint.
+- [ ] **Step 5:** `git commit -m "feat: monitor só grava datas com a etapa confirmada"`
+- [ ] **Step 6 (com o usuário, na Clint):** tirar do D1 a limpeza de `data_agendamento` (fica só "gravar `d0_chegada`"); no D0 Boas Vindas, a espera de 30 min do caso `d1` passa para antes de gravar a etapa; a "[RECEPCAO] Entrada por janela" não apaga data nem chama `/regravar-data`.
 
 ### Task 9: Verificação final, PR e implantação em observar
 
