@@ -6,3 +6,5 @@ dados/
 *.sqlite-wal
 *.sqlite-shm
 .claude/
+
+*.tsbuildinfo
