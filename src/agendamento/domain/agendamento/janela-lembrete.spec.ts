@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { DateTime } from 'luxon';
-import { calcularProximoLembrete, etapaFoiUltrapassada } from './janela-lembrete';
+import {
+    calcularProximoLembrete,
+    datasLiberadas,
+    etapaFoiUltrapassada,
+    horarioGatilhoDoPasso,
+} from './janela-lembrete';
 import {
     horarioGatilhoD1,
     horarioGatilhoD3,
@@ -41,9 +46,47 @@ describe('etapaFoiUltrapassada', () => {
     });
 });
 
+describe('datasLiberadas', () => {
+    it('nenhum libera as datas', () => {
+        expect(datasLiberadas(null, 'nenhum')).toBe(true);
+        expect(datasLiberadas('d0_boas_vindas', 'nenhum')).toBe(true);
+    });
+    it('etapa vazia bloqueia', () => {
+        expect(datasLiberadas(null, 'd1')).toBe(false);
+    });
+    it('d0_boas_vindas bloqueia', () => {
+        expect(datasLiberadas('d0_boas_vindas', 'd3')).toBe(false);
+    });
+    it('etapa ultrapassada bloqueia', () => {
+        expect(datasLiberadas('d3_preparacao_consulta', 'd1')).toBe(false);
+    });
+    it('etapa alcançável libera', () => {
+        expect(datasLiberadas('d1_preparando_chegada', 'd1')).toBe(true);
+        expect(datasLiberadas('d3_preparacao_consulta', 'd3')).toBe(true);
+        expect(datasLiberadas('d0_chegada', 'd1')).toBe(true);
+    });
+});
+
+describe('horarioGatilhoDoPasso', () => {
+    it('d3, d1 e d0_chegada devolvem o horário em que cada automação dispara', () => {
+        expect(horarioGatilhoDoPasso('d3', CONSULTA)?.toISO()).toBe(
+            em('2026-11-17T09:00:00').toISO(),
+        );
+        expect(horarioGatilhoDoPasso('d1', CONSULTA)?.toISO()).toBe(
+            em('2026-11-19T12:45:00').toISO(),
+        );
+        expect(horarioGatilhoDoPasso('d0_chegada', CONSULTA)?.toISO()).toBe(
+            em('2026-11-20T08:00:00').toISO(),
+        );
+    });
+    it('nenhum não tem gatilho', () => {
+        expect(horarioGatilhoDoPasso('nenhum', CONSULTA)).toBeNull();
+    });
+});
+
 describe('gatilhos', () => {
-    it('D1 é a véspera às 12:05, D3 três dias antes às 09:00, Aguardando Exame +7 dias às 09:00', () => {
-        expect(horarioGatilhoD1(CONSULTA).toISO()).toBe(em('2026-11-19T12:05:00').toISO());
+    it('D1 é a véspera às 12:45, D3 três dias antes às 09:00, Aguardando Exame +7 dias às 09:00', () => {
+        expect(horarioGatilhoD1(CONSULTA).toISO()).toBe(em('2026-11-19T12:45:00').toISO());
         expect(horarioGatilhoD3(CONSULTA).toISO()).toBe(em('2026-11-17T09:00:00').toISO());
         expect(horarioGatilhoAguardandoExame(CONSULTA).toISO()).toBe(
             em('2026-11-27T09:00:00').toISO(),

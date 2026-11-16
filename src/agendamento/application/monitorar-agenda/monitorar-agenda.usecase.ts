@@ -20,7 +20,9 @@ import { ResolvedorContato } from './resolver-contato';
 import { CAMPOS_DATA, calcularCampoData } from '../../domain/agendamento/campos-data';
 import {
     calcularProximoLembrete,
+    datasLiberadas,
     etapaFoiUltrapassada,
+    horarioGatilhoDoPasso,
 } from '../../domain/agendamento/janela-lembrete';
 import { FORMATO_MEDX, FUSO_CLINICA } from '../../domain/agendamento/periodo-consulta';
 import type { Telefone } from '../../domain/paciente/telefone';
@@ -39,6 +41,7 @@ export interface ResumoRodada {
 const DIAS_JANELA = 30;
 const TAG_SEM_TELEFONE = 'sem telefone no MedX';
 const TAG_AMBIGUO = 'conferir agendamento MedX';
+const MINUTOS_ALERTA_BLOQUEIO = 60;
 
 interface Rodada {
     modo: ModoMonitor;
@@ -56,7 +59,9 @@ interface Rodada {
  * Reconcilia a agenda do MedX (hoje → +30 dias) com os negócios abertos da
  * RECEPÇÃO. A Clint é a fonte do estado: o vínculo é o campo
  * `id_agendamento_medx` do negócio. Em `observar`, só registra no log o que
- * faria. Ordem de gravação: etapa → datas → `proximo_lembrete`.
+ * faria. Duas fases: primeiro a etapa (ou o `proximo_lembrete`, que faz a
+ * automação gravá-la); as datas só entram numa rodada em que a etapa já está
+ * confirmada, e `data_agendamento` é sempre a última chamada.
  */
 @Injectable()
 export class MonitorarAgendaUseCase {
@@ -156,7 +161,7 @@ export class MonitorarAgendaUseCase {
                 await this.concluirCriacao(r, negocio.id, ag);
                 return;
             }
-            await this.remarcarSeMudou(r, negocio, ag);
+            await this.sincronizarDatas(r, negocio, ag);
             return;
         }
 
@@ -268,28 +273,28 @@ export class MonitorarAgendaUseCase {
         ag: AgendamentoExterno,
         ehEndovenoso: boolean,
     ): Promise<void> {
-        const proximo = calcularProximoLembrete(ag.inicio, r.agora);
-        const etapa = negocio.campos.etapa_lembrete || null;
         await this.escrever(
             r,
             'assumir negócio',
             { id_agendamento: ag.id, deal_id: negocio.id },
-            async () => {
-                await this.crm.gravarCampos(negocio.id, this.camposBase(ag, ehEndovenoso));
-                await this.gravarSeHouver(negocio.id, this.camposDeData(r, ag));
-                if (!etapa || etapaFoiUltrapassada(etapa, proximo)) {
-                    await this.crm.gravarCampos(negocio.id, { proximo_lembrete: proximo });
-                }
-            },
+            () => this.crm.gravarCampos(negocio.id, this.camposBase(ag, ehEndovenoso)),
         );
         // Marca na rodada (inclusive em observar) para outro agendamento do
         // mesmo contato não assumir o mesmo negócio.
         negocio.campos.id_agendamento_medx = String(ag.id);
         r.porIdAgendamento.set(String(ag.id), negocio);
         r.resumo.assumidos++;
+        await this.sincronizarDatas(r, negocio, ag);
     }
 
-    private async remarcarSeMudou(
+    /**
+     * Leva ao negócio vinculado o horário do MedX. Primeiro a etapa: se ela
+     * ficou para trás (ou ainda não existe), grava o `proximo_lembrete` e
+     * espera a automação gravá-la. Só com a etapa confirmada grava lembrete e
+     * checagem e, por último, `data_agendamento` (o marcador de que terminou:
+     * sem ela a próxima rodada refaz).
+     */
+    private async sincronizarDatas(
         r: Rodada,
         negocio: NegocioRecepcao,
         ag: AgendamentoExterno,
@@ -298,20 +303,61 @@ export class MonitorarAgendaUseCase {
         if (naClint === ag.inicio.slice(0, 16)) return;
 
         const proximo = calcularProximoLembrete(ag.inicio, r.agora);
+        const etapa = negocio.campos.etapa_lembrete || null;
+        const salto =
+            (!etapa || etapaFoiUltrapassada(etapa, proximo)) &&
+            negocio.campos.proximo_lembrete !== proximo;
+        const campos = datasLiberadas(etapa, proximo) ? this.camposDeData(r, ag) : {};
+        const { data_agendamento, hora_agendamento, ...horarios } = campos;
+        const dataDaConsulta: CamposNegocio =
+            data_agendamento && hora_agendamento ? { data_agendamento, hora_agendamento } : {};
+
+        if (!salto && Object.keys(campos).length === 0) {
+            await this.alertarSeBloqueioPerto(r, negocio, ag, proximo);
+            return;
+        }
+
+        const ehRemarcacao = Boolean(negocio.campos.data_agendamento);
         await this.escrever(
             r,
-            'remarcar',
+            ehRemarcacao ? 'remarcar' : 'preencher datas',
             { id_agendamento: ag.id, deal_id: negocio.id },
             async () => {
-                // O salto vem antes das datas: elas são o marcador de que a
-                // remarcação terminou (se o salto falhar, a próxima rodada refaz).
-                if (etapaFoiUltrapassada(negocio.campos.etapa_lembrete || null, proximo)) {
-                    await this.crm.gravarCampos(negocio.id, { proximo_lembrete: proximo });
-                }
-                await this.gravarSeHouver(negocio.id, this.camposDeData(r, ag));
+                if (salto) await this.crm.gravarCampos(negocio.id, { proximo_lembrete: proximo });
+                await this.gravarSeHouver(negocio.id, horarios);
+                await this.gravarSeHouver(negocio.id, dataDaConsulta);
             },
         );
-        r.resumo.remarcados++;
+        if (ehRemarcacao) r.resumo.remarcados++;
+    }
+
+    /**
+     * Datas bloqueadas esperando uma etapa que a automação não gravou. Perto do
+     * gatilho do passo esperado já é tarde para esperar: alerta e marca o
+     * contato para a recepção conferir. (Depois do gatilho não alerta: o caso
+     * do D1 enviado 30 min depois da entrada espera de propósito.)
+     */
+    private async alertarSeBloqueioPerto(
+        r: Rodada,
+        negocio: NegocioRecepcao,
+        ag: AgendamentoExterno,
+        proximo: ReturnType<typeof calcularProximoLembrete>,
+    ): Promise<void> {
+        const gatilho = horarioGatilhoDoPasso(proximo, ag.inicio);
+        if (!gatilho) return;
+        const minutos = gatilho.diff(r.agora, 'minutes').minutes;
+        if (minutos < 0 || minutos >= MINUTOS_ALERTA_BLOQUEIO) return;
+
+        this.logger.warn(
+            { alerta: true, id_agendamento: ag.id, deal_id: negocio.id, passo: proximo },
+            'monitor do MedX: etapa não confirmada perto do gatilho — datas não gravadas',
+        );
+        await this.escrever(
+            r,
+            'tag etapa não confirmada',
+            { id_agendamento: ag.id, contato: negocio.contatoId },
+            () => this.contatos.adicionarTag(negocio.contatoId, TAG_AMBIGUO),
+        );
     }
 
     private async cancelar(
@@ -352,7 +398,7 @@ export class MonitorarAgendaUseCase {
                 if (!externo || r.cancelamento.includes(externo.status)) {
                     await this.cancelar(r, negocio, Number(id));
                 } else {
-                    await this.remarcarSeMudou(r, negocio, externo);
+                    await this.sincronizarDatas(r, negocio, externo);
                 }
             });
             if (!seguir) return;
@@ -374,7 +420,10 @@ export class MonitorarAgendaUseCase {
         );
     }
 
-    /** Entra em BOAS VINDAS (dispara a cadeia), grava as datas e o `proximo_lembrete`. */
+    /**
+     * Entra em BOAS VINDAS (dispara a cadeia) e grava o `proximo_lembrete`. As
+     * datas ficam para uma rodada seguinte, depois que a automação gravar a etapa.
+     */
     private async concluirCriacao(
         r: Rodada,
         dealId: string,
@@ -383,7 +432,6 @@ export class MonitorarAgendaUseCase {
     ): Promise<void> {
         const passos = async () => {
             await this.crm.moverParaBoasVindas(dealId);
-            await this.gravarSeHouver(dealId, this.camposDeData(r, ag));
             await this.crm.gravarCampos(dealId, {
                 proximo_lembrete: calcularProximoLembrete(ag.inicio, r.agora),
             });

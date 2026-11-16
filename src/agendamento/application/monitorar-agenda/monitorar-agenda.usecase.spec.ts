@@ -150,7 +150,7 @@ describe('MonitorarAgendaUseCase', () => {
         expect(resumo.criados).toBe(0);
     });
 
-    it('consulta nova cria em BOAS VINDAS com d0_boas_vindas, depois datas, depois proximo_lembrete', async () => {
+    it('consulta nova grava etapa e proximo_lembrete sem nenhuma data', async () => {
         const { usecase, chamadas } = montar({
             agendamentos: [ag(-7, '2026-11-20T10:00:00')],
             contato: CONTATO,
@@ -159,7 +159,6 @@ describe('MonitorarAgendaUseCase', () => {
         expect(chamadas.map(c => c[0])).toEqual([
             'criarNegocio',
             'moverParaBoasVindas',
-            'gravarCampos',
             'gravarCampos',
         ]);
         expect(chamadas[0]![1]).toEqual({
@@ -171,13 +170,7 @@ describe('MonitorarAgendaUseCase', () => {
                 etapa_lembrete: 'd0_boas_vindas',
             },
         });
-        expect(chamadas[2]![2]).toEqual({
-            data_agendamento: '2026-11-20',
-            hora_agendamento: '10:00',
-            horario_lembrete_chegada: '2026-11-20T08:00:00',
-            horario_checagem_comparecimento: '2026-11-20T12:00:00',
-        });
-        expect(chamadas[3]![2]).toEqual({ proximo_lembrete: 'd3' });
+        expect(chamadas[2]![2]).toEqual({ proximo_lembrete: 'd3' });
         expect(resumo.criados).toBe(1);
     });
 
@@ -192,7 +185,7 @@ describe('MonitorarAgendaUseCase', () => {
             duracao_consulta: '10',
             tipo_consulta: 'endovenoso',
         });
-        expect(chamadas[3]![2]).toEqual({ proximo_lembrete: 'd1' });
+        expect(chamadas[2]![2]).toEqual({ proximo_lembrete: 'd1' });
     });
 
     it('assume negócio aberto sem id em vez de criar', async () => {
@@ -211,6 +204,7 @@ describe('MonitorarAgendaUseCase', () => {
         ]);
         expect(chamadas.at(-1)).toEqual(['gravarCampos', 'aberto', { proximo_lembrete: 'd3' }]);
         expect(resumo.assumidos).toBe(1);
+        expect(JSON.stringify(chamadas)).not.toContain('data_agendamento');
     });
 
     it('não assume negócio fora de BOAS VINDAS ou ENDOVENOSO', async () => {
@@ -224,7 +218,7 @@ describe('MonitorarAgendaUseCase', () => {
         expect(crm.criarNegocio).toHaveBeenCalled();
     });
 
-    it('remarcação regrava as datas futuras sem mexer na etapa', async () => {
+    it('remarcação com etapa alcançável regrava as datas na mesma rodada', async () => {
         const { usecase, chamadas } = montar({
             agendamentos: [ag(-1, '2026-11-24T10:00:00')],
             negocios: [vinculado(-1, '2026-11-20', '10:00')],
@@ -235,24 +229,109 @@ describe('MonitorarAgendaUseCase', () => {
                 'gravarCampos',
                 'deal1',
                 {
-                    data_agendamento: '2026-11-24',
-                    hora_agendamento: '10:00',
                     horario_lembrete_chegada: '2026-11-24T08:00:00',
                     horario_checagem_comparecimento: '2026-11-24T12:00:00',
                 },
+            ],
+            [
+                'gravarCampos',
+                'deal1',
+                { data_agendamento: '2026-11-24', hora_agendamento: '10:00' },
             ],
         ]);
         expect(resumo.remarcados).toBe(1);
     });
 
-    it('antecipação que ultrapassa a etapa grava proximo_lembrete', async () => {
+    it('data_agendamento é a última chamada', async () => {
+        const { usecase, chamadas } = montar({
+            agendamentos: [ag(-1, '2026-11-24T10:00:00')],
+            negocios: [vinculado(-1, '2026-11-20', '10:00')],
+        });
+        await usecase.executar('agir');
+        const campoDasChamadas = chamadas.map(c => Object.keys(c[2] as object));
+        expect(campoDasChamadas.length).toBeGreaterThan(1);
+        expect(campoDasChamadas.at(-1)).toContain('data_agendamento');
+        expect(campoDasChamadas.slice(0, -1).flat()).not.toContain('data_agendamento');
+    });
+
+    it('remarcação com etapa ultrapassada grava só proximo_lembrete', async () => {
         const { usecase, chamadas } = montar({
             agendamentos: [ag(-1, '2026-11-13T10:00:00')],
             negocios: [vinculado(-1, '2026-11-20', '10:00', 'd3_preparacao_consulta')],
         });
         await usecase.executar('agir');
-        expect(chamadas[0]).toEqual(['gravarCampos', 'deal1', { proximo_lembrete: 'd1' }]);
-        expect(chamadas.at(-1)![2]).toMatchObject({ data_agendamento: '2026-11-13' });
+        expect(chamadas).toEqual([['gravarCampos', 'deal1', { proximo_lembrete: 'd1' }]]);
+    });
+
+    it('rodada seguinte, com a etapa gravada pela automação, grava as datas', async () => {
+        const criadoSemDatas = negocio('deal7', {
+            id_agendamento_medx: '-7',
+            etapa_lembrete: 'd3_preparacao_consulta',
+            proximo_lembrete: 'd3',
+        });
+        const { usecase, chamadas } = montar({
+            agendamentos: [ag(-7, '2026-11-20T10:00:00')],
+            negocios: [criadoSemDatas],
+        });
+        const resumo = await usecase.executar('agir');
+        expect(chamadas.map(c => Object.keys(c[2] as object))).toEqual([
+            ['horario_lembrete_chegada', 'horario_checagem_comparecimento'],
+            ['data_agendamento', 'hora_agendamento'],
+        ]);
+        expect(resumo.remarcados).toBe(0);
+    });
+
+    it('enquanto a automação não gravou a etapa, não grava nenhuma data', async () => {
+        const esperando = negocio('deal7', {
+            id_agendamento_medx: '-7',
+            etapa_lembrete: 'd0_boas_vindas',
+            proximo_lembrete: 'd3',
+        });
+        const { usecase, chamadas, logger } = montar({
+            agendamentos: [ag(-7, '2026-11-20T10:00:00')],
+            negocios: [esperando],
+        });
+        const resumo = await usecase.executar('agir');
+        expect(chamadas).toEqual([]);
+        expect(logger.warn).not.toHaveBeenCalled();
+        expect(resumo.remarcados).toBe(0);
+    });
+
+    it('data apagada pela automação com a etapa à frente é regravada sem proximo_lembrete', async () => {
+        const semData = negocio('deal7', {
+            id_agendamento_medx: '-7',
+            etapa_lembrete: 'd0_chegada',
+        });
+        const { usecase, chamadas } = montar({
+            agendamentos: [ag(-7, '2026-11-12T15:00:00')],
+            negocios: [semData],
+        });
+        await usecase.executar('agir');
+        expect(JSON.stringify(chamadas)).not.toContain('proximo_lembrete');
+        expect(chamadas.at(-1)).toEqual([
+            'gravarCampos',
+            'deal7',
+            { data_agendamento: '2026-11-12', hora_agendamento: '15:00' },
+        ]);
+    });
+
+    it('bloqueio a menos de 60 min do gatilho alerta e põe a tag', async () => {
+        // agora = 12-nov 12:00; D1 da consulta de 13-nov dispara 12:45
+        const preso = negocio('deal7', {
+            id_agendamento_medx: '-7',
+            etapa_lembrete: 'd0_boas_vindas',
+            proximo_lembrete: 'd1',
+        });
+        const { usecase, chamadas, logger } = montar({
+            agendamentos: [ag(-7, '2026-11-13T10:00:00')],
+            negocios: [preso],
+        });
+        await usecase.executar('agir');
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({ alerta: true, id_agendamento: -7 }),
+            expect.any(String),
+        );
+        expect(chamadas).toEqual([['adicionarTag', 'c-deal7', 'conferir agendamento MedX']]);
     });
 
     it('cancelado fecha como perdido e marca etapa cancelado', async () => {
@@ -276,10 +355,10 @@ describe('MonitorarAgendaUseCase', () => {
         });
         await usecase.executar('agir');
         expect(agenda.obterSeExistir).toHaveBeenCalledWith(-1);
-        expect(chamadas[0]).toEqual([
+        expect(chamadas.at(-1)).toEqual([
             'gravarCampos',
             'deal1',
-            expect.objectContaining({ data_agendamento: '2026-12-20' }),
+            { data_agendamento: '2026-12-20', hora_agendamento: '10:00' },
         ]);
         expect(chamadas.some(c => c[0] === 'encerrarComoPerdido')).toBe(false);
     });
@@ -432,11 +511,7 @@ describe('MonitorarAgendaUseCase', () => {
             negocios: [parado],
         });
         await usecase.executar('agir');
-        expect(chamadas.map(c => c[0])).toEqual([
-            'moverParaBoasVindas',
-            'gravarCampos',
-            'gravarCampos',
-        ]);
+        expect(chamadas.map(c => c[0])).toEqual(['moverParaBoasVindas', 'gravarCampos']);
         expect(chamadas.at(-1)).toEqual(['gravarCampos', 'parado', { proximo_lembrete: 'd3' }]);
     });
 

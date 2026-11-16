@@ -3,13 +3,13 @@ import { FUSO_CLINICA } from './periodo-consulta';
 
 /**
  * Horários de disparo das automações de data da RECEPÇÃO na Clint, copiados
- * das automações em 2026-11-12. Se uma automação mudar de horário, muda aqui.
+ * das automações em 2026-11-12 (D1 atualizado em 2026-11-16). Se uma automação mudar de horário, muda aqui.
  * - D3 Preparação Consulta: `data_agendamento` −3 dias às 09:00
- * - D1 Preparando chegada: `data_agendamento` −1 dia às 12:05
+ * - D1 Preparando chegada: `data_agendamento` −1 dia às 12:45
  * - Aguardando Exame: `data_agendamento` +7 dias às 09:00
  */
 const D3 = { dias: -3, hora: 9, minuto: 0 };
-const D1 = { dias: -1, hora: 12, minuto: 5 };
+const D1 = { dias: -1, hora: 12, minuto: 45 };
 const AGUARDANDO_EXAME = { dias: 7, hora: 9, minuto: 0 };
 
 function gatilho(inicio: string, g: { dias: number; hora: number; minuto: number }): DateTime {
