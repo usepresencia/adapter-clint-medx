@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type {
     CatalogoClinicoPort,
     TipoConsultaResolvido,
 } from '../../application/ports/catalogo-clinico.port';
+import { RELOGIO_PORT, type Relogio } from '../../application/ports/relogio.port';
+import { RelogioSistema } from '../relogio/relogio-sistema';
 import { MedxHttpClient } from './medx-http.client';
 import type { MedxProfissional, MedxReferencia, MedxTipoAgendamento } from './medx.tipos';
 
@@ -48,13 +50,15 @@ interface Carregado {
 @Injectable()
 export class MedxCatalogoAdapter implements CatalogoClinicoPort {
     ttlMs = TTL_PADRAO_MS;
-    agora: () => number = Date.now;
 
     private dados: Carregado | null = null;
     private carregadoEm = -Infinity;
     private emVoo: Promise<void> | null = null;
 
-    constructor(private readonly client: MedxHttpClient) {}
+    constructor(
+        private readonly client: MedxHttpClient,
+        @Inject(RELOGIO_PORT) private readonly relogio: Relogio = new RelogioSistema(),
+    ) {}
 
     async carregar(): Promise<void> {
         const [catalogos, tipos, profissionais] = await Promise.all([
@@ -97,11 +101,11 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
                 id => id >= 0,
             ),
         };
-        this.carregadoEm = this.agora();
+        this.carregadoEm = this.relogio.agora().toMillis();
     }
 
     private async garantir(): Promise<Carregado> {
-        if (!this.dados || this.agora() - this.carregadoEm >= this.ttlMs) {
+        if (!this.dados || this.relogio.agora().toMillis() - this.carregadoEm >= this.ttlMs) {
             // Chamadas simultâneas compartilham a mesma carga em voo.
             this.emVoo ??= this.carregar().finally(() => {
                 this.emVoo = null;

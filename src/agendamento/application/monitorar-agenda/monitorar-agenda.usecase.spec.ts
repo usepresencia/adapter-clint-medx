@@ -101,6 +101,8 @@ function montar(opcoes: {
         boasVindas: BOAS_VINDAS,
         endovenoso: ENDOVENOSO,
     };
+    let agora = AGORA;
+    const relogio = { agora: () => DateTime.fromISO(agora, { zone: 'America/Sao_Paulo' }) };
     const usecase = new MonitorarAgendaUseCase(
         agenda as any,
         catalogo as any,
@@ -109,9 +111,17 @@ function montar(opcoes: {
         resolvedor as any,
         logger,
         etapas,
+        relogio,
     );
-    usecase.agora = () => DateTime.fromISO(AGORA, { zone: 'America/Sao_Paulo' });
-    return { usecase, chamadas, crm, agenda, logger, contatos };
+    return {
+        usecase,
+        chamadas,
+        crm,
+        agenda,
+        logger,
+        contatos,
+        definirAgora: (v: string) => (agora = v),
+    };
 }
 
 const CONTATO: ResultadoContato = {
@@ -339,12 +349,11 @@ describe('MonitorarAgendaUseCase', () => {
             etapa_lembrete: 'd0_boas_vindas',
             proximo_lembrete: 'd1',
         });
-        const { usecase, chamadas, logger } = montar({
+        const { usecase, chamadas, logger, definirAgora } = montar({
             agendamentos: [ag(-7, '2026-11-13T10:00:00')],
             negocios: [preso],
         });
-        usecase.agora = () =>
-            DateTime.fromISO('2026-11-12T13:00:00', { zone: 'America/Sao_Paulo' });
+        definirAgora('2026-11-12T13:00:00');
         await usecase.executar('agir');
         expect(logger.warn).not.toHaveBeenCalled();
         expect(chamadas).toEqual([]);

@@ -1,11 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DateTime } from 'luxon';
 import { AGENDA_MEDICA_PORT, type AgendaMedicaPort } from '../ports/agenda-medica.port';
 import { CATALOGO_CLINICO_PORT, type CatalogoClinicoPort } from '../ports/catalogo-clinico.port';
 import { CRM_NEGOCIO_PORT, type CrmNegocioPort } from '../ports/crm-negocio.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../ports/logger.port';
+import { RELOGIO_PORT, type Relogio } from '../ports/relogio.port';
 import { calcularCampoData } from '../../domain/agendamento/campos-data';
-import { FUSO_CLINICA } from '../../domain/agendamento/periodo-consulta';
 import type { ComandoRegravarData } from './regravar-data.comando';
 
 /**
@@ -17,14 +16,12 @@ import type { ComandoRegravarData } from './regravar-data.comando';
  */
 @Injectable()
 export class RegravarDataUseCase {
-    /** Sobrescrito em testes para controlar o relógio. */
-    agora: () => DateTime = () => DateTime.now().setZone(FUSO_CLINICA);
-
     constructor(
         @Inject(AGENDA_MEDICA_PORT) private readonly agenda: AgendaMedicaPort,
         @Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort,
         @Inject(CRM_NEGOCIO_PORT) private readonly crm: CrmNegocioPort,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
+        @Inject(RELOGIO_PORT) private readonly relogio: Relogio,
     ) {}
 
     async executar(comando: ComandoRegravarData): Promise<void> {
@@ -45,7 +42,7 @@ export class RegravarDataUseCase {
 
         const { campos, momento } = calcularCampoData(comando.campo, externo.inicio);
 
-        if (momento <= this.agora()) {
+        if (momento <= this.relogio.agora()) {
             // A automação já apagou o campo: o negócio fica sem esse gatilho.
             this.logger.warn(
                 { ...contexto, momento: momento.toISO(), alerta: true },

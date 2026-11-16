@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { describe, it, expect } from 'vitest';
 import { MedxCatalogoAdapter } from './medx-catalogo.adapter';
 import type { MedxHttpClient } from './medx-http.client';
@@ -121,9 +122,8 @@ describe('carregamento sob demanda', () => {
     it('revalida o cache depois do TTL', async () => {
         let agora = 0;
         const { client, chamadas } = clientFalso();
-        const c = new MedxCatalogoAdapter(client);
+        const c = new MedxCatalogoAdapter(client, { agora: () => DateTime.fromMillis(agora) });
         c.ttlMs = 1000;
-        c.agora = () => agora;
         await c.carregar();
         const antes = chamadas.length;
         agora = 2000;

@@ -18,6 +18,7 @@ import {
     type CrmContatoPort,
 } from '../ports/crm-contato.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../ports/logger.port';
+import { RELOGIO_PORT, type Relogio } from '../ports/relogio.port';
 import { ETAPAS_RECEPCAO, type EtapasRecepcao } from '../ports/etapas-recepcao.port';
 import { ResolvedorContato } from './resolver-contato';
 import type { ModoMonitor } from './monitorar-agenda.comando';
@@ -77,9 +78,6 @@ interface Rodada {
  */
 @Injectable()
 export class MonitorarAgendaUseCase {
-    /** Sobrescrito em testes para controlar o relógio. */
-    agora: () => DateTime = () => DateTime.now().setZone(FUSO_CLINICA);
-
     constructor(
         @Inject(AGENDA_MEDICA_PORT) private readonly agenda: AgendaMedicaPort,
         @Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort,
@@ -88,10 +86,11 @@ export class MonitorarAgendaUseCase {
         private readonly resolvedor: ResolvedorContato,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
         @Inject(ETAPAS_RECEPCAO) private readonly etapas: EtapasRecepcao,
+        @Inject(RELOGIO_PORT) private readonly relogio: Relogio,
     ) {}
 
     async executar(modo: ModoMonitor): Promise<ResumoRodada> {
-        const agora = this.agora();
+        const agora = this.relogio.agora();
         const inicioJanela = agora.startOf('day');
         const fimJanela = inicioJanela.plus({ days: DIAS_JANELA });
 

@@ -1,22 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { RELOGIO_PORT, type Relogio } from '../../application/ports/relogio.port';
+import { RelogioSistema } from '../relogio/relogio-sistema';
 import { fetchComTimeout } from '../../../shared/http/http';
 
 const MARGEM_RENOVACAO_MS = 120_000;
 
 @Injectable()
 export class MedxTokenProvider {
-    /** Sobrescrito em testes para controlar o relógio; produção usa Date.now. */
-    agora: () => number = Date.now;
-
     private token: string | null = null;
     private expiraEm = 0;
     private emVoo: Promise<string> | null = null;
 
-    constructor(private readonly config: ConfigService) {}
+    constructor(
+        private readonly config: ConfigService,
+        @Inject(RELOGIO_PORT) private readonly relogio: Relogio = new RelogioSistema(),
+    ) {}
 
     async obterToken(): Promise<string> {
-        if (this.token && this.agora() < this.expiraEm - MARGEM_RENOVACAO_MS) {
+        if (this.token && this.relogio.agora().toMillis() < this.expiraEm - MARGEM_RENOVACAO_MS) {
             return this.token;
         }
         // A troca de token é limitada a 10 req/min por IP: chamadas concorrentes
@@ -48,7 +50,7 @@ export class MedxTokenProvider {
 
         const dados = (await resposta.json()) as { accessToken: string; expiresInSeconds: number };
         this.token = dados.accessToken;
-        this.expiraEm = this.agora() + dados.expiresInSeconds * 1000;
+        this.expiraEm = this.relogio.agora().toMillis() + dados.expiresInSeconds * 1000;
         return this.token;
     }
 }

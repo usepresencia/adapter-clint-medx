@@ -9,6 +9,7 @@ import {
     type SlotDisponivel,
 } from '../ports/agenda-medica.port';
 import { CATALOGO_CLINICO_PORT, type CatalogoClinicoPort } from '../ports/catalogo-clinico.port';
+import { RELOGIO_PORT, type Relogio } from '../ports/relogio.port';
 import type { ComandoDisponibilidade } from './consultar-disponibilidade.comando';
 
 const DURACAO_PADRAO_MINUTOS = 60;
@@ -25,11 +26,10 @@ function limiteDoDia(data: string, borda: 'inicio' | 'fim'): string {
 
 @Injectable()
 export class ConsultarDisponibilidadeUseCase {
-    agora: () => string = () => DateTime.now().setZone(FUSO_CLINICA).toFormat(FORMATO_MEDX);
-
     constructor(
         @Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort,
         @Inject(AGENDA_MEDICA_PORT) private readonly agenda: AgendaMedicaPort,
+        @Inject(RELOGIO_PORT) private readonly relogio: Relogio,
     ) {}
 
     /**
@@ -62,7 +62,7 @@ export class ConsultarDisponibilidadeUseCase {
             blocos,
             ocupados,
             duracaoMinutos: comando.duracaoMinutos ?? DURACAO_PADRAO_MINUTOS,
-            agora: this.agora(),
+            agora: this.relogio.agora().toFormat(FORMATO_MEDX),
         });
     }
 }

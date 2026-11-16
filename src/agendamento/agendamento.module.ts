@@ -30,6 +30,8 @@ import { CRM_PORT } from './application/ports/crm.port';
 import { CRM_CONTATO_PORT } from './application/ports/crm-contato.port';
 import { CRM_NEGOCIO_PORT } from './application/ports/crm-negocio.port';
 import { CONVERSAO_PORT } from './application/ports/conversao.port';
+import { RELOGIO_PORT } from './application/ports/relogio.port';
+import { RelogioSistema } from './infrastructure/relogio/relogio-sistema';
 import { ETAPAS_RECEPCAO } from './application/ports/etapas-recepcao.port';
 
 import { RegravarDataUseCase } from './application/regravar-data/regravar-data.usecase';
@@ -66,6 +68,7 @@ const JOB_MONITOR = 'monitor-medx';
         { provide: CRM_CONTATO_PORT, useClass: ClintContatoAdapter },
         { provide: CRM_NEGOCIO_PORT, useClass: ClintNegocioAdapter },
         { provide: CONVERSAO_PORT, useClass: MetaCapiAdapter },
+        { provide: RELOGIO_PORT, useClass: RelogioSistema },
         {
             provide: ETAPAS_RECEPCAO,
             useFactory: (config: ConfigService) => ({

@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { describe, it, expect, vi } from 'vitest';
 import { ConsultarDisponibilidadeUseCase } from './consultar-disponibilidade.usecase';
 import type { OcupacaoAgenda, SlotDisponivel } from '../ports/agenda-medica.port';
@@ -37,9 +38,10 @@ function montar(opcoes: { grade?: SlotDisponivel[]; ocupacoes?: OcupacaoAgenda[]
         listarPorPeriodo: vi.fn(async () => opcoes.ocupacoes ?? []),
     };
 
-    const usecase = new ConsultarDisponibilidadeUseCase(catalogo as any, agenda as any);
-    usecase.agora = () => '2026-07-10T00:00:00';
-    return { catalogo, agenda, usecase };
+    let agora = '2026-07-10T00:00:00';
+    const relogio = { agora: () => DateTime.fromISO(agora, { zone: 'America/Sao_Paulo' }) };
+    const usecase = new ConsultarDisponibilidadeUseCase(catalogo as any, agenda as any, relogio);
+    return { catalogo, agenda, usecase, definirAgora: (v: string) => (agora = v) };
 }
 
 describe('ConsultarDisponibilidadeUseCase', () => {
@@ -156,10 +158,10 @@ describe('ConsultarDisponibilidadeUseCase', () => {
     });
 
     it('não oferece horários que já passaram', async () => {
-        const { usecase } = montar({
+        const { usecase, definirAgora } = montar({
             grade: blocos('2026-07-10', ['08:00', '08:30', '09:00', '09:30']),
         });
-        usecase.agora = () => '2026-07-10T08:15:00';
+        definirAgora('2026-07-10T08:15:00');
 
         const slots = await usecase.executar({ profissional: 'Leize', dataInicio: '2026-07-10' });
 
