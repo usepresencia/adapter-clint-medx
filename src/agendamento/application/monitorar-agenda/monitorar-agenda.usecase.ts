@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { DateTime } from 'luxon';
 import {
     AGENDA_MEDICA_PORT,
@@ -16,7 +15,9 @@ import {
 } from '../ports/crm-negocio.port';
 import { CRM_CONTATO_PORT, type CrmContatoPort } from '../ports/crm-contato.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../ports/logger.port';
+import { ETAPAS_RECEPCAO, type EtapasRecepcao } from '../ports/etapas-recepcao.port';
 import { ResolvedorContato } from './resolver-contato';
+import type { ModoMonitor } from './monitorar-agenda.comando';
 import { CAMPOS_DATA, calcularCampoData } from '../../domain/agendamento/campos-data';
 import {
     calcularProximoLembrete,
@@ -26,8 +27,6 @@ import {
 } from '../../domain/agendamento/janela-lembrete';
 import { FORMATO_MEDX, FUSO_CLINICA } from '../../domain/agendamento/periodo-consulta';
 import type { Telefone } from '../../domain/paciente/telefone';
-
-export type ModoMonitor = 'observar' | 'agir';
 
 export interface ResumoRodada {
     criados: number;
@@ -85,7 +84,7 @@ export class MonitorarAgendaUseCase {
         @Inject(CRM_CONTATO_PORT) private readonly contatos: CrmContatoPort,
         private readonly resolvedor: ResolvedorContato,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
-        private readonly config: ConfigService,
+        @Inject(ETAPAS_RECEPCAO) private readonly etapas: EtapasRecepcao,
     ) {}
 
     async executar(modo: ModoMonitor): Promise<ResumoRodada> {
@@ -247,7 +246,7 @@ export class MonitorarAgendaUseCase {
                 n =>
                     n.contatoId === resultado.contato.id &&
                     !n.campos.id_agendamento_medx &&
-                    n.etapaId === this.config.get<string>('CLINT_ETAPA_CRIACAO_ID'),
+                    n.etapaId === this.etapas.criacao,
             );
             if (pendente) {
                 r.resumo.ignorados++;
@@ -261,9 +260,7 @@ export class MonitorarAgendaUseCase {
                     !n.campos.id_agendamento_medx &&
                     this.etapasAssumiveis().includes(n.etapaId),
             );
-            const etapaDoTipo = this.config.get<string>(
-                ehEndovenoso ? 'CLINT_ETAPA_ENDOVENOSO_ID' : 'CLINT_ETAPA_BOAS_VINDAS_ID',
-            );
+            const etapaDoTipo = ehEndovenoso ? this.etapas.endovenoso : this.etapas.boasVindas;
             const assumivel = candidatos.find(n => n.etapaId === etapaDoTipo) ?? candidatos[0];
             // Telefone de um contato só, com outro nome (ex.: mãe e filha): usa o
             // contato, mas não assume o negócio dele.
@@ -460,7 +457,7 @@ export class MonitorarAgendaUseCase {
             negocio.campos.etapa_lembrete === 'd0_boas_vindas' ||
             negocio.campos.tipo_consulta === 'endovenoso';
         return (
-            negocio.etapaId === this.config.get<string>('CLINT_ETAPA_CRIACAO_ID') &&
+            negocio.etapaId === this.etapas.criacao &&
             criadoPeloMonitor &&
             !negocio.campos.proximo_lembrete
         );
@@ -502,7 +499,7 @@ export class MonitorarAgendaUseCase {
             contatoId: criado.contatoId,
             nomeContato: '',
             telefone: null,
-            etapaId: this.config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID')!,
+            etapaId: this.etapas.boasVindas,
             criadoEm: r.agora.toISO()!,
             campos: { ...(campos as Record<string, string>), id_agendamento_medx: String(ag.id) },
         };
@@ -533,10 +530,7 @@ export class MonitorarAgendaUseCase {
     }
 
     private etapasAssumiveis(): string[] {
-        return [
-            this.config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID')!,
-            this.config.get<string>('CLINT_ETAPA_ENDOVENOSO_ID')!,
-        ];
+        return [this.etapas.boasVindas, this.etapas.endovenoso];
     }
 
     private async gravarSeHouver(dealId: string, campos: CamposNegocio): Promise<void> {

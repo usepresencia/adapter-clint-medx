@@ -4,7 +4,7 @@ import { BullMqFilaAdapter } from './bullmq-fila.adapter';
 describe('BullMqFilaAdapter', () => {
     it('agendarRepetitivo usa um agendador da fila com o intervalo pedido', async () => {
         const fila = { upsertJobScheduler: vi.fn(async () => ({})), removeJobScheduler: vi.fn() };
-        const dados = { tipo: 'monitor-medx', eventoId: 0, comando: { modo: 'agir' } } as const;
+        const dados = { tipo: 'monitor-medx', comando: { modo: 'agir' } } as const;
         await new BullMqFilaAdapter(fila as any).agendarRepetitivo('monitor-medx', dados, 300_000);
         expect(fila.upsertJobScheduler).toHaveBeenCalledWith(
             'monitor-medx',

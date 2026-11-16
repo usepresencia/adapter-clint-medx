@@ -1,6 +1,7 @@
+import type { ZodType, z } from 'zod';
 import { Body, Controller, HttpCode, Headers, Inject, Post, UseFilters } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FILA_PORT, type FilaPort, type JobAdapter } from '../../application/ports/fila.port';
+import { FILA_PORT, type FilaPort, type JobWebhook } from '../../application/ports/fila.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../../application/ports/logger.port';
 import type { EventoRepositorio } from '../../domain/evento/evento.repositorio';
 import { EVENTO_REPOSITORIO } from '../../domain/evento/evento.repositorio';
@@ -13,8 +14,6 @@ import {
     schemaRegravarData,
 } from './schemas';
 import { WebhookAlwaysOkFilter } from './webhook-always-ok.filter';
-
-type ResultadoValidacao = { ok: true; job: JobAdapter } | { ok: false; motivo: string };
 
 /**
  * A Clint manda dia e hora da consulta em campos separados. `dia_da_consulta`
@@ -44,201 +43,102 @@ export class WebhooksController {
 
     @Post('agendamento')
     @HttpCode(200)
-    async agendamento(
-        @Headers('x-adapter-secret') segredo: string | undefined,
-        @Body() body: unknown,
-    ): Promise<{ ok: true }> {
-        return this.receber(body, segredo, '/webhooks/clint/agendamento', payload => {
-            const validado = schemaAgendamento.safeParse(payload);
-            if (!validado.success) {
-                return {
-                    ok: false,
-                    motivo: validado.error.issues.map(i => i.path.join('.')).join(', '),
-                };
-            }
-            const p = validado.data;
-            return {
-                ok: true,
-                job: {
-                    tipo: 'agendamento',
-                    eventoId: 0,
-                    comando: {
-                        dealId: p.deal_id,
-                        nome: p.nome,
-                        telefone: p.telefone,
-                        dataNascimento: p.data_nascimento,
-                        dataHora: combinarDataHora(p.dia_da_consulta, p.hora_da_consulta),
-                        profissional: p.profissional,
-                        tipoConsulta: p.tipo_consulta,
-                        email: p.email,
-                        sexo: p.sexo,
-                        duracaoConsulta: p.duracao_consulta,
-                    },
-                },
-            };
-        });
+    agendamento(@Headers('x-adapter-secret') segredo: string | undefined, @Body() body: unknown) {
+        return this.receber('agendamento', body, segredo, schemaAgendamento, p => ({
+            tipo: 'agendamento',
+            comando: {
+                dealId: p.deal_id,
+                nome: p.nome,
+                telefone: p.telefone,
+                dataNascimento: p.data_nascimento,
+                dataHora: combinarDataHora(p.dia_da_consulta, p.hora_da_consulta),
+                profissional: p.profissional,
+                tipoConsulta: p.tipo_consulta,
+                email: p.email,
+                sexo: p.sexo,
+                duracaoConsulta: p.duracao_consulta,
+            },
+        }));
     }
 
     @Post('resposta-lembrete')
     @HttpCode(200)
-    async respostaLembrete(
+    respostaLembrete(
         @Headers('x-adapter-secret') segredo: string | undefined,
         @Body() body: unknown,
-    ): Promise<{ ok: true }> {
-        return this.receber(body, segredo, '/webhooks/clint/resposta-lembrete', payload => {
-            const validado = schemaResposta.safeParse(payload);
-            if (!validado.success) {
-                return {
-                    ok: false,
-                    motivo: validado.error.issues.map(i => i.path.join('.')).join(', '),
-                };
-            }
-            const p = validado.data;
-            return {
-                ok: true,
-                job: {
-                    tipo: 'resposta',
-                    eventoId: 0,
-                    comando: {
-                        dealId: p.deal_id,
-                        idAgendamentoMedx: p.id_agendamento_medx,
-                        resposta: p.resposta,
-                        telefone: p.telefone,
-                    },
-                },
-            };
-        });
+    ) {
+        return this.receber('resposta-lembrete', body, segredo, schemaResposta, p => ({
+            tipo: 'resposta',
+            comando: {
+                dealId: p.deal_id,
+                idAgendamentoMedx: p.id_agendamento_medx,
+                resposta: p.resposta,
+                telefone: p.telefone,
+            },
+        }));
     }
 
     @Post('lead-origem')
     @HttpCode(200)
-    async leadOrigem(
-        @Headers('x-adapter-secret') segredo: string | undefined,
-        @Body() body: unknown,
-    ): Promise<{ ok: true }> {
-        return this.receber(body, segredo, '/webhooks/clint/lead-origem', payload => {
-            const validado = schemaLeadOrigem.safeParse(payload);
-            if (!validado.success) {
-                return {
-                    ok: false,
-                    motivo: validado.error.issues.map(i => i.path.join('.')).join(', '),
-                };
-            }
-            const p = validado.data;
-            return {
-                ok: true,
-                job: {
-                    tipo: 'lead-origem',
-                    eventoId: 0,
-                    comando: {
-                        telefone: p.telefone,
-                        textoMensagem: p.texto_mensagem,
-                    },
-                },
-            };
-        });
+    leadOrigem(@Headers('x-adapter-secret') segredo: string | undefined, @Body() body: unknown) {
+        return this.receber('lead-origem', body, segredo, schemaLeadOrigem, p => ({
+            tipo: 'lead-origem',
+            comando: { telefone: p.telefone, textoMensagem: p.texto_mensagem },
+        }));
     }
 
     @Post('venda-ganha')
     @HttpCode(200)
-    async vendaGanha(
-        @Headers('x-adapter-secret') segredo: string | undefined,
-        @Body() body: unknown,
-    ): Promise<{ ok: true }> {
-        return this.receber(body, segredo, '/webhooks/clint/venda-ganha', payload => {
-            const validado = schemaVendaGanha.safeParse(payload);
-            if (!validado.success) {
-                return {
-                    ok: false,
-                    motivo: validado.error.issues.map(i => i.path.join('.')).join(', '),
-                };
-            }
-            const p = validado.data;
-            return {
-                ok: true,
-                job: {
-                    tipo: 'venda-ganha',
-                    eventoId: 0,
-                    comando: {
-                        telefone: p.telefone,
-                        valor: p.valor,
-                    },
-                },
-            };
-        });
+    vendaGanha(@Headers('x-adapter-secret') segredo: string | undefined, @Body() body: unknown) {
+        return this.receber('venda-ganha', body, segredo, schemaVendaGanha, p => ({
+            tipo: 'venda-ganha',
+            comando: { telefone: p.telefone, valor: p.valor },
+        }));
     }
 
     @Post('comparecimento')
     @HttpCode(200)
-    async comparecimento(
+    comparecimento(
         @Headers('x-adapter-secret') segredo: string | undefined,
         @Body() body: unknown,
-    ): Promise<{ ok: true }> {
-        return this.receber(body, segredo, '/webhooks/clint/comparecimento', payload => {
-            const validado = schemaComparecimento.safeParse(payload);
-            if (!validado.success) {
-                return {
-                    ok: false,
-                    motivo: validado.error.issues.map(i => i.path.join('.')).join(', '),
-                };
-            }
-            const p = validado.data;
-            return {
-                ok: true,
-                job: {
-                    tipo: 'comparecimento',
-                    eventoId: 0,
-                    comando: {
-                        dealId: p.deal_id,
-                        idAgendamentoMedx: p.id_agendamento_medx,
-                        telefone: p.telefone,
-                    },
-                },
-            };
-        });
+    ) {
+        return this.receber('comparecimento', body, segredo, schemaComparecimento, p => ({
+            tipo: 'comparecimento',
+            comando: {
+                dealId: p.deal_id,
+                idAgendamentoMedx: p.id_agendamento_medx,
+                telefone: p.telefone,
+            },
+        }));
+    }
+
+    /** Regravação manual de um campo de data a partir do MedX (o monitor cuida do fluxo normal). */
+    @Post('regravar-data')
+    @HttpCode(200)
+    regravarData(@Headers('x-adapter-secret') segredo: string | undefined, @Body() body: unknown) {
+        return this.receber('regravar-data', body, segredo, schemaRegravarData, p => ({
+            tipo: 'regravar-data',
+            comando: {
+                dealId: p.deal_id,
+                idAgendamentoMedx: p.id_agendamento_medx,
+                campo: p.campo,
+            },
+        }));
     }
 
     /**
-     * Chamado pelas automações da Clint depois de gravarem o `etapa_lembrete`
-     * e apagarem o campo de data que arma a próxima automação.
+     * Sempre responde 200 (a Clint não deve reenviar): segredo errado só
+     * loga; payload inválido e falha de fila ficam no evento gravado.
      */
-    @Post('regravar-data')
-    @HttpCode(200)
-    async regravarData(
-        @Headers('x-adapter-secret') segredo: string | undefined,
-        @Body() body: unknown,
-    ): Promise<{ ok: true }> {
-        return this.receber(body, segredo, '/webhooks/clint/regravar-data', payload => {
-            const validado = schemaRegravarData.safeParse(payload);
-            if (!validado.success) {
-                return {
-                    ok: false,
-                    motivo: validado.error.issues.map(i => i.path.join('.')).join(', '),
-                };
-            }
-            const p = validado.data;
-            return {
-                ok: true,
-                job: {
-                    tipo: 'regravar-data',
-                    eventoId: 0,
-                    comando: {
-                        dealId: p.deal_id,
-                        idAgendamentoMedx: p.id_agendamento_medx,
-                        campo: p.campo,
-                    },
-                },
-            };
-        });
-    }
-
-    private async receber(
+    private async receber<S extends ZodType>(
+        rota: string,
         body: unknown,
         segredo: string | undefined,
-        endpoint: string,
-        montarJob: (payload: unknown) => ResultadoValidacao,
+        schema: S,
+        montarJob: (payload: z.infer<S>) => JobWebhook,
     ): Promise<{ ok: true }> {
         const OK = { ok: true as const };
+        const endpoint = `/webhooks/clint/${rota}`;
 
         if (segredo !== this.config.get<string>('ADAPTER_SECRET')) {
             this.logger.warn({ endpoint }, 'webhook recusado por segredo inválido');
@@ -246,20 +146,18 @@ export class WebhooksController {
         }
 
         const evento = await this.eventos.registrar(endpoint, body);
-        const resultado = montarJob(body);
+        const validado = schema.safeParse(body);
 
-        if (!resultado.ok) {
-            evento.marcarInvalido(resultado.motivo);
+        if (!validado.success) {
+            evento.marcarInvalido(validado.error.issues.map(i => i.path.join('.')).join(', '));
             await this.eventos.salvar(evento);
             this.logger.warn({ evento_id: evento.id, endpoint }, 'payload inválido');
             return OK;
         }
 
+        const job = montarJob(validado.data);
         try {
-            const criado = await this.fila.add(resultado.job.tipo, {
-                ...resultado.job,
-                eventoId: evento.id,
-            });
+            const criado = await this.fila.add(job.tipo, { ...job, eventoId: evento.id });
             if (criado.id) {
                 evento.associarJob(criado.id);
                 await this.eventos.salvar(evento);

@@ -69,7 +69,7 @@ describe('agendamento do monitor do MedX', () => {
         const fila = await montar('observar');
         expect(fila.agendarRepetitivo).toHaveBeenCalledWith(
             'monitor-medx',
-            { tipo: 'monitor-medx', eventoId: 0, comando: { modo: 'observar' } },
+            { tipo: 'monitor-medx', comando: { modo: 'observar' } },
             300_000,
         );
     });

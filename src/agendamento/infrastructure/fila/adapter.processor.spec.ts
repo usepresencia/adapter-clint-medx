@@ -97,7 +97,7 @@ describe('AdapterProcessor.process', () => {
         const { eventos, monitor, processor } = montar();
         const buscar = vi.spyOn(eventos, 'buscarPorId');
         await processor.process({
-            data: { tipo: 'monitor-medx', eventoId: 0, comando: { modo: 'observar' } },
+            data: { tipo: 'monitor-medx', comando: { modo: 'observar' } },
         } as any);
         expect(monitor.executar).toHaveBeenCalledWith('observar');
         expect(buscar).not.toHaveBeenCalled();

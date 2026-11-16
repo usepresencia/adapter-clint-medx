@@ -30,6 +30,7 @@ import { CRM_PORT } from './application/ports/crm.port';
 import { CRM_CONTATO_PORT } from './application/ports/crm-contato.port';
 import { CRM_NEGOCIO_PORT } from './application/ports/crm-negocio.port';
 import { CONVERSAO_PORT } from './application/ports/conversao.port';
+import { ETAPAS_RECEPCAO } from './application/ports/etapas-recepcao.port';
 
 import { RegravarDataUseCase } from './application/regravar-data/regravar-data.usecase';
 import { MonitorarAgendaUseCase } from './application/monitorar-agenda/monitorar-agenda.usecase';
@@ -65,6 +66,15 @@ const JOB_MONITOR = 'monitor-medx';
         { provide: CRM_CONTATO_PORT, useClass: ClintContatoAdapter },
         { provide: CRM_NEGOCIO_PORT, useClass: ClintNegocioAdapter },
         { provide: CONVERSAO_PORT, useClass: MetaCapiAdapter },
+        {
+            provide: ETAPAS_RECEPCAO,
+            useFactory: (config: ConfigService) => ({
+                criacao: config.get<string>('CLINT_ETAPA_CRIACAO_ID')!,
+                boasVindas: config.get<string>('CLINT_ETAPA_BOAS_VINDAS_ID')!,
+                endovenoso: config.get<string>('CLINT_ETAPA_ENDOVENOSO_ID')!,
+            }),
+            inject: [ConfigService],
+        },
         AgendarConsultaUseCase,
         ProcessarRespostaUseCase,
         ProcessarLeadOrigemUseCase,
@@ -104,7 +114,7 @@ export class AgendamentoModule implements OnModuleInit {
         if (modo === 'observar' || modo === 'agir') {
             await this.fila.agendarRepetitivo(
                 JOB_MONITOR,
-                { tipo: 'monitor-medx', eventoId: 0, comando: { modo } },
+                { tipo: 'monitor-medx', comando: { modo } },
                 INTERVALO_MONITOR_MS,
             );
             this.logger.info({ modo }, 'monitor do MedX agendado a cada 5 minutos');

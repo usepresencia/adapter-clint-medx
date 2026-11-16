@@ -96,13 +96,10 @@ function montar(opcoes: {
         resolver: vi.fn(async () => opcoes.contato ?? { tipo: 'novo', telefone: null }),
     };
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    const config = {
-        get: (k: string) =>
-            ({
-                CLINT_ETAPA_BOAS_VINDAS_ID: BOAS_VINDAS,
-                CLINT_ETAPA_ENDOVENOSO_ID: ENDOVENOSO,
-                CLINT_ETAPA_CRIACAO_ID: 'b088f0ab-75d4-40df-80b5-53117d0f49aa',
-            })[k],
+    const etapas = {
+        criacao: 'b088f0ab-75d4-40df-80b5-53117d0f49aa',
+        boasVindas: BOAS_VINDAS,
+        endovenoso: ENDOVENOSO,
     };
     const usecase = new MonitorarAgendaUseCase(
         agenda as any,
@@ -111,7 +108,7 @@ function montar(opcoes: {
         contatos as any,
         resolvedor as any,
         logger,
-        config as any,
+        etapas,
     );
     usecase.agora = () => DateTime.fromISO(AGORA, { zone: 'America/Sao_Paulo' });
     return { usecase, chamadas, crm, agenda, logger, contatos };

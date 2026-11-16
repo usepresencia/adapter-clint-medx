@@ -4,7 +4,7 @@ import type { ComandoLeadOrigem } from '../processar-lead-origem/processar-lead-
 import type { ComandoVendaGanha } from '../processar-venda-ganha/processar-venda-ganha.comando';
 import type { ComandoVerificarComparecimento } from '../verificar-comparecimento/verificar-comparecimento.comando';
 import type { ComandoRegravarData } from '../regravar-data/regravar-data.comando';
-import type { ModoMonitor } from '../monitorar-agenda/monitorar-agenda.usecase';
+import type { ComandoMonitorar } from '../monitorar-agenda/monitorar-agenda.comando';
 
 export const FILA_PORT = Symbol('FilaPort');
 
@@ -15,7 +15,14 @@ export type JobAdapter =
     | { tipo: 'venda-ganha'; eventoId: number; comando: ComandoVendaGanha }
     | { tipo: 'comparecimento'; eventoId: number; comando: ComandoVerificarComparecimento }
     | { tipo: 'regravar-data'; eventoId: number; comando: ComandoRegravarData }
-    | { tipo: 'monitor-medx'; eventoId: number; comando: { modo: ModoMonitor } };
+    | { tipo: 'monitor-medx'; comando: ComandoMonitorar };
+
+/** Job nascido de webhook, antes de o evento ser gravado e ganhar `eventoId`. */
+export type JobWebhook = JobAdapter extends infer J
+    ? J extends { eventoId: number }
+        ? Omit<J, 'eventoId'>
+        : never
+    : never;
 
 export interface FilaPort {
     add(nome: string, dados: JobAdapter): Promise<{ id?: string }>;
