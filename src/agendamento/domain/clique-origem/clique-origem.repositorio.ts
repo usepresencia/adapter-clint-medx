@@ -1,3 +1,4 @@
+export const CLIQUE_ORIGEM_REPOSITORIO = Symbol('CliqueOrigemRepositorio');
 export interface DadosClique {
     fbclid?: string;
     utmSource?: string;

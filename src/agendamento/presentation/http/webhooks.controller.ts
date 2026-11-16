@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { FILA_PORT, type FilaPort, type JobAdapter } from '../../application/ports/fila.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../../application/ports/logger.port';
 import type { EventoRepositorio } from '../../domain/evento/evento.repositorio';
-import { EVENTO_REPOSITORIO } from '../../../shared/persistence/persistence.module';
+import { EVENTO_REPOSITORIO } from '../../domain/evento/evento.repositorio';
 import {
     schemaAgendamento,
     schemaResposta,

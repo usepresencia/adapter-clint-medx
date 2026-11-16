@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Telefone } from '../../domain/paciente/telefone';
 import { CONVERSAO_PORT, type ConversaoPort } from '../ports/conversao.port';
-import { CLIQUE_ORIGEM_REPOSITORIO } from '../../../shared/persistence/persistence.module';
+import { CLIQUE_ORIGEM_REPOSITORIO } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { CliqueOrigemRepositorio } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { ComandoVendaGanha } from './processar-venda-ganha.comando';
 

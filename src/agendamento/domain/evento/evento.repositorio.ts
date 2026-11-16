@@ -1,5 +1,7 @@
 import type { EventoRecebido } from './evento-recebido';
 
+export const EVENTO_REPOSITORIO = Symbol('EventoRepositorio');
+
 export interface EventoRepositorio {
     /** Grava o payload bruto e devolve o evento já com id. */
     registrar(endpoint: string, payload: unknown): Promise<EventoRecebido>;

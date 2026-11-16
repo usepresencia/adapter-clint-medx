@@ -47,10 +47,9 @@ export class ClintWebhookAdapter implements CrmPort {
         inicio: string,
     ): Promise<void> {
         const url = this.config.get<string>('CLINT_WEBHOOK_AGENDAMENTO_URL');
-        const datas = Object.assign(
-            {},
-            ...CAMPOS_DATA.map(c => calcularCampoData(c, inicio).campos),
-        );
+        const datas: Record<string, string> = {};
+        for (const campo of CAMPOS_DATA)
+            Object.assign(datas, calcularCampoData(campo, inicio).campos);
         return postar(url!, {
             deal_id: dealId,
             id_agendamento_medx: idAgendamento,

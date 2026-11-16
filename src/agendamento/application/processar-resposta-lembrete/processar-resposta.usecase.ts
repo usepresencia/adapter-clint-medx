@@ -7,10 +7,8 @@ import { CATALOGO_CLINICO_PORT, type CatalogoClinicoPort } from '../ports/catalo
 import { CRM_PORT, type CrmPort } from '../ports/crm.port';
 import { CONVERSAO_PORT, type ConversaoPort } from '../ports/conversao.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../ports/logger.port';
-import {
-    AGENDAMENTO_REPOSITORIO,
-    CLIQUE_ORIGEM_REPOSITORIO,
-} from '../../../shared/persistence/persistence.module';
+import { AGENDAMENTO_REPOSITORIO } from '../../domain/agendamento/agendamento.repositorio';
+import { CLIQUE_ORIGEM_REPOSITORIO } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { CliqueOrigemRepositorio } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { ComandoResposta } from './processar-resposta.comando';
 

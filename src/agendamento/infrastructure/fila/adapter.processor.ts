@@ -11,7 +11,7 @@ import { ProcessarVendaGanhaUseCase } from '../../application/processar-venda-ga
 import { VerificarComparecimentoUseCase } from '../../application/verificar-comparecimento/verificar-comparecimento.usecase';
 import { RegravarDataUseCase } from '../../application/regravar-data/regravar-data.usecase';
 import { MonitorarAgendaUseCase } from '../../application/monitorar-agenda/monitorar-agenda.usecase';
-import { EVENTO_REPOSITORIO } from '../../../shared/persistence/persistence.module';
+import { EVENTO_REPOSITORIO } from '../../domain/evento/evento.repositorio';
 import { ErroRateLimit } from '../medx/medx.erros';
 import { LIMITER, NOME_FILA } from './fila.constants';
 

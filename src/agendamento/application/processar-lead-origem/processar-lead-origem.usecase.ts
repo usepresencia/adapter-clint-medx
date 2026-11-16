@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Telefone } from '../../domain/paciente/telefone';
 import { CRM_CONTATO_PORT, type CrmContatoPort } from '../ports/crm-contato.port';
-import { CLIQUE_ORIGEM_REPOSITORIO } from '../../../shared/persistence/persistence.module';
+import { CLIQUE_ORIGEM_REPOSITORIO } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { CliqueOrigemRepositorio } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { ComandoLeadOrigem } from './processar-lead-origem.comando';
 

@@ -10,10 +10,12 @@ import { NotFoundFilter } from './shared/presentation/not-found.filter';
 import { LOGGER_PORT, type LoggerMinimo } from './agendamento/application/ports/logger.port';
 import {
     EVENTO_REPOSITORIO,
+    type EventoRepositorio,
+} from './agendamento/domain/evento/evento.repositorio';
+import {
     CLIQUE_ORIGEM_REPOSITORIO,
-} from './shared/persistence/persistence.module';
-import type { EventoRepositorio } from './agendamento/domain/evento/evento.repositorio';
-import type { CliqueOrigemRepositorio } from './agendamento/domain/clique-origem/clique-origem.repositorio';
+    type CliqueOrigemRepositorio,
+} from './agendamento/domain/clique-origem/clique-origem.repositorio';
 import { registrarPainelFila } from './agendamento/presentation/http/painel-fila';
 import { NOME_FILA } from './agendamento/infrastructure/fila/fila.constants';
 
