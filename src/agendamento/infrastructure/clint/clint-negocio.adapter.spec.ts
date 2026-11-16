@@ -1,40 +1,161 @@
 import { describe, it, expect } from 'vitest';
+import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 import { ClintNegocioAdapter } from './clint-negocio.adapter';
 import type { ClintHttpClient } from './clint-http.client';
+import { Telefone } from '../../domain/paciente/telefone';
 
-function clientFalso(falha?: Error) {
-    const enviados: Array<{ caminho: string; corpo: unknown }> = [];
+const ORIGEM = 'c10ccf49-2c9f-41d5-bfa7-c116daa2cc77';
+const BOAS_VINDAS = '03900fbe-0a12-462c-9599-2f5a3ff05657';
+const AGENDAMENTO = 'b088f0ab-75d4-40df-80b5-53117d0f49aa';
+
+type Chamada = {
+    metodo: string;
+    caminho: string;
+    corpo?: unknown;
+    query?: Record<string, unknown>;
+};
+
+function montar(opcoes: { get?: (c: Chamada) => unknown; falha?: Error; motivo?: string } = {}) {
+    const chamadas: Chamada[] = [];
     const client = {
+        get: async <T>(caminho: string, query?: Record<string, unknown>) => {
+            const c = { metodo: 'get', caminho, query };
+            chamadas.push(c);
+            return opcoes.get?.(c) as T;
+        },
         post: async <T>(caminho: string, corpo: unknown) => {
-            if (falha) throw falha;
-            enviados.push({ caminho, corpo });
-            return {} as T;
+            if (opcoes.falha) throw opcoes.falha;
+            chamadas.push({ metodo: 'post', caminho, corpo });
+            return { status: 201, data: { id: 'novo-deal', contact: { id: 'c-novo' } } } as T;
         },
     } as unknown as ClintHttpClient;
-    return { client, enviados };
+    const valores: Record<string, string | undefined> = {
+        CLINT_ORIGEM_RECEPCAO_ID: ORIGEM,
+        CLINT_ETAPA_BOAS_VINDAS_ID: BOAS_VINDAS,
+        CLINT_ETAPA_CRIACAO_ID: AGENDAMENTO,
+        CLINT_MOTIVO_PERDA_CANCELAMENTO_ID: opcoes.motivo,
+    };
+    const config = { get: (k: string) => valores[k] } as unknown as ConfigService<Env, true>;
+    return { adapter: new ClintNegocioAdapter(client, config), chamadas };
 }
 
 describe('ClintNegocioAdapter', () => {
     it('grava os campos no negócio pelo id', async () => {
-        const { client, enviados } = clientFalso();
-
-        await new ClintNegocioAdapter(client).gravarCampos('521e2bf6-1ce0-4cf0-91d9-ea2dc7627eb1', {
+        const { adapter, chamadas } = montar();
+        await adapter.gravarCampos('d1', {
             data_agendamento: '2026-11-13',
             hora_agendamento: '15:00',
         });
-
-        expect(enviados).toEqual([
+        expect(chamadas).toEqual([
             {
-                caminho: '/v1/deals/521e2bf6-1ce0-4cf0-91d9-ea2dc7627eb1',
+                metodo: 'post',
+                caminho: '/v1/deals/d1',
                 corpo: { fields: { data_agendamento: '2026-11-13', hora_agendamento: '15:00' } },
             },
         ]);
     });
 
     it('propaga erro HTTP da Clint', async () => {
-        const { client } = clientFalso(new Error('Clint respondeu HTTP 400 em /v1/deals/x'));
-        await expect(
-            new ClintNegocioAdapter(client).gravarCampos('x', { data_agendamento: '2026-11-13' }),
-        ).rejects.toThrow(/HTTP 400/);
+        const { adapter } = montar({ falha: new Error('Clint respondeu HTTP 400 em /v1/deals/x') });
+        await expect(adapter.gravarCampos('x', { data_agendamento: '2026-11-13' })).rejects.toThrow(
+            /HTTP 400/,
+        );
+    });
+
+    it('lista todas as páginas de negócios abertos da RECEPÇÃO', async () => {
+        const deal = (id: string) => ({
+            id,
+            contact: { id: `c-${id}`, name: 'Karmen 💓💓', phone: '44999365902', ddi: '55' },
+            stage_id: BOAS_VINDAS,
+            created_at: '2026-11-12T09:00:00Z',
+            fields: { id_agendamento_medx: '-1', etapa_lembrete: 'd1_preparando_chegada' },
+        });
+        const { adapter, chamadas } = montar({
+            get: c =>
+                c.query!.page === 1
+                    ? { data: [deal('a')], hasNext: true }
+                    : { data: [deal('b')], hasNext: false },
+        });
+
+        const lista = await adapter.listarAbertosRecepcao();
+
+        expect(lista.map(n => n.id)).toEqual(['a', 'b']);
+        expect(lista[0]).toEqual({
+            id: 'a',
+            contatoId: 'c-a',
+            nomeContato: 'Karmen 💓💓',
+            telefone: '+5544999365902',
+            etapaId: BOAS_VINDAS,
+            criadoEm: '2026-11-12T09:00:00Z',
+            campos: { id_agendamento_medx: '-1', etapa_lembrete: 'd1_preparando_chegada' },
+        });
+        expect(chamadas[0]).toMatchObject({
+            caminho: '/v1/deals',
+            query: { origin_id: ORIGEM, status: 'OPEN', page: 1 },
+        });
+    });
+
+    it('criarNegocio usa contato existente e nasce em AGENDAMENTO', async () => {
+        const { adapter, chamadas } = montar();
+        const id = await adapter.criarNegocio({
+            contatoId: 'c1',
+            nome: 'Maria',
+            campos: { id_agendamento_medx: '-5' },
+        });
+        expect(id).toEqual({ id: 'novo-deal', contatoId: 'c-novo' });
+        expect(chamadas[0]).toEqual({
+            metodo: 'post',
+            caminho: '/v1/deals',
+            corpo: {
+                origin_id: ORIGEM,
+                stage_id: AGENDAMENTO,
+                contact_id: 'c1',
+                fields: { id_agendamento_medx: '-5' },
+            },
+        });
+    });
+
+    it('criarNegocio sem contato manda nome e telefone', async () => {
+        const { adapter, chamadas } = montar();
+        await adapter.criarNegocio({
+            nome: 'Maria Silva',
+            telefone: Telefone.criar('45999197847'),
+            campos: {},
+        });
+        expect(chamadas[0]!.corpo).toEqual({
+            origin_id: ORIGEM,
+            stage_id: AGENDAMENTO,
+            name: 'Maria Silva',
+            phone: '5545999197847',
+            fields: {},
+        });
+    });
+
+    it('encerrarComoPerdido manda LOST com o motivo', async () => {
+        const { adapter, chamadas } = montar({ motivo: 'motivo-1' });
+        await adapter.encerrarComoPerdido('d1');
+        expect(chamadas[0]).toEqual({
+            metodo: 'post',
+            caminho: '/v1/deals/d1',
+            corpo: { status: 'LOST', lost_status_id: 'motivo-1' },
+        });
+    });
+
+    it('encerrarComoPerdido sem motivo configurado falha claro', async () => {
+        const { adapter } = montar();
+        await expect(adapter.encerrarComoPerdido('d1')).rejects.toThrow(
+            /CLINT_MOTIVO_PERDA_CANCELAMENTO_ID/,
+        );
+    });
+
+    it('moverParaBoasVindas muda a etapa pelo id (é o que dispara o D0 Boas Vindas)', async () => {
+        const { adapter, chamadas } = montar();
+        await adapter.moverParaBoasVindas('d1');
+        expect(chamadas[0]).toEqual({
+            metodo: 'post',
+            caminho: '/v1/deals/d1',
+            corpo: { stage_id: BOAS_VINDAS },
+        });
     });
 });

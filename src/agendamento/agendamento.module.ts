@@ -1,4 +1,6 @@
 import { Inject, Module, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { FILA_PORT, type FilaPort } from './application/ports/fila.port';
 import { PersistenceModule } from '../shared/persistence/persistence.module';
 import { ObservabilidadeModule } from '../shared/observabilidade/observabilidade.module';
 import { RedisHealthClient } from '../shared/observabilidade/redis-health.client';
@@ -28,8 +30,13 @@ import { CRM_PORT } from './application/ports/crm.port';
 import { CRM_CONTATO_PORT } from './application/ports/crm-contato.port';
 import { CRM_NEGOCIO_PORT } from './application/ports/crm-negocio.port';
 import { CONVERSAO_PORT } from './application/ports/conversao.port';
+import { RELOGIO_PORT } from './application/ports/relogio.port';
+import { RelogioSistema } from './infrastructure/relogio/relogio-sistema';
+import { ETAPAS_RECEPCAO } from './application/ports/etapas-recepcao.port';
 
 import { RegravarDataUseCase } from './application/regravar-data/regravar-data.usecase';
+import { MonitorarAgendaUseCase } from './application/monitorar-agenda/monitorar-agenda.usecase';
+import { ResolvedorContato } from './application/monitorar-agenda/resolver-contato';
 import { AgendarConsultaUseCase } from './application/agendar-consulta/agendar-consulta.usecase';
 import { ProcessarRespostaUseCase } from './application/processar-resposta-lembrete/processar-resposta.usecase';
 import { ProcessarLeadOrigemUseCase } from './application/processar-lead-origem/processar-lead-origem.usecase';
@@ -42,6 +49,11 @@ import { WebhooksController } from './presentation/http/webhooks.controller';
 import { HealthController } from './presentation/http/health.controller';
 import { DisponibilidadeController } from './presentation/http/disponibilidade.controller';
 import { LeadsController } from './presentation/http/leads.controller';
+import type { Env } from '../config/env.schema';
+
+/** Intervalo da rodada do monitor do MedX. */
+const INTERVALO_MONITOR_MS = 5 * 60 * 1000;
+const JOB_MONITOR = 'monitor-medx';
 
 @Module({
     imports: [PersistenceModule, ObservabilidadeModule, FilaModule],
@@ -57,6 +69,16 @@ import { LeadsController } from './presentation/http/leads.controller';
         { provide: CRM_CONTATO_PORT, useClass: ClintContatoAdapter },
         { provide: CRM_NEGOCIO_PORT, useClass: ClintNegocioAdapter },
         { provide: CONVERSAO_PORT, useClass: MetaCapiAdapter },
+        { provide: RELOGIO_PORT, useClass: RelogioSistema },
+        {
+            provide: ETAPAS_RECEPCAO,
+            useFactory: (config: ConfigService<Env, true>) => ({
+                criacao: config.get('CLINT_ETAPA_CRIACAO_ID', { infer: true }),
+                boasVindas: config.get('CLINT_ETAPA_BOAS_VINDAS_ID', { infer: true }),
+                endovenoso: config.get('CLINT_ETAPA_ENDOVENOSO_ID', { infer: true }),
+            }),
+            inject: [ConfigService],
+        },
         AgendarConsultaUseCase,
         ProcessarRespostaUseCase,
         ProcessarLeadOrigemUseCase,
@@ -65,6 +87,8 @@ import { LeadsController } from './presentation/http/leads.controller';
         ProcessarVendaGanhaUseCase,
         VerificarComparecimentoUseCase,
         RegravarDataUseCase,
+        ResolvedorContato,
+        MonitorarAgendaUseCase,
         AdapterProcessor,
         { provide: REDIS_HEALTH_CLIENT, useClass: RedisHealthClient },
     ],
@@ -73,6 +97,8 @@ export class AgendamentoModule implements OnModuleInit {
     constructor(
         @Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
+        @Inject(FILA_PORT) private readonly fila: FilaPort,
+        private readonly config: ConfigService<Env, true>,
     ) {}
 
     async onModuleInit(): Promise<void> {
@@ -86,6 +112,18 @@ export class AgendamentoModule implements OnModuleInit {
                 { alerta: true, erro: erro instanceof Error ? erro.message : String(erro) },
                 'catálogo do MedX indisponível no boot — será carregado sob demanda',
             );
+        }
+
+        const modo = this.config.get('MONITOR_MEDX_MODO', { infer: true });
+        if (modo === 'observar' || modo === 'agir') {
+            await this.fila.agendarRepetitivo(
+                JOB_MONITOR,
+                { tipo: 'monitor-medx', comando: { modo } },
+                INTERVALO_MONITOR_MS,
+            );
+            this.logger.info({ modo }, 'monitor do MedX agendado a cada 5 minutos');
+        } else {
+            await this.fila.removerRepetitivo(JOB_MONITOR);
         }
     }
 }

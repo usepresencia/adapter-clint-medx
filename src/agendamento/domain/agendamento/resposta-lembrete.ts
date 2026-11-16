@@ -1,6 +1,6 @@
 import { ErroDeDominio } from '../shared/erros';
 
-export type ValorResposta = 'confirmar' | 'reagendar' | 'cancelar';
+type ValorResposta = 'confirmar' | 'reagendar' | 'cancelar';
 
 export const VALORES_RESPOSTA: readonly ValorResposta[] = ['confirmar', 'reagendar', 'cancelar'];
 

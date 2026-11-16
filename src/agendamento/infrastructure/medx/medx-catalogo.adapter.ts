@@ -1,20 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type {
     CatalogoClinicoPort,
     TipoConsultaResolvido,
 } from '../../application/ports/catalogo-clinico.port';
+import { RELOGIO_PORT, type Relogio } from '../../application/ports/relogio.port';
+import { RelogioSistema } from '../relogio/relogio-sistema';
+import { semAcento } from '../../domain/shared/texto';
 import { MedxHttpClient } from './medx-http.client';
 import type { MedxProfissional, MedxReferencia, MedxTipoAgendamento } from './medx.tipos';
 
 const TTL_PADRAO_MS = 6 * 60 * 60 * 1000;
 const STATUS_QUE_LIBERAM_HORARIO = ['desmarcado', 'cancelou', 'faltou'];
+const STATUS_DE_CANCELAMENTO = ['desmarcado', 'cancelou'];
 
 function chave(texto: string): string {
-    return texto
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '');
+    return semAcento(texto.trim().toLowerCase());
 }
 
 function encontrarIdStatus(status: MedxReferencia[], alvo: string): number {
@@ -35,6 +35,8 @@ interface Carregado {
     confirmado: number;
     finalizado: number;
     liberam: number[];
+    endovenoso: number;
+    cancelamento: number[];
 }
 
 /**
@@ -45,13 +47,15 @@ interface Carregado {
 @Injectable()
 export class MedxCatalogoAdapter implements CatalogoClinicoPort {
     ttlMs = TTL_PADRAO_MS;
-    agora: () => number = Date.now;
 
     private dados: Carregado | null = null;
     private carregadoEm = -Infinity;
     private emVoo: Promise<void> | null = null;
 
-    constructor(private readonly client: MedxHttpClient) {}
+    constructor(
+        private readonly client: MedxHttpClient,
+        @Inject(RELOGIO_PORT) private readonly relogio: Relogio = new RelogioSistema(),
+    ) {}
 
     async carregar(): Promise<void> {
         const [catalogos, tipos, profissionais] = await Promise.all([
@@ -86,15 +90,19 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
             agendado,
             confirmado,
             finalizado: encontrarIdStatus(status, 'finalizado atendimento'),
+            endovenoso: encontrarIdStatus(status, 'endovenoso'),
+            cancelamento: STATUS_DE_CANCELAMENTO.map(alvo =>
+                encontrarIdStatus(status, alvo),
+            ).filter(id => id >= 0),
             liberam: STATUS_QUE_LIBERAM_HORARIO.map(alvo => encontrarIdStatus(status, alvo)).filter(
                 id => id >= 0,
             ),
         };
-        this.carregadoEm = this.agora();
+        this.carregadoEm = this.relogio.agora().toMillis();
     }
 
     private async garantir(): Promise<Carregado> {
-        if (!this.dados || this.agora() - this.carregadoEm >= this.ttlMs) {
+        if (!this.dados || this.relogio.agora().toMillis() - this.carregadoEm >= this.ttlMs) {
             // Chamadas simultâneas compartilham a mesma carga em voo.
             this.emVoo ??= this.carregar().finally(() => {
                 this.emVoo = null;
@@ -148,5 +156,13 @@ export class MedxCatalogoAdapter implements CatalogoClinicoPort {
 
     async indicesStatusQueLiberamHorario(): Promise<number[]> {
         return (await this.garantir()).liberam;
+    }
+
+    async indiceStatusEndovenoso(): Promise<number> {
+        return (await this.garantir()).endovenoso;
+    }
+
+    async indicesStatusCancelamento(): Promise<number[]> {
+        return (await this.garantir()).cancelamento;
     }
 }

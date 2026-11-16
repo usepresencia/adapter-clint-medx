@@ -10,10 +10,8 @@ import { CADASTRO_PACIENTE_PORT, type CadastroPacientePort } from '../ports/cada
 import { CATALOGO_CLINICO_PORT, type CatalogoClinicoPort } from '../ports/catalogo-clinico.port';
 import { CRM_PORT, type CrmPort } from '../ports/crm.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../ports/logger.port';
-import {
-    AGENDAMENTO_REPOSITORIO,
-    CORRELACAO_PACIENTE_REPOSITORIO,
-} from '../../../shared/persistence/persistence.module';
+import { AGENDAMENTO_REPOSITORIO } from '../../domain/agendamento/agendamento.repositorio';
+import { CORRELACAO_PACIENTE_REPOSITORIO } from '../../domain/paciente/correlacao-paciente.repositorio';
 import type { ComandoAgendamento } from './agendar-consulta.comando';
 
 @Injectable()
@@ -139,11 +137,6 @@ export class AgendarConsultaUseCase {
         }
 
         await this.agendamentos.salvar(agendamento);
-
-        // enriquecerFicha() está desligado: o PUT /contatos do MedX exige ~44
-        // campos obrigatórios pra qualquer atualização parcial (confirmado ao
-        // vivo, contradiz a própria doc) — toda chamada falhava com HTTP 400.
-        // Religar quando o MedX corrigir a API.
 
         await this.crm.gravarIdAgendamento(
             comando.dealId,

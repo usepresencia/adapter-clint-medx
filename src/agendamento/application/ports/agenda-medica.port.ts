@@ -6,10 +6,7 @@ export interface AgendamentoExterno {
     idPaciente: number;
     inicio: string;
     fim: string;
-    descricao: string;
     status: number;
-    idTipoConsulta: number;
-    confirmacao: string;
     ultimaEdicao: string;
     /**
      * Payload original do sistema externo. O adapter usa isto para reconstruir uma
@@ -62,4 +59,8 @@ export interface AgendaMedicaPort {
     confirmar(agendamento: AgendamentoExterno, indiceStatusConfirmado: number): Promise<void>;
     consultarDisponibilidade(consulta: ConsultaDisponibilidade): Promise<SlotDisponivel[]>;
     listarPorPeriodo(inicio: string, fim: string): Promise<OcupacaoAgenda[]>;
+    /** Agendamentos completos do período (com paciente e status), para o monitor. */
+    listarDetalhadosPorPeriodo(inicio: string, fim: string): Promise<AgendamentoExterno[]>;
+    /** `null` só quando o MedX responde que o agendamento não existe (404). */
+    obterSeExistir(id: number): Promise<AgendamentoExterno | null>;
 }

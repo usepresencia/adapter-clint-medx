@@ -1,25 +1,22 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Telefone } from '../../domain/paciente/telefone';
 import { CRM_CONTATO_PORT, type CrmContatoPort } from '../ports/crm-contato.port';
-import { CLIQUE_ORIGEM_REPOSITORIO } from '../../../shared/persistence/persistence.module';
+import { CLIQUE_ORIGEM_REPOSITORIO } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { CliqueOrigemRepositorio } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { ComandoLeadOrigem } from './processar-lead-origem.comando';
 
 /**
- * Nem Google Meu Negócio nem o link de bio/Instagram/Facebook passam por uma
- * URL nossa antes de abrir o WhatsApp — não há onde capturar um UTM. A
- * origem só é identificável se cada canal usar uma mensagem pré-preenchida
- * distinta no link `wa.me`. Esses marcadores precisam existir literalmente
- * no texto configurado em cada canal (ajuste combinado com a clínica).
+ * Google Meu Negócio e o link de bio não passam por uma URL nossa, então não
+ * há UTM: a origem vem de uma mensagem pré-preenchida distinta em cada link
+ * `wa.me`. Estes marcadores precisam existir literalmente no texto de cada canal.
  */
 const MARCADOR_GOOGLE = 'vim pelo google';
 const MARCADORES_META = ['vim pelo instagram', 'vim pelo facebook'];
 
 /**
- * O site (leize.com.br) embute um código de referência na mensagem — gerado
- * por POST /leads/click — em vez de um marcador fixo, porque só ele carrega
- * o UTM/fbclid real do clique (ver
- * docs/superpowers/specs/2026-09-22-atribuicao-lead-meta-capi-design.md).
+ * O site (leize.com.br) manda um código de referência (gerado por POST
+ * /leads/click) que carrega o UTM/fbclid real do clique. Ver
+ * docs/superpowers/specs/2026-09-22-atribuicao-lead-meta-capi-design.md.
  */
 const PADRAO_REF = /ref:\s*([a-z0-9]{6,10})/i;
 

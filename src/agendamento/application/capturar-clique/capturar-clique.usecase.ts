@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { CLIQUE_ORIGEM_REPOSITORIO } from '../../../shared/persistence/persistence.module';
+import { CLIQUE_ORIGEM_REPOSITORIO } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { CliqueOrigemRepositorio } from '../../domain/clique-origem/clique-origem.repositorio';
 import type { ComandoCapturarClique } from './capturar-clique.comando';
 

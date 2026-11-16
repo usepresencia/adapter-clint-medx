@@ -30,9 +30,9 @@ describe('Telefone.criar', () => {
             expect(Telefone.criar('11999998888').estrangeiro).toBe(false);
         });
 
-        it('compara dois números estrangeiros escritos de formas diferentes', () => {
-            expect(Telefone.criar('+595 981 342249').igual(Telefone.criar('595981342249'))).toBe(
-                true,
+        it('normaliza números estrangeiros escritos de formas diferentes para o mesmo E.164', () => {
+            expect(Telefone.criar('+595 981 342249').e164).toBe(
+                Telefone.criar('595981342249').e164,
             );
         });
 
@@ -49,11 +49,11 @@ describe('Telefone.criar', () => {
         expect(() => Telefone.criar(entrada)).toThrow(ErroDeDominio);
     });
 
-    it('considera iguais dois telefones escritos de formas diferentes', () => {
-        expect(Telefone.criar('+55 11 99999-8888').igual(Telefone.criar('11999998888'))).toBe(true);
+    it('normaliza telefones escritos de formas diferentes para o mesmo E.164', () => {
+        expect(Telefone.criar('+55 11 99999-8888').e164).toBe(Telefone.criar('11999998888').e164);
     });
 
     it('distingue telefones diferentes', () => {
-        expect(Telefone.criar('11999998888').igual(Telefone.criar('11999998887'))).toBe(false);
+        expect(Telefone.criar('11999998888').e164).not.toBe(Telefone.criar('11999998887').e164);
     });
 });

@@ -3,7 +3,6 @@ import { DateTime } from 'luxon';
 const SABADO = 6;
 const DOMINGO = 7;
 
-/** Verdadeiro quando a data cai em sábado ou domingo. */
 export function ehFimDeSemana(dt: DateTime): boolean {
     return dt.weekday === SABADO || dt.weekday === DOMINGO;
 }

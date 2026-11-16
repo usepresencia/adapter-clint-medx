@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { MedxAgendaAdapter } from './medx-agenda.adapter';
 import type { MedxHttpClient } from './medx-http.client';
 import type { MedxAgendaDetalhe } from './medx.tipos';
+import { ErroMedx } from './medx.erros';
 
 const DETALHE: MedxAgendaDetalhe = {
     id: -1646861682,
@@ -95,7 +96,9 @@ describe('criar', () => {
         const { client } = clientFalso({
             post: { agendamento: { id: 0, descricao: 'Maria Silva' } },
         });
-        const erro = await new MedxAgendaAdapter(client).criar(CRIACAO).catch(e => e as Error);
+        const erro = (await new MedxAgendaAdapter(client)
+            .criar(CRIACAO)
+            .catch((e: unknown) => e)) as Error;
         expect(erro.message).toMatch(/id de agendamento válido/);
         expect(erro.message).not.toMatch(/Maria/);
     });
@@ -152,7 +155,6 @@ describe('obter', () => {
             inicio: '2026-11-12T10:10:00',
             fim: '2026-11-12T10:20:00',
             status: 2,
-            idTipoConsulta: 111,
             ultimaEdicao: '2026-11-11T10:12:00-03:00',
         });
         expect((externo.bruto as MedxAgendaDetalhe).versao).toBe('v-abc');
@@ -162,7 +164,6 @@ describe('obter', () => {
         const { client } = clientFalso({ get: { ...DETALHE, paciente: null, tipo: null } });
         const externo = await new MedxAgendaAdapter(client).obter(1);
         expect(externo.idPaciente).toBe(0);
-        expect(externo.idTipoConsulta).toBe(0);
     });
 
     it('erra com horário inválido vindo do MedX em vez de devolver "Invalid DateTime"', async () => {
@@ -315,5 +316,35 @@ describe('consultarDisponibilidade', () => {
             duracaoMinutos: 30,
         });
         expect(slots).toEqual([]);
+    });
+});
+
+describe('leituras para o monitor', () => {
+    it('listarDetalhadosPorPeriodo traz paciente e status', async () => {
+        const { client, chamadas } = clientFalso({ paginas: () => [DETALHE] });
+        const lista = await new MedxAgendaAdapter(client).listarDetalhadosPorPeriodo(
+            '2026-11-12T00:00:00',
+            '2026-12-12T00:00:00',
+        );
+        expect(chamadas[0]!.caminho).toBe('/api/integration/v1/agenda/agendamentos/detalhes');
+        expect(lista).toHaveLength(1);
+        expect(lista[0]).toMatchObject({
+            idPaciente: 30094605,
+            status: 2,
+            inicio: '2026-11-12T10:10:00',
+        });
+    });
+
+    it('obterSeExistir devolve null só no 404', async () => {
+        const com = (erro: Error) =>
+            ({ get: async () => Promise.reject(erro) }) as unknown as MedxHttpClient;
+        expect(
+            await new MedxAgendaAdapter(com(new ErroMedx(404, 'x'))).obterSeExistir(1),
+        ).toBeNull();
+        await expect(
+            new MedxAgendaAdapter(com(new ErroMedx(500, 'x'))).obterSeExistir(1),
+        ).rejects.toThrow();
+        const { client } = clientFalso({ get: DETALHE });
+        expect((await new MedxAgendaAdapter(client).obterSeExistir(1))?.id).toBe(-1646861682);
     });
 });

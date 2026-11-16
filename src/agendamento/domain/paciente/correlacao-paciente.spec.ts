@@ -33,6 +33,6 @@ describe('CorrelacaoPaciente', () => {
             matchConfiavel: true,
             idContatoClint: null,
         });
-        expect(c.telefone.igual(TELEFONE)).toBe(true);
+        expect(c.telefone.e164).toBe(TELEFONE.e164);
     });
 });

@@ -10,6 +10,7 @@ import type {
 } from '../../application/ports/agenda-medica.port';
 import { MedxHttpClient } from './medx-http.client';
 import type { MedxAgendaDetalhe, MedxDisponibilidadeV1 } from './medx.tipos';
+import { ErroMedx } from './medx.erros';
 import { FORMATO_MEDX, interpretarHorarioClinica } from '../../domain/agendamento/periodo-consulta';
 
 const BASE_V1 = '/api/integration/v1/agenda/agendamentos';
@@ -18,7 +19,7 @@ const MAX_DIAS_AGENDAMENTOS = 31;
 const MAX_DIAS_DISPONIBILIDADE = 14;
 
 /** Valor exigido pela API do MedX para marcar um agendamento como confirmado. */
-export const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
+const CONFIRMACAO_LITERAL = 'Mensagem Salva com Sucesso';
 
 function interpretar(iso: string): DateTime {
     const dt = interpretarHorarioClinica(iso);
@@ -40,7 +41,7 @@ function janelas(inicio: string, fim: string, maxDias: number): Array<[string, s
 }
 
 /** Horário da API v1 (com offset) para o formato local sem offset usado nos ports. */
-export function paraHorarioLocal(iso: string): string {
+function paraHorarioLocal(iso: string): string {
     return interpretar(iso).toFormat(FORMATO_MEDX);
 }
 
@@ -51,10 +52,7 @@ function traduzir(detalhe: MedxAgendaDetalhe): AgendamentoExterno {
         idPaciente: detalhe.paciente?.id ?? 0,
         inicio: paraHorarioLocal(detalhe.inicio),
         fim: paraHorarioLocal(detalhe.fim),
-        descricao: detalhe.descricao ?? '',
         status: detalhe.status.id,
-        idTipoConsulta: detalhe.tipo?.id ?? 0,
-        confirmacao: detalhe.confirmacao ?? '',
         ultimaEdicao: detalhe.atualizadoEm ?? '',
         bruto: detalhe,
     };
@@ -132,6 +130,29 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
     }
 
     async listarPorPeriodo(inicio: string, fim: string): Promise<OcupacaoAgenda[]> {
+        const itens = await this.listarDetalhes(inicio, fim);
+        return itens.map(item => ({
+            idProfissional: item.profissional?.id ?? 0,
+            inicio: paraHorarioLocal(item.inicio),
+            fim: paraHorarioLocal(item.fim),
+            status: item.status.id,
+        }));
+    }
+
+    async listarDetalhadosPorPeriodo(inicio: string, fim: string): Promise<AgendamentoExterno[]> {
+        return (await this.listarDetalhes(inicio, fim)).map(traduzir);
+    }
+
+    async obterSeExistir(id: number): Promise<AgendamentoExterno | null> {
+        try {
+            return await this.obter(id);
+        } catch (erro) {
+            if (erro instanceof ErroMedx && erro.status === 404) return null;
+            throw erro;
+        }
+    }
+
+    private async listarDetalhes(inicio: string, fim: string): Promise<MedxAgendaDetalhe[]> {
         const porId = new Map<number, MedxAgendaDetalhe>();
         for (const [ini, fimJanela] of janelas(inicio, fim, MAX_DIAS_AGENDAMENTOS)) {
             const itens = await this.client.listarTodos<MedxAgendaDetalhe>(`${BASE_V1}/detalhes`, {
@@ -140,13 +161,7 @@ export class MedxAgendaAdapter implements AgendaMedicaPort {
             });
             for (const item of itens) porId.set(item.id, item);
         }
-
-        return [...porId.values()].map(item => ({
-            idProfissional: item.profissional?.id ?? 0,
-            inicio: paraHorarioLocal(item.inicio),
-            fim: paraHorarioLocal(item.fim),
-            status: item.status.id,
-        }));
+        return [...porId.values()];
     }
 
     async listarPorPaciente(idPaciente: number): Promise<AgendamentoExterno[]> {

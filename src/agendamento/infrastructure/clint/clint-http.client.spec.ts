@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 import { ClintHttpClient } from './clint-http.client';
 
 afterEach(() => vi.restoreAllMocks());
@@ -9,8 +10,8 @@ const VARS: Record<string, string> = {
     CLINT_API_TOKEN: 'token-de-teste',
 };
 
-function configFalso(): ConfigService {
-    return { get: (chave: string) => VARS[chave] } as ConfigService;
+function configFalso(): ConfigService<Env, true> {
+    return { get: (chave: string) => VARS[chave] } as unknown as ConfigService<Env, true>;
 }
 
 describe('get', () => {

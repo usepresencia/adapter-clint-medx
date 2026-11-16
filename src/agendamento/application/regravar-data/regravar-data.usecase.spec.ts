@@ -13,10 +13,7 @@ function externo(inicio: string, status = 1): AgendamentoExterno {
         idPaciente: 1,
         inicio,
         fim: inicio,
-        descricao: '',
         status,
-        idTipoConsulta: 0,
-        confirmacao: '',
         ultimaEdicao: '',
         bruto: {},
     };
@@ -27,8 +24,14 @@ function montar(inicio: string, agora: string, status = 1) {
     const catalogo = { indicesStatusQueLiberamHorario: async () => [0, 5, 3] };
     const crm = { gravarCampos: vi.fn(async () => {}) };
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    const usecase = new RegravarDataUseCase(agenda as any, catalogo as any, crm as any, logger);
-    usecase.agora = () => DateTime.fromISO(agora, { zone: 'America/Sao_Paulo' });
+    const relogio = { agora: () => DateTime.fromISO(agora, { zone: 'America/Sao_Paulo' }) };
+    const usecase = new RegravarDataUseCase(
+        agenda as any,
+        catalogo as any,
+        crm as any,
+        logger,
+        relogio,
+    );
     const executar = (campo: CampoDataNegocio) =>
         usecase.executar({ dealId: DEAL, idAgendamentoMedx: -1084641653, campo });
     return { executar, agenda, crm, logger };

@@ -150,6 +150,8 @@ async function construirApp(overrideFila = false): Promise<INestApplication> {
             add: vi.fn(async () => {
                 throw new Error('Redis indisponível');
             }),
+            agendarRepetitivo: vi.fn(async () => {}),
+            removerRepetitivo: vi.fn(async () => {}),
         });
     }
 

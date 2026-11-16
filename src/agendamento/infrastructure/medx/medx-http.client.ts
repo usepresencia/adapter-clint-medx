@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { MedxTokenProvider } from './medx-token.provider';
 import { ErroMedx, ErroRateLimit } from './medx.erros';
+import { fetchComTimeout, lerCorpo, montarUrl, type Query } from '../../../shared/http/http';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 
-export type Query = Record<string, string | number | undefined>;
+export type { Query };
 
 const MAX_PAGINAS = 100;
 
@@ -11,33 +13,10 @@ interface PaginaMedx {
     page?: { hasMore?: boolean; nextCursor?: string | null };
 }
 
-function montarUrl(host: string, caminho: string, query?: Query): string {
-    if (!query) return `${host}${caminho}`;
-
-    const partes = Object.entries(query)
-        .filter(([, valor]) => valor !== undefined)
-        .map(
-            ([chave, valor]) => `${encodeURIComponent(chave)}=${encodeURIComponent(String(valor))}`,
-        );
-
-    return partes.length ? `${host}${caminho}?${partes.join('&')}` : `${host}${caminho}`;
-}
-
-/** A API devolve ora JSON, ora um inteiro puro, ora uma frase. Todos são respostas válidas. */
-async function lerCorpo<T>(resposta: Response): Promise<T> {
-    const texto = await resposta.text();
-    if (texto === '') return undefined as T;
-    try {
-        return JSON.parse(texto) as T;
-    } catch {
-        return texto as T;
-    }
-}
-
 @Injectable()
 export class MedxHttpClient {
     constructor(
-        private readonly config: ConfigService,
+        private readonly config: ConfigService<Env, true>,
         private readonly tokens: MedxTokenProvider,
     ) {}
 
@@ -47,10 +26,6 @@ export class MedxHttpClient {
 
     post<T>(caminho: string, corpo: unknown, cabecalhos?: Record<string, string>): Promise<T> {
         return this.chamar<T>('POST', caminho, undefined, corpo, false, cabecalhos);
-    }
-
-    put<T>(caminho: string, corpo: unknown): Promise<T> {
-        return this.chamar<T>('PUT', caminho, undefined, corpo);
     }
 
     /**
@@ -108,10 +83,10 @@ export class MedxHttpClient {
         jaRenovou = false,
         cabecalhos?: Record<string, string>,
     ): Promise<T> {
-        const host = this.config.get<string>('MEDX_HOST');
+        const host = this.config.get('MEDX_HOST', { infer: true });
         const token = await this.tokens.obterToken();
 
-        const resposta = await fetch(montarUrl(host!, caminho, query), {
+        const resposta = await fetchComTimeout(montarUrl(host, caminho, query), {
             method: metodo,
             headers: {
                 authorization: `Bearer ${token}`,

@@ -14,7 +14,6 @@ const COMANDO = {
     dataHora: '2026-07-10T14:00:00',
     profissional: 'Leize Ferreira',
     tipoConsulta: 'Consulta de Rotina',
-    cpf: '529.982.247-25',
 };
 
 function externo(parcial: Partial<AgendamentoExterno> = {}): AgendamentoExterno {
@@ -24,10 +23,7 @@ function externo(parcial: Partial<AgendamentoExterno> = {}): AgendamentoExterno 
         idPaciente: 67890,
         inicio: '2026-07-10T14:00:00',
         fim: '2026-07-10T14:30:00',
-        descricao: '',
         status: 0,
-        idTipoConsulta: 111,
-        confirmacao: '',
         ultimaEdicao: '2026-07-09T10:00:00',
         bruto: {},
         ...parcial,
@@ -310,30 +306,6 @@ describe('identidade do paciente', () => {
             expect.objectContaining({ alerta: true }),
             expect.any(String),
         );
-    });
-});
-
-describe('enriquecimento de ficha (desativado)', () => {
-    // O PUT /contatos do MedX está exigindo ~44 campos obrigatórios pra
-    // qualquer atualização parcial (confirmado ao vivo, contradiz a própria
-    // doc) — enriquecerFicha() sempre falhava, então a chamada foi desligada
-    // até o MedX corrigir a API. O port/adapter continuam existindo pra
-    // religar rápido quando isso acontecer.
-    it('nunca chama enriquecerFicha, mesmo com cpf/cidade/endereco/cep no comando', async () => {
-        const { cadastro, usecase } = montar();
-        await usecase.executar({
-            ...COMANDO,
-            cidade: 'São Paulo',
-            endereco: 'Rua Teste, 450',
-            cep: '01310100',
-        });
-        expect(cadastro.enriquecerFicha).not.toHaveBeenCalled();
-    });
-
-    it('grava o agendamento no CRM normalmente, sem depender do enriquecimento', async () => {
-        const { crm, usecase } = montar();
-        await usecase.executar(COMANDO);
-        expect(crm.gravarIdAgendamento).toHaveBeenCalled();
     });
 });
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CAMPOS_DATA } from '../../domain/agendamento/campos-data';
 import { VALORES_RESPOSTA } from '../../domain/agendamento/resposta-lembrete';
 
 export const schemaAgendamento = z.object({
@@ -19,17 +20,8 @@ export const schemaAgendamento = z.object({
     hora_da_consulta: z.string().min(1),
     profissional: z.union([z.string().min(1), z.number()]),
     tipo_consulta: z.union([z.string().min(1), z.number()]),
-    cpf: z.string().optional(),
     email: z.string().optional(),
     sexo: z.enum(['M', 'F']).optional(),
-    cidade: z.string().optional(),
-    // A Clint manda esse campo como rich-text (ex.: "<p>Rua Tal, 123</p>") —
-    // removemos as tags HTML antes de repassar pro MedX.
-    endereco: z
-        .string()
-        .optional()
-        .transform(v => (v ? v.replace(/<[^>]*>/g, '').trim() : v)),
-    cep: z.string().optional(),
     // Fallback usado quando o tipo de consulta não tem duração cadastrada no MedX.
     duracao_consulta: z.coerce.number().int().positive().optional(),
 });
@@ -76,11 +68,7 @@ export const schemaComparecimento = z.object({
 export const schemaRegravarData = z.object({
     deal_id: z.string().uuid(),
     id_agendamento_medx: idAgendamentoMedx,
-    campo: z.enum([
-        'data_agendamento',
-        'horario_lembrete_chegada',
-        'horario_checagem_comparecimento',
-    ]),
+    campo: z.enum(CAMPOS_DATA),
 });
 
 export const schemaDisponibilidade = z.object({

@@ -1,4 +1,3 @@
-import type { Cpf } from '../../domain/paciente/cpf';
 import type { Telefone } from '../../domain/paciente/telefone';
 
 export const CADASTRO_PACIENTE_PORT = Symbol('CadastroPacientePort');
@@ -12,14 +11,12 @@ export interface DadosVinculo {
 }
 
 export interface DadosEnriquecimento {
-    cpf?: Cpf;
-    telefone?: Telefone;
-    cidade?: string;
-    endereco?: string;
-    cep?: string;
+    telefone: Telefone;
 }
 
 export interface CadastroPacientePort {
     vincular(dados: DadosVinculo): Promise<{ idPaciente: number; matchConfiavel: boolean }>;
     enriquecerFicha(idPaciente: number, dados: DadosEnriquecimento): Promise<void>;
+    /** Celular do cadastro (ou o residencial); `null` se nenhum. */
+    obterCelular(idPaciente: number): Promise<string | null>;
 }

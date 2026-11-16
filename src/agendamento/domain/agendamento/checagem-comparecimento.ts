@@ -1,7 +1,5 @@
-import { DateTime } from 'luxon';
-import { ErroDeDominio } from '../shared/erros';
 import { ehFimDeSemana, proximoDiaUtil } from './dia-util';
-import { FORMATO_MEDX, FUSO_CLINICA } from './periodo-consulta';
+import { FORMATO_MEDX, lerInicioConsulta } from './periodo-consulta';
 
 const HORAS_APOS_CONSULTA = 2;
 const HORA_LIMITE_NOITE = 18;
@@ -14,10 +12,7 @@ const HORA_REABERTURA = 8;
  * às 8h do próximo dia útil.
  */
 export function calcularHorarioChecagemComparecimento(inicioConsultaIso: string): string {
-    const inicioConsulta = DateTime.fromISO(inicioConsultaIso, { zone: FUSO_CLINICA });
-    if (!inicioConsulta.isValid) {
-        throw new ErroDeDominio(`Início da consulta é uma data inválida: ${inicioConsultaIso}`);
-    }
+    const inicioConsulta = lerInicioConsulta(inicioConsultaIso);
 
     const candidato = inicioConsulta.plus({ hours: HORAS_APOS_CONSULTA });
     if (candidato.hour < HORA_LIMITE_NOITE && !ehFimDeSemana(candidato)) {

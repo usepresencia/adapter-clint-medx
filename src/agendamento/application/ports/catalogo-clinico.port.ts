@@ -24,4 +24,8 @@ export interface CatalogoClinicoPort {
      * Cancelou, Faltou). Rótulo ausente na conta é só ignorado.
      */
     indicesStatusQueLiberamHorario(): Promise<number[]>;
+    /** -1 quando a conta não tem o status "Endovenoso". */
+    indiceStatusEndovenoso(): Promise<number>;
+    /** Desmarcado e Cancelou (Faltou fica com a checagem de comparecimento). */
+    indicesStatusCancelamento(): Promise<number[]>;
 }

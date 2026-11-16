@@ -1,5 +1,7 @@
+import { DateTime } from 'luxon';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 import { MedxTokenProvider } from './medx-token.provider';
 
 const respostaOk = (token: string) =>
@@ -13,12 +15,12 @@ const respostaOk = (token: string) =>
         { status: 200, headers: { 'content-type': 'application/json' } },
     );
 
-function configFalso(): ConfigService {
+function configFalso(): ConfigService<Env, true> {
     const valores: Record<string, string> = {
         MEDX_HOST: 'https://medx.test',
         MEDX_INTEGRATION_TOKEN: 'tk',
     };
-    return { get: (chave: string) => valores[chave] } as ConfigService;
+    return { get: (chave: string) => valores[chave] } as unknown as ConfigService<Env, true>;
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -55,8 +57,9 @@ describe('MedxTokenProvider', () => {
             .mockResolvedValueOnce(respostaOk('jwt-1'))
             .mockResolvedValueOnce(respostaOk('jwt-2'));
 
-        const provider = new MedxTokenProvider(configFalso());
-        provider.agora = () => agora;
+        const provider = new MedxTokenProvider(configFalso(), {
+            agora: () => DateTime.fromMillis(agora),
+        });
         expect(await provider.obterToken()).toBe('jwt-1');
         agora = 800_000; // restam 100s
         expect(await provider.obterToken()).toBe('jwt-2');

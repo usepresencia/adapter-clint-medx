@@ -7,12 +7,13 @@ import {
     Query,
     UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { ConsultarDisponibilidadeUseCase } from '../../application/consultar-disponibilidade/consultar-disponibilidade.usecase';
 import type { SlotDisponivel } from '../../application/ports/agenda-medica.port';
 import { LOGGER_PORT, type LoggerMinimo } from '../../application/ports/logger.port';
 import { ErroDeDominio } from '../../domain/shared/erros';
 import { schemaDisponibilidade } from './schemas';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 
 // Endpoint de CONSULTA (não é um webhook de entrada): devolve status HTTP real,
 // sem a garantia "sempre 200" dos outros endpoints — o agente de IA que chama
@@ -21,7 +22,7 @@ import { schemaDisponibilidade } from './schemas';
 export class DisponibilidadeController {
     constructor(
         private readonly usecase: ConsultarDisponibilidadeUseCase,
-        private readonly config: ConfigService,
+        private readonly config: ConfigService<Env, true>,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
     ) {}
 
@@ -30,7 +31,7 @@ export class DisponibilidadeController {
         @Headers('x-adapter-secret') segredo: string | undefined,
         @Query() query: unknown,
     ): Promise<{ slots: SlotDisponivel[] }> {
-        if (segredo !== this.config.get<string>('ADAPTER_SECRET')) {
+        if (segredo !== this.config.get('ADAPTER_SECRET', { infer: true })) {
             throw new UnauthorizedException();
         }
 

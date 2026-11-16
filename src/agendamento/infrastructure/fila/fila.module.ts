@@ -4,13 +4,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { FILA_PORT } from '../../application/ports/fila.port';
 import { BullMqFilaAdapter } from './bullmq-fila.adapter';
 import { NOME_FILA, OPCOES_JOB } from './fila.constants';
+import type { Env } from '../../../config/env.schema';
 
 @Module({
     imports: [
         BullModule.forRootAsync({
             imports: [ConfigModule],
-            useFactory: (config: ConfigService) => ({
-                connection: { url: config.get<string>('REDIS_URL') },
+            useFactory: (config: ConfigService<Env, true>) => ({
+                connection: { url: config.get('REDIS_URL', { infer: true }) },
             }),
             inject: [ConfigService],
         }),

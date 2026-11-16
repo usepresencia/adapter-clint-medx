@@ -5,10 +5,10 @@ import { CorrelacaoPacientePrismaRepositorio } from '../../agendamento/infrastru
 import { EventoPrismaRepositorio } from '../../agendamento/infrastructure/persistencia/prisma/evento.prisma-repositorio';
 import { CliqueOrigemPrismaRepositorio } from '../../agendamento/infrastructure/persistencia/prisma/clique-origem.prisma-repositorio';
 
-export const AGENDAMENTO_REPOSITORIO = Symbol('AgendamentoRepositorio');
-export const CORRELACAO_PACIENTE_REPOSITORIO = Symbol('CorrelacaoPacienteRepositorio');
-export const EVENTO_REPOSITORIO = Symbol('EventoRepositorio');
-export const CLIQUE_ORIGEM_REPOSITORIO = Symbol('CliqueOrigemRepositorio');
+import { AGENDAMENTO_REPOSITORIO } from '../../agendamento/domain/agendamento/agendamento.repositorio';
+import { CORRELACAO_PACIENTE_REPOSITORIO } from '../../agendamento/domain/paciente/correlacao-paciente.repositorio';
+import { EVENTO_REPOSITORIO } from '../../agendamento/domain/evento/evento.repositorio';
+import { CLIQUE_ORIGEM_REPOSITORIO } from '../../agendamento/domain/clique-origem/clique-origem.repositorio';
 
 @Global()
 @Module({

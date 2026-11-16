@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { describe, it, expect } from 'vitest';
 import { MedxCatalogoAdapter } from './medx-catalogo.adapter';
 import type { MedxHttpClient } from './medx-http.client';
@@ -19,6 +20,7 @@ const STATUS = [
     { id: 3, nome: 'Faltou' },
     { id: 5, nome: 'Cancelou' },
     { id: 11, nome: 'Finalizado Atendimento' },
+    { id: 12, nome: 'Endovenoso' },
 ];
 
 function clientFalso(
@@ -120,9 +122,8 @@ describe('carregamento sob demanda', () => {
     it('revalida o cache depois do TTL', async () => {
         let agora = 0;
         const { client, chamadas } = clientFalso();
-        const c = new MedxCatalogoAdapter(client);
+        const c = new MedxCatalogoAdapter(client, { agora: () => DateTime.fromMillis(agora) });
         c.ttlMs = 1000;
-        c.agora = () => agora;
         await c.carregar();
         const antes = chamadas.length;
         agora = 2000;
@@ -156,5 +157,13 @@ describe('resolução de profissional e tipo', () => {
     it('erra com mensagem útil quando o profissional não existe', async () => {
         const c = new MedxCatalogoAdapter(clientFalso().client);
         await expect(c.resolverProfissional('Fulano')).rejects.toThrow(/Fulano/);
+    });
+});
+
+describe('status para o monitor', () => {
+    it('endovenoso e cancelamento pelo nome no catálogo', async () => {
+        const c = new MedxCatalogoAdapter(clientFalso().client);
+        expect(await c.indiceStatusEndovenoso()).toBe(12);
+        expect(await c.indicesStatusCancelamento()).toEqual([0, 5]);
     });
 });

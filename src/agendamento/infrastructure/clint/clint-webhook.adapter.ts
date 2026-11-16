@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { fetchComTimeout } from '../../../shared/http/http';
 import type { CrmPort } from '../../application/ports/crm.port';
 import type { Telefone } from '../../domain/paciente/telefone';
-import { calcularHorarioLembreteChegada } from '../../domain/agendamento/lembrete-chegada';
-import { calcularHorarioChecagemComparecimento } from '../../domain/agendamento/checagem-comparecimento';
+import { CAMPOS_DATA, calcularCampoData } from '../../domain/agendamento/campos-data';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 
 async function postar(url: string, corpo: Record<string, unknown>): Promise<void> {
-    const resposta = await fetch(url, {
+    const resposta = await fetchComTimeout(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(corpo),
@@ -19,7 +20,7 @@ async function postar(url: string, corpo: Record<string, unknown>): Promise<void
 
 @Injectable()
 export class ClintWebhookAdapter implements CrmPort {
-    constructor(private readonly config: ConfigService) {}
+    constructor(private readonly config: ConfigService<Env, true>) {}
 
     // O webhook de entrada do Clint identifica o negócio por email, telefone
     // ou instagram — nunca só pelo deal_id (confirmado ao vivo: um payload só
@@ -30,27 +31,31 @@ export class ClintWebhookAdapter implements CrmPort {
         telefone: Telefone,
         extra?: Record<string, unknown>,
     ): Promise<void> {
-        const url = this.config.get<string>('CLINT_WEBHOOK_NOTIFICACAO_URL');
-        return postar(url!, { deal_id: dealId, evento, telefone: telefone.e164, ...extra });
+        const url = this.config.get('CLINT_WEBHOOK_NOTIFICACAO_URL', { infer: true });
+        return postar(url, { deal_id: dealId, evento, telefone: telefone.e164, ...extra });
     }
 
+    /**
+     * Caminho de agendamento iniciado na Clint: manda id e datas num payload
+     * só, e a automação de entrada da Clint grava tudo. Não segue a regra de
+     * duas fases do monitor (etapa antes, `data_agendamento` por último):
+     * quem decide a etapa aqui é a própria automação que recebe o payload.
+     */
     gravarIdAgendamento(
         dealId: string,
         idAgendamento: number,
         telefone: Telefone,
         inicio: string,
     ): Promise<void> {
-        const url = this.config.get<string>('CLINT_WEBHOOK_AGENDAMENTO_URL');
-        const [dataAgendamento, horaCompleta] = inicio.split('T');
-        return postar(url!, {
+        const url = this.config.get('CLINT_WEBHOOK_AGENDAMENTO_URL', { infer: true });
+        const datas: Record<string, string> = {};
+        for (const campo of CAMPOS_DATA)
+            Object.assign(datas, calcularCampoData(campo, inicio).campos);
+        return postar(url, {
             deal_id: dealId,
             id_agendamento_medx: idAgendamento,
             telefone: telefone.e164,
-            data_agendamento: dataAgendamento,
-            // Vai direto para a mensagem dos lembretes ("às 14:00"): sem segundos.
-            hora_agendamento: horaCompleta?.slice(0, 5),
-            horario_lembrete_chegada: calcularHorarioLembreteChegada(inicio),
-            horario_checagem_comparecimento: calcularHorarioChecagemComparecimento(inicio),
+            ...datas,
         });
     }
 

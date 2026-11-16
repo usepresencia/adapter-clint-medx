@@ -3,12 +3,12 @@ import type { PeriodoConsulta } from './periodo-consulta';
 
 export type StatusAgendamento = 'enviando' | 'criado' | 'confirmado' | 'conflito' | 'falhou';
 
-export interface EstadoExterno {
+interface EstadoExterno {
     status: number;
     inicio: string;
 }
 
-export type AvaliacaoConfirmacao = { permitido: true } | { permitido: false; motivo: string };
+type AvaliacaoConfirmacao = { permitido: true } | { permitido: false; motivo: string };
 
 interface DadosBase {
     dealId: string;

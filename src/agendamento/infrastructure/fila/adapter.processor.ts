@@ -10,10 +10,16 @@ import { ProcessarLeadOrigemUseCase } from '../../application/processar-lead-ori
 import { ProcessarVendaGanhaUseCase } from '../../application/processar-venda-ganha/processar-venda-ganha.usecase';
 import { VerificarComparecimentoUseCase } from '../../application/verificar-comparecimento/verificar-comparecimento.usecase';
 import { RegravarDataUseCase } from '../../application/regravar-data/regravar-data.usecase';
-import { EVENTO_REPOSITORIO } from '../../../shared/persistence/persistence.module';
+import { MonitorarAgendaUseCase } from '../../application/monitorar-agenda/monitorar-agenda.usecase';
+import { EVENTO_REPOSITORIO } from '../../domain/evento/evento.repositorio';
 import { ErroRateLimit } from '../medx/medx.erros';
 import { LIMITER, NOME_FILA } from './fila.constants';
 
+/**
+ * `concurrency: 1` é requisito, não detalhe: garante que duas rodadas do
+ * monitor nunca se sobreponham e que o limite de requisições do MedX valha
+ * para todos os jobs.
+ */
 @Processor(NOME_FILA, { concurrency: 1, limiter: LIMITER })
 export class AdapterProcessor extends WorkerHost {
     constructor(
@@ -24,6 +30,7 @@ export class AdapterProcessor extends WorkerHost {
         private readonly processarVendaGanha: ProcessarVendaGanhaUseCase,
         private readonly verificarComparecimento: VerificarComparecimentoUseCase,
         private readonly regravarData: RegravarDataUseCase,
+        private readonly monitor: MonitorarAgendaUseCase,
         @Inject(LOGGER_PORT) private readonly logger: LoggerMinimo,
     ) {
         super();
@@ -31,6 +38,12 @@ export class AdapterProcessor extends WorkerHost {
 
     async process(job: Job<JobAdapter>): Promise<void> {
         const dados = job.data;
+        if (dados.tipo === 'monitor-medx') {
+            // Job interno e repetitivo: não nasce de webhook, então não tem evento.
+            const resumo = await this.monitor.executar(dados.comando.modo);
+            this.logger.info({ tipo: dados.tipo, ...resumo }, 'job processado');
+            return;
+        }
         const evento = await this.eventos.buscarPorId(dados.eventoId);
 
         try {

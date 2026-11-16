@@ -59,6 +59,7 @@ function montar() {
     const processarVendaGanha = { executar: vi.fn(async () => {}) };
     const processarComparecimento = { executar: vi.fn(async () => {}) };
     const regravarData = { executar: vi.fn(async () => {}) };
+    const monitor = { executar: vi.fn(async () => ({ criados: 0 })) };
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     const processor = new AdapterProcessor(
@@ -69,6 +70,7 @@ function montar() {
         processarVendaGanha as any,
         processarComparecimento as any,
         regravarData as any,
+        monitor as any,
         logger as any,
     );
     // WorkerHost.worker é um getter só-leitura apoiado no campo privado
@@ -84,12 +86,23 @@ function montar() {
         processarVendaGanha,
         processarComparecimento,
         regravarData,
+        monitor,
         logger,
         processor,
     };
 }
 
 describe('AdapterProcessor.process', () => {
+    it('roteia monitor-medx sem tocar em eventos', async () => {
+        const { eventos, monitor, processor } = montar();
+        const buscar = vi.spyOn(eventos, 'buscarPorId');
+        await processor.process({
+            data: { tipo: 'monitor-medx', comando: { modo: 'observar' } },
+        } as any);
+        expect(monitor.executar).toHaveBeenCalledWith('observar');
+        expect(buscar).not.toHaveBeenCalled();
+    });
+
     it('roteia job de regravar-data para o caso de uso certo', async () => {
         const { eventos, regravarData, processarComparecimento, processor } = montar();
         const e = await eventos.registrar('/x');

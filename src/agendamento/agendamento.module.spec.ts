@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../config/env.schema';
 import { ObservabilidadeModule } from '../shared/observabilidade/observabilidade.module';
 import { NOTIFICADOR_SILENCIOSO } from '../shared/observabilidade/alerta-logger';
 
-function configFalso(valores: Record<string, string> = {}): ConfigService {
-    return { get: (chave: string) => valores[chave] } as ConfigService;
+function configFalso(valores: Record<string, string> = {}): ConfigService<Env, true> {
+    return { get: (chave: string) => valores[chave] } as unknown as ConfigService<Env, true>;
 }
 
 describe('escolherNotificador', () => {
@@ -40,8 +41,43 @@ describe('AgendamentoModule.onModuleInit', () => {
                 info: () => {},
                 error: () => {},
             } as never,
+            { agendarRepetitivo: async () => {}, removerRepetitivo: async () => {} } as never,
+            { get: () => 'desligado' } as never,
         );
         await expect(modulo.onModuleInit()).resolves.toBeUndefined();
         expect(avisos).toHaveLength(1);
+    });
+});
+
+describe('agendamento do monitor do MedX', () => {
+    async function montar(modo: string) {
+        const { AgendamentoModule } = await import('./agendamento.module');
+        const fila = {
+            agendarRepetitivo: vi.fn(async () => {}),
+            removerRepetitivo: vi.fn(async () => {}),
+        };
+        const modulo = new AgendamentoModule(
+            { carregar: async () => {} } as never,
+            { warn: () => {}, info: () => {}, error: () => {} } as never,
+            fila as never,
+            { get: () => modo } as never,
+        );
+        await modulo.onModuleInit();
+        return fila;
+    }
+
+    it('modo observar agenda a cada 5 minutos', async () => {
+        const fila = await montar('observar');
+        expect(fila.agendarRepetitivo).toHaveBeenCalledWith(
+            'monitor-medx',
+            { tipo: 'monitor-medx', comando: { modo: 'observar' } },
+            300_000,
+        );
+    });
+
+    it('modo desligado remove o agendador', async () => {
+        const fila = await montar('desligado');
+        expect(fila.removerRepetitivo).toHaveBeenCalledWith('monitor-medx');
+        expect(fila.agendarRepetitivo).not.toHaveBeenCalled();
     });
 });

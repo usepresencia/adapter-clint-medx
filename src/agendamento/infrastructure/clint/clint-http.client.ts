@@ -1,29 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { fetchComTimeout, lerCorpo, montarUrl, type Query } from '../../../shared/http/http';
 import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../config/env.schema';
 
-export type Query = Record<string, string | number | undefined>;
-
-function montarUrl(host: string, caminho: string, query?: Query): string {
-    if (!query) return `${host}${caminho}`;
-
-    const partes = Object.entries(query)
-        .filter(([, valor]) => valor !== undefined)
-        .map(
-            ([chave, valor]) => `${encodeURIComponent(chave)}=${encodeURIComponent(String(valor))}`,
-        );
-
-    return partes.length ? `${host}${caminho}?${partes.join('&')}` : `${host}${caminho}`;
-}
-
-async function lerCorpo<T>(resposta: Response): Promise<T> {
-    const texto = await resposta.text();
-    if (texto === '') return undefined as T;
-    return JSON.parse(texto) as T;
-}
+export type { Query };
 
 @Injectable()
 export class ClintHttpClient {
-    constructor(private readonly config: ConfigService) {}
+    constructor(private readonly config: ConfigService<Env, true>) {}
 
     get<T>(caminho: string, query?: Query): Promise<T> {
         return this.chamar<T>('GET', caminho, query);
@@ -39,13 +23,13 @@ export class ClintHttpClient {
         query?: Query,
         corpo?: unknown,
     ): Promise<T> {
-        const host = this.config.get<string>('CLINT_API_URL');
-        const token = this.config.get<string>('CLINT_API_TOKEN');
+        const host = this.config.get('CLINT_API_URL', { infer: true });
+        const token = this.config.get('CLINT_API_TOKEN', { infer: true });
 
-        const resposta = await fetch(montarUrl(host!, caminho, query), {
+        const resposta = await fetchComTimeout(montarUrl(host, caminho, query), {
             method: metodo,
             headers: {
-                'api-token': token!,
+                'api-token': token,
                 ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}),
             },
             ...(corpo !== undefined ? { body: JSON.stringify(corpo) } : {}),
