@@ -140,11 +140,6 @@ export class AgendarConsultaUseCase {
 
         await this.agendamentos.salvar(agendamento);
 
-        // enriquecerFicha() está desligado: o PUT /contatos do MedX exige ~44
-        // campos obrigatórios pra qualquer atualização parcial (confirmado ao
-        // vivo, contradiz a própria doc) — toda chamada falhava com HTTP 400.
-        // Religar quando o MedX corrigir a API.
-
         await this.crm.gravarIdAgendamento(
             comando.dealId,
             agendamento.idMedx!,

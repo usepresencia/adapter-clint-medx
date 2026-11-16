@@ -43,19 +43,12 @@ export class MedxCadastroPacienteAdapter implements CadastroPacientePort {
         return { idPaciente, matchConfiavel: resposta.dados?.criado === false };
     }
 
-    /** Atualização parcial: na v1 os campos omitidos são preservados. */
+    /** Atualização parcial: na v1 os campos omitidos são preservados (confirmado pela prévia em 2026-11-16). */
     async enriquecerFicha(idPaciente: number, dados: DadosEnriquecimento): Promise<void> {
-        const campos: Record<string, string> = {};
-        if (dados.cpf) campos.cpfCnpj = dados.cpf.digitos;
-        if (dados.telefone) campos.celular = dados.telefone.nacional;
-        if (dados.cidade) campos.cidadeResidencial = dados.cidade;
-        if (dados.endereco) campos.enderecoResidencial = dados.endereco;
-        if (dados.cep) campos.cepResidencial = dados.cep;
-
         await this.client.executarOperacao(PREFIXO, {
             acao: 'atualizar',
             pacienteId: idPaciente,
-            dados: campos,
+            dados: { celular: dados.telefone.nacional },
         });
     }
 

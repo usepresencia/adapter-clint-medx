@@ -2,10 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { MedxCadastroPacienteAdapter } from './medx-cadastro-paciente.adapter';
 import type { MedxHttpClient } from './medx-http.client';
 import { Telefone } from '../../domain/paciente/telefone';
-import { Cpf } from '../../domain/paciente/cpf';
 
 const TELEFONE = Telefone.criar('+55 11 99999-8888');
-const CPF = Cpf.criar('529.982.247-25');
 const PREFIXO = '/api/integration/v1/contatos/operacoes';
 
 function clientFalso(resposta: unknown = {}) {
@@ -83,13 +81,11 @@ describe('vincular', () => {
 });
 
 describe('enriquecerFicha', () => {
-    it('enriquecerFicha manda só os campos informados', async () => {
+    it('enriquecerFicha manda só o celular', async () => {
         const { client, enviados } = clientFalso();
 
         await new MedxCadastroPacienteAdapter(client).enriquecerFicha(-67890, {
-            cpf: CPF,
             telefone: TELEFONE,
-            cidade: 'Toledo',
         });
 
         expect(enviados[0]).toEqual({
@@ -97,11 +93,7 @@ describe('enriquecerFicha', () => {
             corpo: {
                 acao: 'atualizar',
                 pacienteId: -67890,
-                dados: {
-                    cpfCnpj: '52998224725',
-                    celular: TELEFONE.nacional,
-                    cidadeResidencial: 'Toledo',
-                },
+                dados: { celular: TELEFONE.nacional },
             },
         });
     });
