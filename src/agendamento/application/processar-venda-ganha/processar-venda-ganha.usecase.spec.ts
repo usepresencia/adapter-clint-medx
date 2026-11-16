@@ -54,6 +54,17 @@ describe('ProcessarVendaGanhaUseCase', () => {
         );
     });
 
+    it('busca o clique pelo telefone normalizado (E.164), como o lead-origem o grava', async () => {
+        const cliques = cliquesFalso(cliqueDe('fb.clique.123'));
+
+        await new ProcessarVendaGanhaUseCase(cliques, conversaoFalso()).executar({
+            telefone: '(11) 99999-8888',
+            valor: 350,
+        });
+
+        expect(cliques.buscarMaisRecentePorTelefone).toHaveBeenCalledWith('+5511999998888');
+    });
+
     it('não notifica quando não há clique associado ao telefone', async () => {
         const cliques = cliquesFalso(null);
         const conversao = conversaoFalso();
