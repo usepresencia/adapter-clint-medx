@@ -132,3 +132,11 @@ Pré-requisitos na Clint (com o usuário): opção `cancelado` no campo `etapa_l
 ## Deixado para quem for construir
 
 Nome e esquema da tabela de vínculo, estrutura do job repetitivo, formato dos logs do modo observar, ordem das chamadas dentro de uma rodada. Tudo com teste primeiro, MedX e Clint simulados.
+
+## Revisão de 2026-11-16 (code review): limites conhecidos
+
+- **Webhook de entrada (`gravarIdAgendamento`)** manda id e datas num payload só, sem a regra de duas fases: quem decide a etapa nesse caminho é a automação da Clint que o recebe. Só o monitor segue a regra. Para unificar, a automação de entrada teria de parar de mapear as datas (decisão com o usuário, na Clint).
+- **Negócio duplicado:** o monitor alerta (log com `alerta` + tag `conferir agendamento MedX`) quando o negócio mais novo do contato na RECEPÇÃO não tem `id_agendamento_medx` e outro tem, depois de 30 min de carência. Negócio mais novo em **outro funil** não é detectável: a API REST da Clint ignora o filtro `contact_id` em `/v1/deals` (confirmado ao vivo).
+- **Limite de requisições do MedX** na carga inicial da rodada: a rodada é pulada com aviso (sem alerta) e recomeça no próximo ciclo.
+- **D1 enviado 30 min depois da entrada:** depois do gatilho esperado o monitor espera a etapa sem alertar (coberto por teste).
+- **Timeout** de 30 s em toda chamada HTTP; o worker é único (`concurrency: 1`), então uma chamada pendurada travaria a fila.

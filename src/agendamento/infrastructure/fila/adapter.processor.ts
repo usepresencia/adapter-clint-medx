@@ -15,6 +15,11 @@ import { EVENTO_REPOSITORIO } from '../../domain/evento/evento.repositorio';
 import { ErroRateLimit } from '../medx/medx.erros';
 import { LIMITER, NOME_FILA } from './fila.constants';
 
+/**
+ * `concurrency: 1` é requisito, não detalhe: garante que duas rodadas do
+ * monitor nunca se sobreponham e que o limite de requisições do MedX valha
+ * para todos os jobs.
+ */
 @Processor(NOME_FILA, { concurrency: 1, limiter: LIMITER })
 export class AdapterProcessor extends WorkerHost {
     constructor(
