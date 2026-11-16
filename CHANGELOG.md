@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.11.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.10.0...v1.11.0) (2026-11-16)
+
+### Features
+
+- agenda o monitor do MedX na fila com modo de operação ([6067de3](https://github.com/usepresencia/adapter-clint-medx/commit/6067de3826446a3b3ed950ff986ff7dbcce343bb))
+- casamento de nome entre MedX e Clint ([7996fd4](https://github.com/usepresencia/adapter-clint-medx/commit/7996fd4f700804665521fee569f7b3de9410b18f))
+- criação de negócio devolve o contato ([b20257b](https://github.com/usepresencia/adapter-clint-medx/commit/b20257b173c4faf0447f4dd1e076180132e7d5a1))
+- leituras do MedX para o monitor ([ae8692e](https://github.com/usepresencia/adapter-clint-medx/commit/ae8692ebfca79ed690f40726a367074382653574))
+- monitor só grava datas com a etapa confirmada ([1fb6f5b](https://github.com/usepresencia/adapter-clint-medx/commit/1fb6f5b43344ec77241339daeca16debe469daec))
+- monitor trata limite de requisições na carga e alerta negócio duplicado ([63866fa](https://github.com/usepresencia/adapter-clint-medx/commit/63866fa6f55191d696cdb814ff695f9a9457fde7))
+- operações da Clint para o monitor ([bbf2685](https://github.com/usepresencia/adapter-clint-medx/commit/bbf2685fc90e5bb683f7ba286a3d1267fcc2e73d))
+- regras de janela dos lembretes no domínio ([5050ad8](https://github.com/usepresencia/adapter-clint-medx/commit/5050ad8141af600153f36b15bfad2a7cc6d64e1c))
+- resolução do contato da paciente para o monitor ([fe21f71](https://github.com/usepresencia/adapter-clint-medx/commit/fe21f71f1b0b91d8b60be401640f26c36e112183))
+- rodada do monitor da agenda do MedX ([d3240d3](https://github.com/usepresencia/adapter-clint-medx/commit/d3240d3291e777e6406c3d741b97f036a1de39c1))
+
+### Bug Fixes
+
+- ajustes do monitor vistos na rodada em modo observar ([b6ae6e4](https://github.com/usepresencia/adapter-clint-medx/commit/b6ae6e427173dd2f9225c79d452ea58d50101ab5))
+- correções da revisão final do monitor do MedX ([557f2c1](https://github.com/usepresencia/adapter-clint-medx/commit/557f2c17af1f74dc1ecdfef2ab589bb6d041ef93))
+- fixa rootDir em src para o dist não depender da raiz calculada ([fe31192](https://github.com/usepresencia/adapter-clint-medx/commit/fe31192e1c9072ab3c68f4cdedf6261c5cdcd0b5))
+- negócio nasce em agendamento e entra em boas vindas por mudança de etapa ([02662fc](https://github.com/usepresencia/adapter-clint-medx/commit/02662fc68cf43700ec6c50c747d18fdcb91459ba))
+- remove baseUrl e paths sem uso do tsconfig ([3e2ef64](https://github.com/usepresencia/adapter-clint-medx/commit/3e2ef641126126f67a28323ccc797c6af59da5ad))
+- remove enriquecimento de ficha morto e confirma o PUT parcial do telefone ([13bdbf1](https://github.com/usepresencia/adapter-clint-medx/commit/13bdbf1a6e8d30844dd63543e35a97de78d69ee5))
+- timeout nas chamadas HTTP e helper compartilhado ([f454c93](https://github.com/usepresencia/adapter-clint-medx/commit/f454c9344101b46250e65ebf90927e8867d44175))
+- tsconfig passa a checar os specs e corrige o desenho do webhook de entrada ([9e32298](https://github.com/usepresencia/adapter-clint-medx/commit/9e32298af896697667435c752fdf5c9be26a90b2))
+- venda ganha busca o clique pelo telefone normalizado ([3fa053a](https://github.com/usepresencia/adapter-clint-medx/commit/3fa053aea228ce2eabc763510cb7164f252bd50d))
+
 ## [1.10.0](https://github.com/usepresencia/adapter-clint-medx/compare/v1.9.2...v1.10.0) (2026-11-12)
 
 ### Features
