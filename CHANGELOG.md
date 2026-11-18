@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.11.2](https://github.com/usepresencia/adapter-clint-medx/compare/v1.11.1...v1.11.2) (2026-11-18)
+
+### Bug Fixes
+
+- monitor alerta o mesmo problema uma vez a cada 6 horas ([9138bb3](https://github.com/usepresencia/adapter-clint-medx/commit/9138bb3f52d43b7c8f4d80af2bd5101eae468e3a))
+- monitor olha só as próximas 48 horas da agenda ([f34a4f8](https://github.com/usepresencia/adapter-clint-medx/commit/f34a4f8bb0f1bc0beebc59edfa9c43123a17e5d7))
+
 ### [1.11.1](https://github.com/usepresencia/adapter-clint-medx/compare/v1.11.0...v1.11.1) (2026-11-16)
 
 ### Bug Fixes
