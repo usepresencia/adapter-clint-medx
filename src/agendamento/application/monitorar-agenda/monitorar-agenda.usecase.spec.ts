@@ -487,6 +487,48 @@ describe('MonitorarAgendaUseCase', () => {
         expect(logger.warn).toHaveBeenCalledTimes(1);
     });
 
+    it('consulta só as próximas 48 horas da agenda do MedX', async () => {
+        const { usecase, agenda } = montar({ agendamentos: [] });
+        await usecase.executar('agir');
+        // agora = 12-nov 12:00 → do início de hoje até 14-nov 12:00
+        expect(agenda.listarDetalhadosPorPeriodo).toHaveBeenCalledWith(
+            '2026-11-12T00:00:00',
+            '2026-11-14T12:00:00',
+        );
+    });
+
+    it('negócio cuja consulta está além das 48 horas não é procurado no MedX quando não vem na listagem', async () => {
+        const { usecase, chamadas, agenda } = montar({
+            agendamentos: [],
+            negocios: [vinculado(-1, '2026-11-20', '10:00')],
+            existe: false,
+        });
+        await usecase.executar('agir');
+        expect(agenda.obterSeExistir).not.toHaveBeenCalled();
+        expect(chamadas).toEqual([]);
+    });
+
+    it('consulta do último dia, antes do horário de corte, que sumiu da listagem é procurada e cancelada', async () => {
+        const { usecase, chamadas, agenda } = montar({
+            agendamentos: [],
+            negocios: [vinculado(-1, '2026-11-14', '10:00')],
+            existe: false,
+        });
+        await usecase.executar('agir');
+        expect(agenda.obterSeExistir).toHaveBeenCalledWith(-1);
+        expect(chamadas.some(c => c[0] === 'encerrarComoPerdido')).toBe(true);
+    });
+
+    it('consulta do último dia, depois do horário de corte, não é procurada (está fora da janela)', async () => {
+        const { usecase, agenda } = montar({
+            agendamentos: [],
+            negocios: [vinculado(-1, '2026-11-14', '15:00')],
+            existe: false,
+        });
+        await usecase.executar('agir');
+        expect(agenda.obterSeExistir).not.toHaveBeenCalled();
+    });
+
     it('cancelado fecha como perdido e marca etapa cancelado', async () => {
         const { usecase, chamadas } = montar({
             agendamentos: [ag(-1, '2026-11-20T10:00:00', 5)],
@@ -503,7 +545,7 @@ describe('MonitorarAgendaUseCase', () => {
     it('some da listagem porque foi remarcado para depois da janela: regrava as datas', async () => {
         const { usecase, chamadas, agenda } = montar({
             agendamentos: [],
-            negocios: [vinculado(-1, '2026-11-20', '10:00')],
+            negocios: [vinculado(-1, '2026-11-13', '10:00')],
             foraDaJanela: [ag(-1, '2026-12-20T10:00:00')],
         });
         await usecase.executar('agir');
@@ -519,7 +561,7 @@ describe('MonitorarAgendaUseCase', () => {
     it('some e não existe mais cancela', async () => {
         const { usecase, chamadas } = montar({
             agendamentos: [],
-            negocios: [vinculado(-1, '2026-11-20', '10:00')],
+            negocios: [vinculado(-1, '2026-11-13', '10:00')],
             existe: false,
         });
         await usecase.executar('agir');

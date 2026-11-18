@@ -41,7 +41,8 @@ export interface ResumoRodada {
     falhas: number;
 }
 
-const DIAS_JANELA = 30;
+/** O monitor só olha a agenda das próximas horas: o que está mais longe ainda não entra na cadeia. */
+const HORAS_JANELA = 48;
 const TAG_SEM_TELEFONE = 'sem telefone no MedX';
 const TAG_AMBIGUO = 'conferir agendamento MedX';
 const MINUTOS_ALERTA_BLOQUEIO = 60;
@@ -71,7 +72,7 @@ interface Rodada {
 }
 
 /**
- * Reconcilia a agenda do MedX (hoje → +30 dias) com os negócios abertos da
+ * Reconcilia a agenda do MedX (hoje → próximas 48 horas) com os negócios abertos da
  * RECEPÇÃO. A Clint é a fonte do estado: o vínculo é o campo
  * `id_agendamento_medx` do negócio. Em `observar`, só registra no log o que
  * faria. Duas fases: primeiro a etapa (ou o `proximo_lembrete`, que faz a
@@ -97,7 +98,7 @@ export class MonitorarAgendaUseCase {
     async executar(modo: ModoMonitor): Promise<ResumoRodada> {
         const agora = this.relogio.agora();
         const inicioJanela = agora.startOf('day');
-        const fimJanela = inicioJanela.plus({ days: DIAS_JANELA });
+        const fimJanela = agora.plus({ hours: HORAS_JANELA });
 
         let base;
         try {
@@ -440,11 +441,9 @@ export class MonitorarAgendaUseCase {
         inicioJanela: DateTime,
         fimJanela: DateTime,
     ): Promise<void> {
-        const de = inicioJanela.toISODate()!;
-        const ate = fimJanela.toISODate()!;
         for (const [id, negocio] of r.porIdAgendamento) {
-            const data = negocio.campos.data_agendamento;
-            if (vistos.has(id) || !data || data < de || data >= ate) continue;
+            const quando = this.momentoDaConsulta(negocio);
+            if (vistos.has(id) || !quando || quando < inicioJanela || quando >= fimJanela) continue;
             const seguir = await this.comProtecao(r, Number(id), async () => {
                 const externo = await this.agenda.obterSeExistir(Number(id));
                 if (!externo || r.cancelamento.includes(externo.status)) {
@@ -455,6 +454,17 @@ export class MonitorarAgendaUseCase {
             });
             if (!seguir) return;
         }
+    }
+
+    /** Data e hora da consulta gravadas no negócio; sem hora válida, o início do dia. */
+    private momentoDaConsulta(negocio: NegocioRecepcao): DateTime | null {
+        const data = negocio.campos.data_agendamento;
+        if (!data) return null;
+        const hora = negocio.campos.hora_agendamento;
+        const comHora = DateTime.fromISO(`${data}T${hora ?? '00:00'}`, { zone: FUSO_CLINICA });
+        if (comHora.isValid) return comHora;
+        const soData = DateTime.fromISO(data, { zone: FUSO_CLINICA });
+        return soData.isValid ? soData : null;
     }
 
     /**
