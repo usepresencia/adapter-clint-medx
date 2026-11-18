@@ -416,6 +416,77 @@ describe('MonitorarAgendaUseCase', () => {
         expect(chamadas).toEqual([]);
     });
 
+    it('alerta o negócio duplicado uma vez por contato, não a cada rodada', async () => {
+        const antigo = negocio(
+            'deal1',
+            { id_agendamento_medx: '-1', etapa_lembrete: 'd3_preparacao_consulta' },
+            { contatoId: 'c-dup', criadoEm: '2026-11-10T10:00:00Z' },
+        );
+        const novo = negocio('deal2', {}, { contatoId: 'c-dup', criadoEm: '2026-11-12T09:00:00Z' });
+        const { usecase, chamadas, logger } = montar({
+            agendamentos: [],
+            negocios: [antigo, novo],
+        });
+        await usecase.executar('agir');
+        await usecase.executar('agir');
+        await usecase.executar('agir');
+        expect(logger.warn).toHaveBeenCalledTimes(1);
+        expect(chamadas.filter(c => c[0] === 'adicionarTag')).toHaveLength(1);
+    });
+
+    it('volta a alertar o mesmo duplicado depois de 6 horas', async () => {
+        const antigo = negocio(
+            'deal1',
+            { id_agendamento_medx: '-1', etapa_lembrete: 'd3_preparacao_consulta' },
+            { contatoId: 'c-dup', criadoEm: '2026-11-10T10:00:00Z' },
+        );
+        const novo = negocio('deal2', {}, { contatoId: 'c-dup', criadoEm: '2026-11-12T09:00:00Z' });
+        const { usecase, logger, definirAgora } = montar({
+            agendamentos: [],
+            negocios: [antigo, novo],
+        });
+        await usecase.executar('agir');
+        definirAgora('2026-11-12T17:59:00');
+        await usecase.executar('agir');
+        expect(logger.warn).toHaveBeenCalledTimes(1);
+        definirAgora('2026-11-12T18:01:00');
+        await usecase.executar('agir');
+        expect(logger.warn).toHaveBeenCalledTimes(2);
+    });
+
+    it('contatos diferentes têm alertas independentes', async () => {
+        const par = (c: string, d: string) => [
+            negocio(
+                `${d}a`,
+                { id_agendamento_medx: '-1' },
+                { contatoId: c, criadoEm: '2026-11-10T10:00:00Z' },
+            ),
+            negocio(`${d}b`, {}, { contatoId: c, criadoEm: '2026-11-12T09:00:00Z' }),
+        ];
+        const { usecase, logger } = montar({
+            agendamentos: [],
+            negocios: [...par('c-x', 'x'), ...par('c-y', 'y')],
+        });
+        await usecase.executar('agir');
+        await usecase.executar('agir');
+        expect(logger.warn).toHaveBeenCalledTimes(2);
+    });
+
+    it('bloqueio perto do gatilho alerta uma vez por negócio, não a cada rodada', async () => {
+        const preso = negocio('deal7', {
+            id_agendamento_medx: '-7',
+            etapa_lembrete: 'd0_boas_vindas',
+            proximo_lembrete: 'd1',
+        });
+        const { usecase, logger } = montar({
+            agendamentos: [ag(-7, '2026-11-13T10:00:00')],
+            negocios: [preso],
+        });
+        await usecase.executar('agir');
+        await usecase.executar('agir');
+        expect(logger.warn).toHaveBeenCalledTimes(1);
+    });
+
     it('cancelado fecha como perdido e marca etapa cancelado', async () => {
         const { usecase, chamadas } = montar({
             agendamentos: [ag(-1, '2026-11-20T10:00:00', 5)],

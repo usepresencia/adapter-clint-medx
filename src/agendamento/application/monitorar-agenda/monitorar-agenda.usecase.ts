@@ -47,6 +47,8 @@ const TAG_AMBIGUO = 'conferir agendamento MedX';
 const MINUTOS_ALERTA_BLOQUEIO = 60;
 /** Negócio novo sem id pode estar só esperando o webhook de entrada; depois disso é duplicado. */
 const MINUTOS_CARENCIA_DUPLICADO = 30;
+/** Mesmo alerta só volta a sair depois disto (a rodada é de 5 em 5 min e o problema dura horas). */
+const MINUTOS_REALERTA = 6 * 60;
 
 function ehLimiteDeRequisicoes(erro: unknown): boolean {
     return erro instanceof Error && erro.name === 'ErroRateLimit';
@@ -78,6 +80,9 @@ interface Rodada {
  */
 @Injectable()
 export class MonitorarAgendaUseCase {
+    /** Último alerta por chave. Em memória: um restart pode repetir um alerta uma vez, nada além. */
+    private readonly alertados = new Map<string, number>();
+
     constructor(
         @Inject(AGENDA_MEDICA_PORT) private readonly agenda: AgendaMedicaPort,
         @Inject(CATALOGO_CLINICO_PORT) private readonly catalogo: CatalogoClinicoPort,
@@ -175,6 +180,7 @@ export class MonitorarAgendaUseCase {
             const maisNovo = grupo.reduce((a, b) => (b.criadoEm > a.criadoEm ? b : a));
             const idade = r.agora.diff(DateTime.fromISO(maisNovo.criadoEm), 'minutes').minutes;
             if (maisNovo.campos.id_agendamento_medx || idade < MINUTOS_CARENCIA_DUPLICADO) continue;
+            if (this.jaAlertado(`duplicado:${contatoId}`, r.agora)) continue;
 
             this.logger.warn(
                 { alerta: true, contato: contatoId, deal_id: maisNovo.id },
@@ -392,6 +398,7 @@ export class MonitorarAgendaUseCase {
         if (!gatilho) return;
         const minutos = gatilho.diff(r.agora, 'minutes').minutes;
         if (minutos < 0 || minutos >= MINUTOS_ALERTA_BLOQUEIO) return;
+        if (this.jaAlertado(`bloqueio:${negocio.id}`, r.agora)) return;
 
         this.logger.warn(
             { alerta: true, id_agendamento: ag.id, deal_id: negocio.id, passo: proximo },
@@ -537,6 +544,17 @@ export class MonitorarAgendaUseCase {
 
     private async gravarSeHouver(dealId: string, campos: CamposNegocio): Promise<void> {
         if (Object.keys(campos).length > 0) await this.crm.gravarCampos(dealId, campos);
+    }
+
+    /** `true` se esta chave já alertou há menos de `MINUTOS_REALERTA`; senão registra agora. */
+    private jaAlertado(chave: string, agora: DateTime): boolean {
+        const limite = agora.toMillis() - MINUTOS_REALERTA * 60_000;
+        for (const [k, quando] of this.alertados) {
+            if (quando <= limite) this.alertados.delete(k);
+        }
+        if (this.alertados.has(chave)) return true;
+        this.alertados.set(chave, agora.toMillis());
+        return false;
     }
 
     private async escrever(
